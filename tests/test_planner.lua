@@ -84,7 +84,8 @@ local pc = P.Plan(ctxFor(110, 300, nil, { price = cheap }))
 for _, st in ipairs(pc.steps) do
   if st.spell and not st.credited then
     check(st.cost >= st.crafts * 1, st.name .. " shown as free")
-    check(not st.alt or st.crafts <= (st.to - st.from) * 3 + 3, ("%s: %.0f crafts for %d points despite an alternative"):format(st.name, st.crafts, st.to - st.from))
+    check(not st.alt or st.alt.ours <= st.alt.perPoint * 1.03 + 1e-6,
+      ("%s chosen although %s is cheaper per point"):format(st.name, st.alt and st.alt.name or "?"))
   end
 end
 -- intermediates are only credited for what the route uses
