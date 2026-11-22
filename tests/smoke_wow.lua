@@ -22,7 +22,14 @@ _G.UIParent, _G.UISpecialFrames, _G.SlashCmdList = stubObj(), {}, {}
 _G.tinsert = table.insert
 _G.GameTooltip = stubObj()
 _G.C_Timer = { After = function(_, f) f() end }
-_G.UnitName = function() return "Tester" end
+local npcName = "Hgarth"
+_G.UnitName = function(u) if u == "npc" then return npcName end return "Tester" end
+_G.UnitFactionGroup = function() return "Horde" end
+_G.GetRealZoneText = function() return "Stonetalon Mountains" end
+_G.GetSubZoneText = function() return "Sun Rock Retreat" end
+_G.time = os.time
+_G.C_Map = { GetBestMapForUnit = function() return 1442 end,
+             GetPlayerMapPosition = function() return { GetXY = function() return 0.4723, 0.6181 end } end }
 _G.GetRealmName = function() return "Forever" end
 _G.debugprofilestop = function() return os.clock() * 1000 end
 _G.GetProfessions = function() return 1, 2 end
@@ -39,9 +46,12 @@ _G.Auctionator = { API = { v1 = {
   GetAuctionPriceByItemID = function(_, id) return prices[id] end,
   RegisterForDBUpdate = function() end } } }
 -- trainer window with two services
-_G.GetNumTrainerServices = function() return 2 end
-_G.GetTrainerServiceInfo = function(i) return i == 1 and "Earthen Vest" or "Robe of Power" end
-_G.GetTrainerServiceSkillReq = function(i) return "Tailoring", i == 1 and 145 or 160, true end
+_G.GetNumTrainerServices = function() return 3 end
+_G.GetTrainerServiceInfo = function(i)
+  if i == 3 then return "Tailoring", "Expert" end -- the rank-up service
+  return i == 1 and "Earthen Vest" or "Robe of Power"
+end
+_G.GetTrainerServiceSkillReq = function(i) return "Tailoring", (i == 1 and 145) or (i == 2 and 160) or 125, true end
 _G.GetTrainerServiceCost = function() return 1500 end
 _G.GetTrainerServiceItemLink = function(i) return i == 1 and "|Hitem:7051::|h" or nil end
 -- open profession window (modern API)
@@ -65,6 +75,23 @@ Core.Char()
 Core.ScanTrainer()
 assert(SkillRouteDB.trainer[197][8764].req == 145, "Earthen Vest matched by created item -> classic version")
 assert(SkillRouteDB.trainer[197][8764].cost == 1500)
+local tr = SkillRouteDB.places.trainers[197].Hgarth
+assert(tr and tr.ranks.Expert and tr.zone == "Stonetalon Mountains" and tr.x == 47.2 and tr.y == 61.8 and tr.faction == "Horde",
+  "trainer name, rank, zone and coordinates recorded")
+-- a vendor selling a pattern
+local patItem = SkillRouteData.professions[197].recipes[1257487].pat[1] -- Runecloth Cuffs
+npcName = "Kania"
+_G.GetMerchantNumItems = function() return 1 end
+_G.GetMerchantItemID = function() return patItem end
+_G.GetMerchantItemInfo = function() return "Pattern", nil, 100000, 1, -1 end
+Core.ScanMerchant()
+local vp = Core.Place("vendor", patItem)
+assert(vp and vp.npc == "Kania" and vp.price == 100000 and not vp.limited, "pattern vendor recorded")
+assert(Core.FormatPlace(vp, true) == "Kania, Stonetalon Mountains, Sun Rock Retreat (47.2, 61.8)", Core.FormatPlace(vp, true))
+UnitFactionGroup = function() return "Alliance" end
+assert(not Core.Place("vendor", patItem), "other faction's vendor not suggested")
+UnitFactionGroup = function() return "Horde" end
+npcName = "Hgarth"
 Core.ScanRecipes()
 assert(Core.Char().known[197][3848], "learned recipe recorded")
 assert(Core.mismatch[197] == 0, "live colours match data at 110: got " .. tostring(Core.mismatch[197]))
@@ -167,6 +194,19 @@ do
   local later = false
   for _, t in ipairs(texts) do local v = rawget(t, "text"); if type(v) == "string" and v:find("counted later", 1, true) then later = true end end
   assert(later, "an intermediate step shows 'counted later'")
+  UI.Toggle()
+  GetProfessions, GetProfessionInfo = saved[1], saved[2]
+end
+-- the "Train Expert" row names the trainer and where they are
+do
+  local saved = { GetProfessions, GetProfessionInfo }
+  GetProfessions = function() return 1 end
+  GetProfessionInfo = function() return "Tailoring", 0, 140, 150, 0, 0, 197 end
+  UI.Toggle(197)
+  local row
+  for _, t in ipairs(texts) do local v = rawget(t, "text"); if type(v) == "string" and v:find("Train Expert", 1, true) then row = v end end
+  assert(row and row:find("at Hgarth", 1, true), "train row names the trainer: " .. tostring(row))
+  print("train row: " .. row:gsub("|c%x%x%x%x%x%x%x%x", ""):gsub("|r", ""))
   UI.Toggle()
   GetProfessions, GetProfessionInfo = saved[1], saved[2]
 end

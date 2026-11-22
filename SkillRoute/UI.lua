@@ -140,9 +140,17 @@ local function routeRows(plan)
   for _, st in ipairs(plan.steps) do
     -- rank training needed before this step?
     while RANKS[trained] and st.from >= trained do
+      local rank = RANKS[trained]
+      local p, n = Core.Place("trainer", plan.line, rank)
+      local where = p and (p.zone .. (p.sub and (", " .. p.sub) or "") .. (p.x and (" (%.1f, %.1f)"):format(p.x, p.y) or ""))
       add({ icon = "Interface\\Icons\\INV_Misc_Book_09",
-            text = ("|cffffd100Train %s at your trainer|r"):format(RANKS[trained]),
-            sub = ("Needed to go past %d"):format(trained), range = tostring(trained) })
+            text = ("|cffffd100Train %s|r"):format(rank) .. (p and (" at " .. p.npc) or " at your trainer"),
+            sub = ("Needed to go past %d"):format(trained)
+                  .. (where and ("  -  " .. where) or ("  -  |cff808080no %s trainer seen yet|r"):format(rank)),
+            range = tostring(trained),
+            tipTitle = ("Train %s"):format(rank),
+            tip = { p and (("Seen at %s."):format(Core.FormatPlace(p, true)) .. (n > 1 and (" %d trainers known."):format(n) or ""))
+                      or "Talk to a trainer who teaches it once and SkillRoute will remember where they are." } })
       trained = trained + 75
     end
     -- get each tool (rod, hammer...) right before the first step that needs it
@@ -182,7 +190,8 @@ local function routeRows(plan)
             local pt = g.patterns[k]
             add({ item = pt.item, text = "   " .. pt.name,
                   sub = "   Good until " .. pt.to .. (pt.from and ("  -  " .. pt.from) or "")
-                        .. (pt.where and ("  -  " .. pt.where) or "")
+                        .. ((Core.Place("vendor", pt.item) and ("  -  Sold by " .. Core.FormatPlace(Core.Place("vendor", pt.item))))
+                            or (pt.where and ("  -  " .. pt.where)) or "")
                         .. (pt.repFaction and ("  -  |cffff8040needs %s with %s|r"):format(
                               RANK_NAMES[pt.repRank] or "?", Data.factions[pt.repFaction] or "?") or "")
                         .. (pt.price and "  -  AH" or "  -  not on the AH in your last scan"),
@@ -199,7 +208,8 @@ local function routeRows(plan)
         if st.unlock and st.unlock.via == "ah" then
           learn = "  |cffffd100Buy pattern on the AH (last seen " .. money(st.learnCost, YELLOW) .. ")|r"
         else
-          learn = "  |cffffd100Buy pattern from a vendor (" .. money(st.learnCost, YELLOW) .. ")|r"
+          local p = st.unlock and Core.Place("vendor", st.unlock.item)
+          learn = "  |cffffd100Buy pattern from " .. (p and p.npc or "a vendor") .. " (" .. money(st.learnCost, YELLOW) .. ")|r"
         end
       elseif st.learn == "trainer?" then
         learn = "  |cffffd100Learn at trainer (not confirmed yet)|r"
@@ -219,7 +229,15 @@ local function routeRows(plan)
         tip[#tip + 1] = sv and ("Buying the pattern saves about %s over the whole route, its price included."):format(money(sv))
                         or "No trainer recipe covers this range; this is the cheapest way through."
       end
-      if r.where and st.learn == "pattern" then tip[#tip + 1] = "Where: " .. r.where end
+      if st.learn == "pattern" and st.unlock then
+        local p, n = Core.Place("vendor", st.unlock.item)
+        if p then
+          tip[#tip + 1] = ("Sold by %s%s.%s"):format(Core.FormatPlace(p, true), p.limited and " (limited stock)" or "",
+            n > 1 and (" %d vendors known."):format(n) or "")
+        elseif r.where then
+          tip[#tip + 1] = "Where: " .. r.where
+        end
+      end
       for _, u in ipairs(st.tools or {}) do
         tip[#tip + 1] = ("Needs a %s in your bags: %s."):format(u.name,
           u.craftSpell and "craft one first (on the shopping list)" or ("buy one for " .. money(u.price)))
@@ -257,8 +275,9 @@ local function shoppingRows(plan)
   end
   for _, b in ipairs(plan.shopping.buy) do
     local tags = {}
+    local p = b.pattern and not b.ah and Core.Place("vendor", b.item)
     if b.pattern then tags[#tags + 1] = b.ah and "|cffffd100pattern, on the AH (last seen price)|r"
-                                         or "|cffffd100pattern, from a vendor|r"
+                                         or ("|cffffd100pattern, from " .. (p and Core.FormatPlace(p, true) or "a vendor") .. "|r")
     elseif b.tool then tags[#tags + 1] = "|cffff8040tool: keep it in your bags|r" .. (b.vendor and ", vendor" or "")
     elseif b.vendor then tags[#tags + 1] = "vendor" end
     if b.est then tags[#tags + 1] = "|cffff8040estimated price|r" end

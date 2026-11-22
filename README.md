@@ -49,6 +49,12 @@ Copy the `SkillRoute` folder into `World of Warcraft/_forever_/Interface/AddOns/
 - `/sr estimate on|off` turns price estimates for unpriced items on or off.
 - `/sr cdmats on|off` includes recipes using Mooncloth / Arcanite Bar (default off).
 
+**Trainers and vendors:** when you talk to a profession trainer or a vendor that sells
+patterns, SkillRoute notes the NPC's name, zone and map coordinates (and which rank
+the trainer teaches, or the pattern's price and whether stock is limited). From then
+on "Train Expert" and "Buy pattern" steps say who and where. Shared by your
+characters of the same faction.
+
 For the best plan: scan the AH with Auctionator, open your profession window once,
 and visit your trainer once.
 
