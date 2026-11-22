@@ -303,6 +303,36 @@ local function auctionator()
   return api and api.GetAuctionPriceByItemID and api or nil
 end
 
+-- Seen on the AH today or yesterday? For one-off listings such as patterns, an old
+-- "last seen" price says nothing about whether one is for sale now. Without
+-- Auctionator's age API we can't tell, and don't block (right-click skip covers it).
+local MAX_AH_AGE_DAYS = 1
+function Core.AHFresh(item)
+  local api = auctionator()
+  if not (api and api.GetAuctionAgeByItemID) then return true end
+  local ok, age = pcall(api.GetAuctionAgeByItemID, CALLER, item)
+  if not ok then return true end
+  return age ~= nil and age <= MAX_AH_AGE_DAYS
+end
+
+-- Recipes you marked as unavailable (right-click a step); per character.
+function Core.Skips(line)
+  local c = Core.Char()
+  c.skip = c.skip or {}
+  c.skip[line] = c.skip[line] or {}
+  return c.skip[line]
+end
+function Core.ToggleSkip(line, spell)
+  local s = Core.Skips(line)
+  s[spell] = not s[spell] or nil
+  Core.InvalidatePatterns()
+  return s[spell]
+end
+function Core.ClearSkips()
+  Core.Char().skip = {}
+  Core.InvalidatePatterns()
+end
+
 function Core.PriceSource()
   return auctionator() and "Auctionator" or nil
 end
@@ -426,6 +456,7 @@ function Core.Plan(line, target)
     vendorSeen = function(item) return Core.Place("vendor", item) ~= nil end,
     bonus = settings.bonus or 0,
     fixedUnlocks = cached and cached.key == key and cached.set or nil,
+    skip = Core.Skips(line), ahFresh = Core.AHFresh,
   })
   if not (cached and cached.key == key) then
     local set = {}

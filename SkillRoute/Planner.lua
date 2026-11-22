@@ -176,6 +176,8 @@ local function findUnlocks(ctx, unit)
             end
             local v = vendorOK and ctx.items[it] and ctx.items[it][3] or nil
             local ah, est = ctx.price(it)
+            -- a one-off listing: only trust a recent sighting (ctx.ahFresh), not an old price
+            if ah and ctx.ahFresh and not ctx.ahFresh(it) then ah = nil end
             if est or ah == v then ah = nil end -- estimate, or just the vendor price echoed back
             local p, via
             if v and (not ah or v <= ah) then p, via = v, "vendor" elseif ah then p, via = ah, "ah" end
@@ -308,6 +310,8 @@ end
   have    = function(itemID) -> count       (optional)
   hasTool = function(toolKey) -> bool       (optional)
   avoidMats = {[itemID]=true}               (optional; recipes using these are left out)
+  skip = {[spell]=true}                     (optional; recipes you marked unavailable)
+  ahFresh = function(item) -> bool          (optional; pattern seen on the AH recently?)
   faction = "A" | "H", patternVendors = Data.patternVendors, vendorSeen = function(item) -> bool
                                             (optional; vendor patterns only from your faction's vendors)
   maxSkill = current cap (e.g. 225)         (optional; steps split only at caps not yet trained)
@@ -403,7 +407,8 @@ function Planner.PlanOnce(ctx, credit)
     return false
   end
   for spell, r in pairs(recipes) do
-    if r.g > from and not r.cd and not usesAvoided(r) then -- cooldown recipes can't be ground
+    if r.g > from and not r.cd and not usesAvoided(r) and not (ctx.skip and ctx.skip[spell]) then
+      -- cooldown recipes can't be ground; skipped = you marked it unavailable
       local learnAt, how, missing = requirements(spell, r, ctx, all)
       if learnAt and learnAt < to then
         local c, est = costOf(spell)

@@ -48,6 +48,9 @@ Copy the `SkillRoute` folder into `World of Warcraft/_forever_/Interface/AddOns/
 - `/sr overtime <pct>` sets your Working Overtime talent bonus.
 - `/sr estimate on|off` turns price estimates for unpriced items on or off.
 - `/sr cdmats on|off` includes recipes using Mooncloth / Arcanite Bar (default off).
+- **Right-click a step** to skip that recipe (e.g. its pattern isn't for sale) and
+  re-plan without it; `/sr unskip` brings skipped recipes back. Patterns are only
+  "on the AH" if Auctionator saw one today or yesterday.
 
 **Faction:** a pattern is only "bought from a vendor" if a vendor of your faction sells
 it (vendor lists from the cMaNGOS Classic database, factions from Forever's own

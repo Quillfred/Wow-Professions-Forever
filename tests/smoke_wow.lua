@@ -9,6 +9,7 @@ local function stubObj()
     if k == "Hide" then return function(self) self.shown = false; if self.OnHide then self.OnHide(self) end end end
     if k == "SetText" then return function(self, v) self.text = v end end
     if k == "GetText" then return function(self) return self.text end end
+    if k == "RegisterForClicks" then return function() end end
     if k == "SetScript" then return function(self, n, f) if n == "OnShow" then self.onShow = f end; self[n] = f end end
     if k == "RegisterEvent" then return function(self, ev) local e = rawget(self, "events") or {}; rawset(self, "events", e); e[ev] = true end end
     if k == "CreateTexture" then return function() return stubObj() end end
@@ -209,5 +210,16 @@ do
   print("train row: " .. row:gsub("|c%x%x%x%x%x%x%x%x", ""):gsub("|r", ""))
   UI.Toggle()
   GetProfessions, GetProfessionInfo = saved[1], saved[2]
+end
+-- right-click skip + /sr unskip; AH age check
+do
+  assert(Core.ToggleSkip(197, 3848) == true and Core.Skips(197)[3848], "skip recorded")
+  assert(Core.ToggleSkip(197, 3848) == nil, "toggle back")
+  Core.ToggleSkip(197, 3848); SlashCmdList.SKILLROUTE("unskip")
+  assert(next(Core.Skips(197)) == nil, "/sr unskip clears")
+  Auctionator.API.v1.GetAuctionAgeByItemID = function(_, id) return id == 1 and 0 or 5 end
+  assert(Core.AHFresh(1) and not Core.AHFresh(2), "seen today: fresh; 5 days ago: not")
+  Auctionator.API.v1.GetAuctionAgeByItemID = nil
+  assert(Core.AHFresh(2), "no age API: don't block")
 end
 print("SMOKE TEST PASSED")

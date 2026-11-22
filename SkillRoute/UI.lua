@@ -109,6 +109,14 @@ local function row(i)
     GameTooltip:Show()
   end)
   r:SetScript("OnLeave", function() GameTooltip:Hide() end)
+  r:RegisterForClicks("RightButtonUp")
+  r:SetScript("OnClick", function(self)
+    if not (self.skipSpell and state.line) then return end
+    local skipped = Core.ToggleSkip(state.line, self.skipSpell)
+    print(("SkillRoute: %s %s. /sr unskip brings back everything you skipped."):format(
+      skipped and "skipping" or "no longer skipping", self.skipName or "?"))
+    UI.Refresh()
+  end)
   rows[i] = r
   return r
 end
@@ -121,6 +129,7 @@ local function setRow(i, opts)
   r.right:SetText(opts.right or "")
   r.range:SetText(opts.range or "")
   r.item, r.spell, r.tip, r.tipTitle = opts.item, opts.spell, opts.tip, opts.tipTitle or opts.title
+  r.skipSpell, r.skipName = opts.skipSpell, opts.skipName
   r:Show()
 end
 
@@ -262,7 +271,8 @@ local function routeRows(plan)
         for _, u in ipairs(st.tools) do names[#names + 1] = u.name end
         learn = learn .. "  |cffff8040needs " .. table.concat(names, ", ") .. "|r"
       end
-      add({ item = r.out, spell = st.spell, tip = tip,
+      tip[#tip + 1] = "|cff808080Right-click: skip this recipe (e.g. pattern not for sale) and plan without it.|r"
+      add({ item = r.out, spell = st.spell, tip = tip, skipSpell = st.spell, skipName = st.name,
             text = ("|cff%s~%d|r x %s"):format(COLORS[st.color] or "ffffff", math.ceil(st.crafts - 1e-9), st.name),
             sub = mats(st.spell, plan.line) .. learn,
             range = ("%d-%d"):format(st.from, st.to),
@@ -324,6 +334,11 @@ function UI.Refresh()
   end
   local src = Core.PriceSource() and "Auctionator prices" or "|cffff4040Auctionator not found|r"
   local warn = {}
+  local nSkip = 0
+  for _ in pairs(Core.Skips(plan.line)) do nSkip = nSkip + 1 end
+  if nSkip > 0 then
+    warn[#warn + 1] = ("|cffffd100%d recipe%s skipped by you (/sr unskip to bring back)|r"):format(nSkip, nSkip > 1 and "s" or "")
+  end
   if plan.unpriced > 0 then
     warn[#warn + 1] = ("|cffff8040%d recipes skipped: reagents with no price (scan the AH)|r"):format(plan.unpriced)
   end
@@ -492,6 +507,9 @@ SlashCmdList.SKILLROUTE = function(msg)
     settings.estimate = (arg == "on")
     Core.InvalidatePatterns()
     print("SkillRoute: price estimates for items with no AH price are " .. (settings.estimate and "ON (marked in orange)" or "OFF (those recipes are skipped)"))
+  elseif cmd == "unskip" then
+    Core.ClearSkips()
+    print("SkillRoute: all skipped recipes are back in the plan.")
   elseif cmd == "cdmats" and settings then
     settings.cdmats = (arg == "on")
     print("SkillRoute: recipes using cooldown-only materials (Mooncloth, Arcanite Bar) are "
@@ -501,7 +519,7 @@ SlashCmdList.SKILLROUTE = function(msg)
     print("SkillRoute: open with the profession window is " .. (settings.auto and "ON" or "OFF"))
     return
   elseif cmd == "help" then
-    print("SkillRoute: /sr - open/close   /sr auto on|off   /sr overtime <pct>   /sr estimate on|off   /sr cdmats on|off")
+    print("SkillRoute: /sr - open/close   /sr auto on|off   /sr overtime <pct>   /sr estimate on|off   /sr cdmats on|off   /sr unskip   (right-click a step to skip it)")
     return
   else
     UI.Toggle()

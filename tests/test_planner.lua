@@ -337,6 +337,17 @@ local seenPlan = P.Plan(ctxFor(110, 150, nil, { price = bysPrice, faction = "H",
   patternVendors = D.patternVendors, vendorSeen = function(it) return it == bysItem end }))
 check(seenPlan.unlocks["p:" .. bys], "a vendor you visited counts, whatever the lists say")
 
+-- 10h. stale AH sightings and skipped recipes
+check(seen.unlocks["p:" .. dropPat], "(baseline) drop pattern bought on its AH price")
+local stale = P.Plan({ recipes = T, items = items, tools = D.tools, hasTool = function() return true end,
+  skill = 250, target = 280, known = {}, trainer = {}, price = function(id) return only(id, false) end,
+  ahFresh = function() return false end })
+check(not stale.unlocks["p:" .. dropPat], "a pattern not seen on the AH recently is not bought there")
+local skipped = P.Plan({ recipes = T, items = items, tools = D.tools, hasTool = function() return true end,
+  skill = 250, target = 280, known = {}, trainer = {}, price = function(id) return only(id, false) end,
+  skip = { [dropPat] = true } })
+for _, st in ipairs(skipped.steps) do check(st.spell ~= dropPat, "skipped recipe not planned") end
+
 -- 11. reputation patterns: only with the standing they need
 local function repPlan(standing)
   return P.Plan({ recipes = T, items = items, tools = D.tools, hasTool = function() return false end,
