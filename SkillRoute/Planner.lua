@@ -187,12 +187,14 @@ local function findUnlocks(ctx, unit)
         for _, it in ipairs(def[2]) do isTool[it] = true end
         for spell, r in pairs(ctx.recipes) do -- or craft it with this profession
           if r.out and isTool[r.out] and not r.cd then
-            local learnAt = Planner.LearnAt(spell, r, { known = ctx.known, trainer = ctx.trainer })
+            local learnAt, how = Planner.LearnAt(spell, r, { known = ctx.known, trainer = ctx.trainer })
             local ok = learnAt ~= nil
             for _, t2 in ipairs(r.tool or {}) do ok = ok and hasTool(ctx, t2) end
             local c = ok and reagentCost(r, unit)
             if c and (not opt or c < opt.price) then
-              opt = { price = c, item = r.out, from = learnAt, craftSpell = spell }
+              opt = { price = c, item = r.out, from = learnAt, craftSpell = spell,
+                      learnHow = how ~= "known" and how or nil,
+                      learnCost = (ctx.trainer[spell] and ctx.trainer[spell].cost) or r.tc }
             end
           end
         end

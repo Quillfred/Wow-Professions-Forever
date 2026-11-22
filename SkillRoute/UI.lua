@@ -114,6 +114,7 @@ local function routeRows(plan)
   local n = 0
   local function add(o) n = n + 1; setRow(n, o) end
   local trained = plan.max
+  local toolShown = {}
   for _, st in ipairs(plan.steps) do
     -- rank training needed before this step?
     while RANKS[trained] and st.from >= trained do
@@ -121,6 +122,30 @@ local function routeRows(plan)
             text = ("|cffffd100Train %s at your trainer|r"):format(RANKS[trained]),
             sub = ("Needed to go past %d"):format(trained), right = tostring(trained) })
       trained = trained + 75
+    end
+    -- get each tool (rod, hammer...) right before the first step that needs it
+    for _, u in ipairs(st.tools or {}) do
+      if not toolShown[u] then
+        toolShown[u] = true
+        local learn = ""
+        if u.learnHow == "trainer" then
+          learn = "  |cffffd100Learn at trainer" .. (u.learnCost and (" (" .. money(u.learnCost) .. ")") or "") .. "|r"
+        elseif u.learnHow == "trainer?" then
+          learn = "  |cffffd100Learn at trainer (not confirmed yet)|r"
+        end
+        if u.craftSpell then
+          add({ item = u.item, spell = u.craftSpell,
+                text = ("|cffff8040Craft 1 x %s|r  (tool: keep it in your bags)"):format(itemName(u.item)),
+                sub = mats(u.craftSpell, plan.line) .. learn,
+                right = ("%d+  %s"):format(math.max(u.from, st.from), money(u.price)),
+                tip = { ("Needed from %d on. Craft it once and keep it in your bags (not the bank)."):format(st.from) } })
+        else
+          add({ item = u.item,
+                text = ("|cffff8040Buy 1 x %s|r  (tool: keep it in your bags)"):format(itemName(u.item)),
+                sub = (Data.items[u.item] and Data.items[u.item][3]) and "From a trade supplies vendor" or "From the auction house",
+                right = money(u.price) })
+        end
+      end
     end
     if st.gap then
       add({ icon = "Interface\\Icons\\INV_Scroll_03",

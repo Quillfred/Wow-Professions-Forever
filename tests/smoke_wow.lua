@@ -1,5 +1,6 @@
 -- Loads the whole addon against a fake WoW API and drives the main paths, to catch
 -- nil/typo errors outside the game. Run from the repo root: lua5.1 tests/smoke_wow.lua
+local texts = {}
 local function stubObj()
   local o = { shown = false, text = "" }
   return setmetatable(o, { __index = function(t, k)
@@ -10,7 +11,8 @@ local function stubObj()
     if k == "GetText" then return function(self) return self.text end end
     if k == "SetScript" then return function(self, n, f) if n == "OnShow" then self.onShow = f end; self[n] = f end end
     if k == "RegisterEvent" then return function(self, ev) local e = rawget(self, "events") or {}; rawset(self, "events", e); e[ev] = true end end
-    if k == "CreateTexture" or k == "CreateFontString" then return function() return stubObj() end end
+    if k == "CreateTexture" then return function() return stubObj() end end
+    if k == "CreateFontString" then return function() local o = stubObj(); texts[#texts + 1] = o; return o end end
     return function() end
   end })
 end
@@ -95,6 +97,39 @@ UI.AttachButton()
 SlashCmdList.SKILLROUTE("") -- close
 assert(not UI.IsShown())
 assert(Core.Standing(609) == 4 and Core.Standing(576) == nil, "standing from GetFactionInfoByID (standingID - 1)")
+-- tools: Enchanting without rods -> route rows tell you to craft them
+local ench = SkillRouteTestNS and nil
+do
+  local Planner = ns.Planner
+  local D = SkillRouteData
+  local pl = Planner.Plan({ recipes = D.professions[333].recipes, items = D.items, tools = D.tools,
+    skill = 130, target = 225, maxSkill = 225, known = {}, trainer = {},
+    price = function(id) if id == 6339 or id == 11130 or id == 11145 or id == 16207 then return nil end return Core.Price(id) end,
+    hasTool = function(k) return k == 373 or k == 374 end })
+  local crafted = {}
+  for k, u in pairs(pl.unlocks) do if u.kind == "tool" and u.craftSpell then crafted[#crafted + 1] = u.name end end
+  table.sort(crafted)
+  assert(#crafted >= 1, "rods crafted when they can't be bought")
+  print("rods to craft 130->225: " .. table.concat(crafted, ", "))
+end
+-- and the window shows "Craft 1 x Runed ... Rod" as a route row
+do
+  local saved = { GetProfessions, GetProfessionInfo }
+  GetProfessions = function() return 1 end
+  GetProfessionInfo = function() return "Enchanting", 0, 130, 225, 0, 0, 333 end
+  for _, id in ipairs({ 6339, 11130, 11145, 16207 }) do prices[id] = nil end
+  SkillRouteDB.settings.estimate = false -- no guessed rod prices: they must be crafted
+  UI.Toggle(333)
+  local found
+  for _, t in ipairs(texts) do
+    if type(rawget(t, "text")) == "string" and t.text:find("Craft 1 x Runed ", 1, true) then found = t.text end
+  end
+  assert(found, "route shows a 'Craft 1 x Runed ... Rod' row")
+  print("route row: " .. found:gsub("|c%x%x%x%x%x%x%x%x", ""):gsub("|r", ""))
+  UI.Toggle() -- close
+  GetProfessions, GetProfessionInfo = saved[1], saved[2]
+end
+
 -- auto open/close with the profession window
 local evf
 for _, f in ipairs(frames) do local e = rawget(f, "events"); if e and e.TRADE_SKILL_SHOW then evf = f end end
