@@ -79,9 +79,14 @@ local function makePricer(ctx)
   return unit
 end
 
--- Cost of one craft: reagents minus what the product sells to a vendor for
--- (the only resale value that is guaranteed).
-local function craftCostFn(ctx, unit)
+-- Cost of one craft = what you pay for its reagents. Vendor resale is NOT
+-- subtracted: on Forever it often covers the mats, which made long grinds look
+-- free. Only an intermediate the route consumes later (e.g. bolts of cloth) is
+-- credited, at what it would otherwise cost, scaled by credit[item] (the share
+-- of produced units the route really uses). Every craft costs at least PER_CRAFT
+-- so that, all else equal, fewer crafts win.
+local PER_CRAFT = 1 -- copper
+local function craftCostFn(ctx, unit, credit)
   local memo = {}
   return function(spell)
     local m = memo[spell]
@@ -94,9 +99,12 @@ local function craftCostFn(ctx, unit)
       c = c + p * r.r[i + 1]
       est = est or e
     end
-    local it = r.out and ctx.items[r.out]
-    if it then c = c - (it[2] or 0) * (r.outN or 1) end
-    if c < 0 then c = 0 end
+    local share = r.out and credit[r.out]
+    if share and share > 0 then
+      local v = unit(r.out)
+      if v then c = c - share * v * (r.outN or 1) end
+    end
+    if c < PER_CRAFT then c = PER_CRAFT end
     memo[spell] = { c = c, est = est }
     return c, est
   end
@@ -111,10 +119,37 @@ end
   have    = function(itemID) -> count   (optional)
   bonus   = 0..1                          (optional)
 } ]]
+local CAP_STEP = 75 -- Apprentice/Journeyman/Expert/Artisan caps: 75, 150, 225
+
 function Planner.Plan(ctx)
+  -- Intermediates: items some obtainable recipe of this profession uses as reagent.
+  local credit = {}
+  if ctx.noCredit then return Planner.PlanOnce(ctx, credit) end -- tests
+  for spell, r in pairs(ctx.recipes) do
+    if Planner.LearnAt(spell, r, ctx) then
+      for i = 1, #r.r, 2 do credit[r.r[i]] = 1 end
+    end
+  end
+  -- Plan, then lower the credit of any intermediate the route over-produces, and
+  -- plan again. Credits only go down, so this settles in a few passes.
+  local plan
+  for _ = 1, 4 do
+    plan = Planner.PlanOnce(ctx, credit)
+    local changed = false
+    for item, made in pairs(plan.made) do
+      local used = made - (plan.leftover[item] or 0)
+      local share = made > 0 and used / made or 0
+      if (credit[item] or 0) > share + 0.01 then credit[item] = share; changed = true end
+    end
+    if not changed then break end
+  end
+  return plan
+end
+
+function Planner.PlanOnce(ctx, credit)
   local recipes, from, to = ctx.recipes, ctx.skill, ctx.target
   local unit = makePricer(ctx)
-  local costOf = craftCostFn(ctx, unit)
+  local costOf = craftCostFn(ctx, unit, credit)
 
   -- Candidates: obtainable recipes that are not grey at our current skill.
   local cands, unpriced = {}, 0
@@ -180,10 +215,10 @@ function Planner.Plan(ctx)
     else
       local c = cands[k]
       local e, crafts = s, 0
-      while e < to and pick[e] == k do
+      repeat -- stop at rank caps so "train the next rank" falls between steps
         crafts = crafts + 1 / Planner.Chance(c.r, e, ctx.bonus)
         e = e + 1
-      end
+      until e >= to or pick[e] ~= k or e % CAP_STEP == 0
       local a = alt[s]
       steps[#steps + 1] = {
         spell = c.spell, name = c.r.n, from = s, to = e, crafts = crafts,
@@ -191,15 +226,17 @@ function Planner.Plan(ctx)
         learn = (c.how ~= "known") and c.how or nil,
         learnCost = ctx.trainer[c.spell] and ctx.trainer[c.spell].cost,
         color = Planner.Color(c.r, s),
+        vendorBack = c.r.out and ctx.items[c.r.out] and ctx.items[c.r.out][2] * (c.r.outN or 1) * crafts or 0,
+        credited = c.r.out and (credit[c.r.out] or 0) > 0 or false,
         alt = a and { name = cands[a.k].r.n, perPoint = a.c, ours = c.cost / Planner.Chance(c.r, s, ctx.bonus) },
       }
       s = e
     end
   end
 
-  local shopping, total, anyEst = Planner.Shopping(ctx, steps, unit)
+  local shopping, total, anyEst, made, leftover = Planner.Shopping(ctx, steps, unit)
   return { steps = steps, gaps = gaps, shopping = shopping, total = total, estimated = anyEst,
-           expected = best[from], unpriced = unpriced }
+           expected = best[from], unpriced = unpriced, made = made, leftover = leftover }
 end
 
 -- Patterns that would cover a gap at skill s (not known yet), cheapest first.
@@ -227,7 +264,7 @@ end
 -- buying (bolts) are expanded into their reagents; products of earlier steps
 -- cover later needs; then what you own is subtracted. Rounded up once, at the end.
 function Planner.Shopping(ctx, steps, unit)
-  local need, pool, crafts = {}, {}, {}
+  local need, pool, crafts, made = {}, {}, {}, {}
   local function add(item, n, depth)
     local _, _, via = unit(item)
     if via and depth < 4 then
@@ -248,7 +285,11 @@ function Planner.Shopping(ctx, steps, unit)
         pool[item] = (pool[item] or 0) - fromPool
         if n - fromPool > 0 then add(item, n - fromPool, 0) end
       end
-      if r.out then pool[r.out] = (pool[r.out] or 0) + st.crafts * (r.outN or 1) end
+      if r.out then
+        local n = st.crafts * (r.outN or 1)
+        pool[r.out] = (pool[r.out] or 0) + n
+        made[r.out] = (made[r.out] or 0) + n
+      end
     end
   end
   local list, total, anyEst = {}, 0, false
@@ -275,7 +316,7 @@ function Planner.Shopping(ctx, steps, unit)
     craftList[#craftList + 1] = { spell = spell, name = ctx.recipes[spell].n, n = ceil(n - 1e-9) }
   end
   table.sort(craftList, function(a, b) return a.name < b.name end)
-  return { buy = list, craft = craftList }, total, anyEst
+  return { buy = list, craft = craftList }, total, anyEst, made, pool
 end
 
 return Planner

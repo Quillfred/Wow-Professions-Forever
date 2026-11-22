@@ -143,6 +143,11 @@ local function routeRows(plan)
         ("Each craft: %s%s"):format(money(st.perCraft), st.est and " (estimated)" or ""),
         ("Skill-up chance falls from yellow %d to grey %d."):format(r.y, r.g),
       }
+      if st.credited then
+        tip[#tip + 1] = ("Makes %s used later in this route, so its cost is counted there."):format(itemName(r.out))
+      elseif st.vendorBack > 0 then
+        tip[#tip + 1] = ("Vendoring the results gives back about %s (not counted)."):format(money(st.vendorBack))
+      end
       if st.alt then
         tip[#tip + 1] = ("Next best here: %s, %s per point vs %s for this one.")
           :format(st.alt.name, money(st.alt.perPoint), money(st.alt.ours))

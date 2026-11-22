@@ -50,8 +50,10 @@ end
 check(s == 300, "plan reaches target")
 print(("1->300 Tailoring plan: %d steps, %d gaps, %.1f ms"):format(#plan.steps, #plan.gaps, ms))
 
--- 3. optimality: with no stickiness, DP total == sum over points of the cheapest cost/chance
-local ctx = ctxFor(110, 300, nil, { sticky = 0 })
+-- 3. optimality: without intermediate credit or stickiness, the DP total equals the
+-- sum over points of the cheapest (reagent cost / chance); crafting reagents
+-- yourself (bolts) can only make it cheaper.
+local ctx = ctxFor(110, 300, nil, { sticky = 0, noCredit = true })
 local p0 = P.Plan(ctx)
 local brute = 0
 for sk = 110, 299 do
@@ -63,20 +65,48 @@ for sk = 110, 299 do
       local c = 0
       for i = 1, #rr.r, 2 do local pr = price(rr.r[i]); if not pr then c = nil break end c = c + pr * rr.r[i + 1] end
       if c and ch > 0 then
-        local it = rr.out and items[rr.out]
-        if it then c = c - it[2] * (rr.outN or 1) end
-        if c < 0 then c = 0 end
+        if c < 1 then c = 1 end
         if c / ch < m then m = c / ch end
       end
     end
   end
   if m < math.huge then brute = brute + m end
 end
--- the planner may buy reagents cheaper by crafting them (bolts) -> can only be <= brute force
 check(p0.expected <= brute + 1e-6, ("DP %.1f should be <= brute force %.1f"):format(p0.expected, brute))
 local sticky = P.Plan(ctxFor(110, 300))
-check(sticky.expected <= p0.expected * 1.03 + 1e-6, "stickiness costs at most 3%")
-print(("110->300 expected cost: optimal %.0fc, with stickiness %.0fc (%d vs %d steps)"):format(p0.expected, sticky.expected, #p0.steps, #sticky.steps))
+print(("110->300 expected cost: no-credit optimal %.0fc, final plan %.0fc"):format(p0.expected, sticky.expected))
+
+-- 3b. regression (in-game report): when vendoring the product covers the mats,
+-- steps must not look free and the route must not pick huge green grinds.
+local cheap = function(id) local it = items[id]; if not it then return nil end
+  if it[3] then return it[3], false end; return math.max(1, it[2]), false end
+local pc = P.Plan(ctxFor(110, 300, nil, { price = cheap }))
+for _, st in ipairs(pc.steps) do
+  if st.spell and not st.credited then
+    check(st.cost >= st.crafts * 1, st.name .. " shown as free")
+    check(not st.alt or st.crafts <= (st.to - st.from) * 3 + 3, ("%s: %.0f crafts for %d points despite an alternative"):format(st.name, st.crafts, st.to - st.from))
+  end
+end
+-- intermediates are only credited for what the route uses
+for item, made in pairs(pc.made) do
+  local left = pc.leftover[item] or 0
+  if left > 0.5 then
+    for _, st in ipairs(pc.steps) do
+      if st.spell and T[st.spell].out == item and st.credited then
+        check(left / made < 0.5, ("%s: %d of %d made are never used but still credited"):format(st.name, left, made))
+      end
+    end
+  end
+end
+-- steps never cross a rank cap
+for _, st in ipairs(pc.steps) do
+  for cap = 75, 225, 75 do check(not (st.from < cap and st.to > cap), st.name or "gap" .. " crosses cap " .. cap) end
+end
+print("\nRoute with Forever-like cheap cloth (vendor ~ AH):")
+for _, st in ipairs(pc.steps) do
+  if st.gap then print(("  %3d-%3d  GAP"):format(st.from, st.to))
+  else print(("  %3d-%3d  ~%5.1f x %-32s %8dc %s"):format(st.from, st.to, st.crafts, st.name, st.cost, st.credited and "(intermediate)" or "")) end
+end
 
 -- 4. a known pattern recipe becomes usable; an unknown one never is
 local pat; for spell, rr in pairs(T) do if rr.src == "p" and rr.y >= 160 and rr.y < 200 then pat = spell break end end
