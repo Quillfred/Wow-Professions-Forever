@@ -9,6 +9,9 @@ local floor, ceil, huge = math.floor, math.ceil, math.huge
 -- How close (fraction) another recipe must be before we keep using the same recipe
 -- instead of switching. Avoids routes that flip A,B,A,B over near-equal costs.
 local STICKY_DEFAULT = 0.03
+local CAP_STEP = 75   -- Apprentice/Journeyman/Expert/Artisan caps: 75, 150, 225
+local PER_CRAFT = 1   -- copper; all else equal, fewer crafts win
+local GAP_COST = 1e9  -- per skill point with no usable recipe: filling a gap always wins
 
 -- Classic skill-up chance: orange always, then falls linearly from yellow to grey.
 -- bonus = extra chance on a failed roll (Forever's "Working Overtime" talent).
@@ -30,15 +33,21 @@ end
 
 -- Skill at which the recipe can first be used, or nil if not obtainable through
 -- this plan. ctx.known: learned; ctx.trainer: seen in this client's trainer window
--- (wins over the data file); src "T": trainer recipe per Wowhead, with learn level.
+-- (wins over the data file); src "T": trainer recipe per Wowhead, with learn level;
+-- a vendor pattern this plan buys (ctx.unlocked["p:<spell>"]).
 function Planner.LearnAt(spell, r, ctx)
   if ctx.known[spell] or r.src == "a" then return 0, "known" end
   local t = ctx.trainer[spell]
   if t then return t.req or 0, "trainer" end
   if r.src == "T" then return r.learn or r.y, "trainer" end
   if r.src == "t" then return r.y, "trainer?" end -- unconfirmed: never earlier than yellow
-  if ctx.buyable and ctx.buyable[spell] then return r.learn or r.y, "pattern" end
+  if ctx.unlocked and ctx.unlocked["p:" .. spell] then return r.learn or r.y, "pattern" end
   return nil
+end
+
+local function hasTool(ctx, key)
+  if not ctx.tools then return true end -- no tool data: don't block anything
+  return ctx.hasTool and ctx.hasTool(key) or false
 end
 
 -- Unit prices. ctx.price(itemID) -> copper, estimated? (nil if unknown).
@@ -82,26 +91,31 @@ local function makePricer(ctx)
   return unit
 end
 
+-- Reagent cost of one craft, or nil if a reagent has no price.
+local function reagentCost(r, unit)
+  local c, est = 0, false
+  for i = 1, #r.r, 2 do
+    local p, e = unit(r.r[i])
+    if not p then return nil end
+    c = c + p * r.r[i + 1]
+    est = est or e
+  end
+  return c, est
+end
+
 -- Cost of one craft = what you pay for its reagents. Vendor resale is NOT
 -- subtracted: on Forever it often covers the mats, which made long grinds look
 -- free. Only an intermediate the route consumes later (e.g. bolts of cloth) is
 -- credited, at what it would otherwise cost, scaled by credit[item] (the share
--- of produced units the route really uses). Every craft costs at least PER_CRAFT
--- so that, all else equal, fewer crafts win.
-local PER_CRAFT = 1 -- copper
+-- of produced units the route really uses).
 local function craftCostFn(ctx, unit, credit)
   local memo = {}
   return function(spell)
     local m = memo[spell]
     if m then return m.c, m.est end
     local r = ctx.recipes[spell]
-    local c, est = 0, false
-    for i = 1, #r.r, 2 do
-      local p, e = unit(r.r[i])
-      if not p then memo[spell] = {}; return nil end
-      c = c + p * r.r[i + 1]
-      est = est or e
-    end
+    local c, est = reagentCost(r, unit)
+    if not c then memo[spell] = {}; return nil end
     local share = r.out and credit[r.out]
     if share and share > 0 then
       local v = unit(r.out)
@@ -113,36 +127,89 @@ local function craftCostFn(ctx, unit, credit)
   end
 end
 
---[[ ctx = {
-  recipes, items      -- from Data.lua
-  skill, target       -- current skill, wanted skill
-  known   = {[spell]=true}
-  trainer = {[spell]={req=, cost=}}
-  price   = function(itemID) -> copper|nil, isEstimate
-  have    = function(itemID) -> count   (optional)
-  bonus   = 0..1                          (optional)
-} ]]
-local CAP_STEP = 75 -- Apprentice/Journeyman/Expert/Artisan caps: 75, 150, 225
-
-local GAP_COST = 1e9 -- per skill point with no usable recipe: filling a gap always wins
-
--- Vendor patterns this character could buy: not known, no reputation needed, no
--- cooldown, and a price we know (vendor price from the client, or AH if cheaper).
-local function vendorPatterns(ctx)
+--[[ One-time unlocks: things bought once that make recipes usable.
+  "p:<spell>"  a vendor pattern (no reputation needed, no cooldown)
+  "t:<tool>"   a tool you keep in your bags (rod, hammer, spanner); bought, or
+               crafted once by this profession from the skill its recipe allows ]]
+local function findUnlocks(ctx, unit)
   local all = {}
-  for spell, r in pairs(ctx.recipes) do
-    if r.pat and not ctx.known[spell] and not r.rep and not r.cd and r.from and r.from:find("Vendor") then
-      local best, bestItem
-      for _, it in ipairs(r.pat) do
-        local v = ctx.items[it] and ctx.items[it][3]
-        local ah = ctx.price(it)
-        local p = (v and ah) and math.min(v, ah) or v or ah
-        if p and (not best or p < best) then best, bestItem = p, it end
+  if not ctx.noPatterns then
+    for spell, r in pairs(ctx.recipes) do
+      if r.pat and not ctx.known[spell] and not r.rep and not r.cd and r.from and r.from:find("Vendor") then
+        local best, bestItem
+        for _, it in ipairs(r.pat) do
+          local v = ctx.items[it] and ctx.items[it][3]
+          local ah = ctx.price(it)
+          local p = (v and ah) and math.min(v, ah) or v or ah
+          if p and (not best or p < best) then best, bestItem = p, it end
+        end
+        if best then
+          all["p:" .. spell] = { kind = "pattern", spell = spell, price = best, item = bestItem, from = 0,
+                                 name = r.n }
+        end
       end
-      if best then all[spell] = { price = best, item = bestItem } end
+    end
+  end
+  if ctx.tools then
+    local needed = {}
+    for _, r in pairs(ctx.recipes) do
+      for _, t in ipairs(r.tool or {}) do needed[t] = true end
+    end
+    for t in pairs(needed) do
+      local def = ctx.tools[t]
+      if def and not hasTool(ctx, t) then
+        local opt
+        for _, it in ipairs(def[2]) do -- buy (vendor or AH)
+          local p = ctx.price(it)
+          if p and (not opt or p < opt.price) then opt = { price = p, item = it, from = 0 } end
+        end
+        local isTool = {}
+        for _, it in ipairs(def[2]) do isTool[it] = true end
+        for spell, r in pairs(ctx.recipes) do -- or craft it with this profession
+          if r.out and isTool[r.out] and not r.cd then
+            local learnAt = Planner.LearnAt(spell, r, { known = ctx.known, trainer = ctx.trainer })
+            local ok = learnAt ~= nil
+            for _, t2 in ipairs(r.tool or {}) do ok = ok and hasTool(ctx, t2) end
+            local c = ok and reagentCost(r, unit)
+            if c and (not opt or c < opt.price) then
+              opt = { price = c, item = r.out, from = learnAt, craftSpell = spell }
+            end
+          end
+        end
+        if opt then
+          opt.kind, opt.tool, opt.name = "tool", t, def[1]
+          all["t:" .. t] = opt
+        end
+      end
     end
   end
   return all
+end
+
+-- Can this recipe be used under ctx.unlocked? Returns learnAt, how, missingKey:
+-- missingKey set = usable once that one unlock is bought (more than one missing,
+-- or no way to get a requirement -> nil).
+local function requirements(spell, r, ctx, all)
+  local learnAt, how = Planner.LearnAt(spell, r, ctx)
+  local missing
+  if not learnAt then
+    local key = "p:" .. spell
+    if not all[key] then return nil end
+    learnAt, how, missing = r.learn or r.y, "pattern", key
+  end
+  for _, t in ipairs(r.tool or {}) do
+    if not hasTool(ctx, t) then
+      local key = "t:" .. t
+      local u = ctx.unlocked[key] or all[key]
+      if not u then return nil end
+      if u.from > learnAt then learnAt = u.from end
+      if not ctx.unlocked[key] then
+        if missing and missing ~= key then return nil end
+        missing = key
+      end
+    end
+  end
+  return learnAt, how, missing
 end
 
 local function copy(t) local c = {} for k, v in pairs(t) do c[k] = v end return c end
@@ -166,119 +233,120 @@ end
 
 local function routeTotal(plan, chosen)
   local t = plan.expected + plan.gapPoints * GAP_COST
-  for _, b in pairs(chosen) do t = t + b.price end
+  for _, u in pairs(chosen) do t = t + u.price end
   return t
 end
 
--- ctx.fixedPatterns = {[spell]=true}: reuse an earlier pattern choice (no search).
+--[[ ctx = {
+  recipes, items, tools -- from Data.lua (tools optional)
+  skill, target         -- current skill, wanted skill
+  known   = {[spell]=true}
+  trainer = {[spell]={req=, cost=}}
+  price   = function(itemID) -> copper|nil, isEstimate
+  have    = function(itemID) -> count       (optional)
+  hasTool = function(toolKey) -> bool       (optional)
+  bonus   = 0..1                            (optional)
+  fixedUnlocks = {[key]=true}  reuse an earlier choice instead of searching
+} ]]
 function Planner.Plan(ctx)
-  local all = ctx.noPatterns and {} or vendorPatterns(ctx)
-  -- Intermediates: items some obtainable or buyable recipe uses as reagent.
+  local all = findUnlocks(ctx, makePricer(ctx))
   local credit = {}
   if ctx.noCredit then -- tests
-    return Planner.PlanOnce(setmetatable({ buyable = {} }, { __index = ctx }), credit)
+    return Planner.PlanOnce(setmetatable({ unlocked = {}, all = all }, { __index = ctx }), credit)
   end
+  -- Intermediates: items some usable or unlockable recipe uses as reagent.
   for spell, r in pairs(ctx.recipes) do
-    if all[spell] or Planner.LearnAt(spell, r, ctx) then
+    if all["p:" .. spell] or Planner.LearnAt(spell, r, ctx) then
       for i = 1, #r.r, 2 do credit[r.r[i]] = 1 end
     end
   end
   local function run(set, cr)
-    return creditPlan(setmetatable({ buyable = set, probe = all }, { __index = ctx }), cr)
+    return creditPlan(setmetatable({ unlocked = set, all = all }, { __index = ctx }), cr)
   end
 
   local chosen, plan = {}, nil
-  if ctx.fixedPatterns then
-    for spell in pairs(ctx.fixedPatterns) do chosen[spell] = all[spell] end
+  if ctx.fixedUnlocks then
+    for key in pairs(ctx.fixedUnlocks) do chosen[key] = all[key] end
     plan = run(chosen, credit)
   else
-    -- Greedy: buy the pattern whose estimated saving minus price is largest, keep it
-    -- only if a full re-plan confirms the total (pattern prices included) drops.
+    -- Greedy: try the unlock whose estimated saving minus price is largest; keep it
+    -- only if a full re-plan confirms the total (unlock prices included) drops.
     plan = run(chosen, credit)
     local rejected, tries = {}, 0
-    while tries < 12 do
-      local bestSpell, bestGain
-      for spell, sav in pairs(plan.savings) do
-        local gain = sav - all[spell].price
-        if gain > 0 and not chosen[spell] and not rejected[spell] and (not bestGain or gain > bestGain) then
-          bestSpell, bestGain = spell, gain
+    while tries < 16 do
+      local bestKey, bestGain
+      for key, sav in pairs(plan.savings) do
+        local gain = sav - all[key].price
+        if gain > 0 and not chosen[key] and not rejected[key] and (not bestGain or gain > bestGain) then
+          bestKey, bestGain = key, gain
         end
       end
-      if not bestSpell then break end
+      if not bestKey then break end
       tries = tries + 1
       local trial = copy(chosen)
-      trial[bestSpell] = all[bestSpell]
+      trial[bestKey] = all[bestKey]
       local cr = copy(credit)
       local tp = run(trial, cr)
       local before, after = routeTotal(plan, chosen), routeTotal(tp, trial)
       if after < before - 1 then
-        all[bestSpell].saves = before - after
+        all[bestKey].saves = before - after
         chosen, plan, credit = trial, tp, cr
       else
-        rejected[bestSpell] = true
+        rejected[bestKey] = true
       end
     end
-    -- Drop patterns a later purchase made unnecessary.
-    local used = {}
-    for _, st in ipairs(plan.steps) do if st.learn == "pattern" then used[st.spell] = true end end
+    -- Drop unlocks a later purchase made unnecessary.
     local pruned, dropped = {}, false
-    for spell, b in pairs(chosen) do
-      if used[spell] then pruned[spell] = b else dropped = true end
+    for key, u in pairs(chosen) do
+      if plan.usedUnlocks[key] then pruned[key] = u else dropped = true end
     end
     if dropped then chosen, plan = pruned, run(pruned, copy(credit)) end
-    plan.patternTries = tries
+    plan.unlockTries = tries
   end
 
-  -- Patterns go on the shopping list and into the total.
-  plan.patterns = chosen
-  for spell, b in pairs(chosen) do
-    local it = ctx.items[b.item]
-    table.insert(plan.shopping.buy, 1, { item = b.item, name = it and it[1] or ctx.recipes[spell].n,
-      need = 1, have = 0, buy = 1, price = b.price, vendor = true, pattern = true })
-    plan.total = plan.total + b.price
-  end
-  for _, st in ipairs(plan.steps) do
-    if st.learn == "pattern" and chosen[st.spell] then
-      local sv = chosen[st.spell].saves
-      st.saves = (sv and sv < GAP_COST / 2) and sv or nil -- nil: it fills a gap
+  -- Bought patterns and tools go on the shopping list and into the total; tools
+  -- crafted by this profession are added to the crafts (Planner.Shopping).
+  plan.unlocks = chosen
+  for key, u in pairs(chosen) do
+    if not u.craftSpell then
+      local it = ctx.items[u.item]
+      table.insert(plan.shopping.buy, 1, { item = u.item, name = it and it[1] or u.name, need = 1, have = 0,
+        buy = 1, price = u.price, vendor = it and it[3] ~= nil, pattern = u.kind == "pattern",
+        tool = u.kind == "tool" })
+      plan.total = plan.total + u.price
     end
+    if u.saves and u.saves < GAP_COST / 2 then u.savesShown = u.saves end
   end
   return plan
 end
 
 function Planner.PlanOnce(ctx, credit)
-  local recipes, from, to = ctx.recipes, ctx.skill, ctx.target
+  local recipes, from, to, all = ctx.recipes, ctx.skill, ctx.target, ctx.all or {}
   local unit = makePricer(ctx)
   local costOf = craftCostFn(ctx, unit, credit)
 
-  -- Candidates: obtainable recipes that are not grey at our current skill.
-  local cands, unpriced = {}, 0
+  -- Candidates: usable recipes not grey at our skill. Probes: recipes one unlock
+  -- away; never chosen here, we only measure what that unlock would save.
+  local cands, probes, unpriced = {}, {}, 0
   for spell, r in pairs(recipes) do
-    local learnAt, how = Planner.LearnAt(spell, r, ctx)
-    if learnAt and r.g > from and learnAt < to and not r.cd then -- cooldown recipes can't be ground
-      local c, est = costOf(spell)
-      if c then
-        cands[#cands + 1] = { spell = spell, r = r, learnAt = learnAt, how = how, cost = c, est = est,
-                              buy = how == "pattern" and ctx.buyable[spell] or nil }
-      else
-        unpriced = unpriced + 1 -- skipped, not guessed: a reagent has no price
+    if r.g > from and not r.cd then -- cooldown recipes can't be ground
+      local learnAt, how, missing = requirements(spell, r, ctx, all)
+      if learnAt and learnAt < to then
+        local c, est = costOf(spell)
+        if not c then
+          if not missing then unpriced = unpriced + 1 end -- skipped, not guessed
+        elseif missing then
+          probes[#probes + 1] = { key = missing, r = r, learnAt = learnAt, cost = c }
+        else
+          cands[#cands + 1] = { spell = spell, r = r, learnAt = learnAt, how = how, cost = c, est = est }
+        end
       end
-    end
-  end
-  -- Probes: buyable vendor patterns not in this plan. Never chosen here; we only
-  -- measure what each would save (see Planner.Plan).
-  local probes = {}
-  for spell in pairs(ctx.probe or {}) do
-    local r = recipes[spell]
-    if not ctx.buyable[spell] and r.g > from and (r.learn or r.y) < to then
-      local c = costOf(spell)
-      if c then probes[#probes + 1] = { spell = spell, r = r, learnAt = r.learn or r.y, cost = c } end
     end
   end
 
   -- Backward DP over skill points: best[s] = expected cost from s to target.
   -- Each point is independent, so the cheapest expected cost per point is optimal.
-  local best, pick, alt = {}, {}, {}
+  local best, pick, alt, savings = {}, {}, {}, {}
   best[to] = 0
   for s = to - 1, from, -1 do
     local bestC, bestK, secondC, secondK = huge, nil, huge, nil
@@ -310,27 +378,31 @@ function Planner.PlanOnce(ctx, credit)
     else
       best[s] = best[s + 1] -- gap: no usable recipe at this skill
     end
-    -- What each probe pattern would save at this point (exact for this DP).
-    local cur = bestK and bestC or GAP_COST
-    for _, pr in ipairs(probes) do
-      if pr.learnAt <= s then
-        local p = Planner.Chance(pr.r, s, ctx.bonus)
-        if p > 0 and pr.cost / p < cur then pr.save = (pr.save or 0) + cur - pr.cost / p end
+    -- What each unlock would save at this point (exact for this DP).
+    if #probes > 0 then
+      local cur, low = bestK and bestC or GAP_COST, {}
+      for _, pr in ipairs(probes) do
+        if pr.learnAt <= s then
+          local p = Planner.Chance(pr.r, s, ctx.bonus)
+          if p > 0 then
+            local v = pr.cost / p
+            if v < cur and (not low[pr.key] or v < low[pr.key]) then low[pr.key] = v end
+          end
+        end
       end
+      for key, v in pairs(low) do savings[key] = (savings[key] or 0) + cur - v end
     end
   end
-  local savings = {}
-  for _, pr in ipairs(probes) do if pr.save then savings[pr.spell] = pr.save end end
 
   -- Group consecutive points into steps.
-  local steps, gaps, gapPoints = {}, {}, 0
+  local steps, gaps, gapPoints, usedUnlocks = {}, {}, 0, {}
   local s = from
   while s < to do
     local k = pick[s]
     if not k then
       local e = s
       while e < to and not pick[e] do e = e + 1 end
-      gaps[#gaps + 1] = { from = s, to = e, patterns = Planner.PatternsFor(ctx, s, unit) }
+      gaps[#gaps + 1] = { from = s, to = e, patterns = Planner.PatternsFor(ctx, s) }
       gapPoints = gapPoints + (e - s)
       steps[#steps + 1] = { gap = true, from = s, to = e }
       s = e
@@ -342,11 +414,25 @@ function Planner.PlanOnce(ctx, credit)
         e = e + 1
       until e >= to or pick[e] ~= k or e % CAP_STEP == 0
       local a = alt[s]
+      local pkey = "p:" .. c.spell
+      if c.how == "pattern" then usedUnlocks[pkey] = true end
+      local tools
+      for _, t in ipairs(c.r.tool or {}) do
+        local u = ctx.unlocked["t:" .. t]
+        if u then
+          usedUnlocks["t:" .. t] = true
+          tools = tools or {}
+          tools[#tools + 1] = u
+        end
+      end
+      local learnCost
+      if c.how == "pattern" then learnCost = ctx.unlocked[pkey].price
+      else learnCost = (ctx.trainer[c.spell] and ctx.trainer[c.spell].cost) or c.r.tc end
       steps[#steps + 1] = {
         spell = c.spell, name = c.r.n, from = s, to = e, crafts = crafts,
         cost = c.cost * crafts, perCraft = c.cost, est = c.est,
-        learn = (c.how ~= "known") and c.how or nil,
-        learnCost = (c.buy and c.buy.price) or (ctx.trainer[c.spell] and ctx.trainer[c.spell].cost) or c.r.tc,
+        learn = (c.how ~= "known") and c.how or nil, learnCost = learnCost,
+        unlock = c.how == "pattern" and ctx.unlocked[pkey] or nil, tools = tools,
         color = Planner.Color(c.r, s),
         vendorBack = c.r.out and ctx.items[c.r.out] and ctx.items[c.r.out][2] * (c.r.outN or 1) * crafts or 0,
         credited = c.r.out and (credit[c.r.out] or 0) > 0 or false,
@@ -356,14 +442,24 @@ function Planner.PlanOnce(ctx, credit)
     end
   end
 
-  local shopping, total, anyEst, made, leftover = Planner.Shopping(ctx, steps, unit)
+  -- Tools crafted by this profession: one craft each, unless a step already makes one.
+  local extra = {}
+  for key in pairs(usedUnlocks) do
+    local u = ctx.unlocked[key]
+    if u and u.craftSpell then
+      local madeBySteps = false
+      for _, st in ipairs(steps) do if st.spell and recipes[st.spell].out == u.item then madeBySteps = true end end
+      if not madeBySteps then extra[#extra + 1] = u.craftSpell end
+    end
+  end
+  local shopping, total, anyEst, made, leftover = Planner.Shopping(ctx, steps, unit, extra)
   return { steps = steps, gaps = gaps, shopping = shopping, total = total, estimated = anyEst,
            expected = best[from], unpriced = unpriced, made = made, leftover = leftover,
-           gapPoints = gapPoints, savings = savings }
+           gapPoints = gapPoints, savings = savings, usedUnlocks = usedUnlocks }
 end
 
 -- Patterns that would cover a gap at skill s (not known yet), cheapest first.
-function Planner.PatternsFor(ctx, s, unit)
+function Planner.PatternsFor(ctx, s)
   local list = {}
   for spell, r in pairs(ctx.recipes) do
     if r.pat and not ctx.known[spell] and not r.cd and (r.learn or r.y) <= s and s < r.g then
@@ -387,7 +483,8 @@ end
 -- What to buy. Expected reagent use per step; intermediates we craft cheaper than
 -- buying (bolts) are expanded into their reagents; products of earlier steps
 -- cover later needs; then what you own is subtracted. Rounded up once, at the end.
-function Planner.Shopping(ctx, steps, unit)
+-- extra = recipes crafted once up front (tools such as enchanting rods).
+function Planner.Shopping(ctx, steps, unit, extra)
   local need, pool, crafts, made = {}, {}, {}, {}
   local function add(item, n, depth)
     local _, _, via = unit(item)
@@ -399,6 +496,13 @@ function Planner.Shopping(ctx, steps, unit)
     else
       need[item] = (need[item] or 0) + n
     end
+  end
+  local toolCraft = {}
+  for _, spell in ipairs(extra or {}) do
+    local r = ctx.recipes[spell]
+    crafts[spell] = (crafts[spell] or 0) + 1
+    toolCraft[spell] = true
+    for i = 1, #r.r, 2 do add(r.r[i], r.r[i + 1], 0) end
   end
   for _, st in ipairs(steps) do
     if st.spell then
@@ -437,9 +541,13 @@ function Planner.Shopping(ctx, steps, unit)
   end)
   local craftList = {}
   for spell, n in pairs(crafts) do
-    craftList[#craftList + 1] = { spell = spell, name = ctx.recipes[spell].n, n = ceil(n - 1e-9) }
+    craftList[#craftList + 1] = { spell = spell, name = ctx.recipes[spell].n, n = ceil(n - 1e-9),
+                                  tool = toolCraft[spell] or nil }
   end
-  table.sort(craftList, function(a, b) return a.name < b.name end)
+  table.sort(craftList, function(a, b)
+    if (a.tool or false) ~= (b.tool or false) then return a.tool or false end
+    return a.name < b.name
+  end)
   return { buy = list, craft = craftList }, total, anyEst, made, pool
 end
 

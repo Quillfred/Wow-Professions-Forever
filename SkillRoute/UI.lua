@@ -153,8 +153,13 @@ local function routeRows(plan)
         tip[#tip + 1] = ("Vendoring the results gives back about %s (not counted)."):format(money(st.vendorBack))
       end
       if st.learn == "pattern" then
-        tip[#tip + 1] = st.saves and ("Buying the pattern saves about %s over the whole route, its price included."):format(money(st.saves))
+        local sv = st.unlock and st.unlock.savesShown
+        tip[#tip + 1] = sv and ("Buying the pattern saves about %s over the whole route, its price included."):format(money(sv))
                         or "No trainer recipe covers this range; this is the cheapest way through."
+      end
+      for _, u in ipairs(st.tools or {}) do
+        tip[#tip + 1] = ("Needs a %s in your bags: %s."):format(u.name,
+          u.craftSpell and "craft one first (on the shopping list)" or ("buy one for " .. money(u.price)))
       end
       if st.alt then
         tip[#tip + 1] = ("Next best here: %s, %s per point vs %s for this one.")
@@ -162,6 +167,11 @@ local function routeRows(plan)
       end
       if st.learn == "trainer?" then
         tip[#tip + 1] = "|cffffd100Open your profession trainer once: SkillRoute will record what it really teaches and at which skill.|r"
+      end
+      if st.tools then
+        local names = {}
+        for _, u in ipairs(st.tools) do names[#names + 1] = u.name end
+        learn = learn .. "  |cffff8040needs " .. table.concat(names, ", ") .. "|r"
       end
       add({ item = r.out, tip = tip,
             text = ("|cff%s~%d|r x %s"):format(COLORS[st.color] or "ffffff", math.ceil(st.crafts - 1e-9), st.name),
@@ -178,11 +188,13 @@ local function shoppingRows(plan)
   for _, c in ipairs(plan.shopping.craft) do
     local r = Data.professions[plan.line].recipes[c.spell]
     add({ item = r.out, text = ("Craft %d x %s"):format(c.n, c.name),
-          sub = "Cheaper to make than to buy; uses the reagents below" })
+          sub = c.tool and "|cffff8040Tool for later steps: keep it in your bags|r"
+                or "Cheaper to make than to buy; uses the reagents below" })
   end
   for _, b in ipairs(plan.shopping.buy) do
     local tags = {}
     if b.pattern then tags[#tags + 1] = "|cffffd100pattern, from a vendor|r"
+    elseif b.tool then tags[#tags + 1] = "|cffff8040tool: keep it in your bags|r" .. (b.vendor and ", vendor" or "")
     elseif b.vendor then tags[#tags + 1] = "vendor" end
     if b.est then tags[#tags + 1] = "|cffff8040estimated price|r" end
     add({ item = b.item,

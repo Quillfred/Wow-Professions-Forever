@@ -163,7 +163,7 @@ check(#p8b.gaps == 0, "vendor patterns fill the 255+ gap")
 -- 9. vendor patterns bought only when they pay for themselves
 local function total(plan)
   local t = plan.expected
-  for _, b in pairs(plan.patterns or {}) do t = t + b.price end
+  for _, b in pairs(plan.unlocks or {}) do t = t + b.price end
   return t
 end
 local base = P.Plan(ctxFor(110, 250, nil, { noPatterns = true }))
@@ -172,12 +172,13 @@ local t0p = os.clock()
 local withP = P.Plan(ctxFor(110, 250))
 local searchMs = (os.clock() - t0p) * 1000
 local bought = 0
-for spell, b in pairs(withP.patterns) do
+for key, b in pairs(withP.unlocks) do
+  local spell = b.spell
   bought = bought + 1
   -- leave this one pattern out: the route must get more expensive
   local fixed = {}
-  for sp in pairs(withP.patterns) do if sp ~= spell then fixed[sp] = true end end
-  local without = P.Plan(ctxFor(110, 250, nil, { fixedPatterns = fixed }))
+  for k in pairs(withP.unlocks) do if k ~= key then fixed[k] = true end end
+  local without = P.Plan(ctxFor(110, 250, nil, { fixedUnlocks = fixed }))
   check(total(without) > total(withP), T[spell].n .. " pattern doesn't pay for itself")
   local onList = false
   for _, it in ipairs(withP.shopping.buy) do if it.pattern and it.item == b.item then onList = true end end
@@ -189,11 +190,47 @@ print(("110->250: %d patterns bought, %.0fc -> %.0fc (%.1f%% cheaper), search %.
   bought, total(base), total(withP), 100 * (1 - total(withP) / total(base)), searchMs))
 -- reusing the choice (bag change) skips the search
 local fixedAll = {}
-for sp in pairs(withP.patterns) do fixedAll[sp] = true end
+for k in pairs(withP.unlocks) do fixedAll[k] = true end
 local t1 = os.clock()
-local again = P.Plan(ctxFor(110, 250, nil, { fixedPatterns = fixedAll }))
+local again = P.Plan(ctxFor(110, 250, nil, { fixedUnlocks = fixedAll }))
 check(math.abs(total(again) - total(withP)) < 1, "fixed pattern choice reproduces the plan")
 print(("re-plan with cached pattern choice: %.1f ms"):format((os.clock() - t1) * 1000))
+
+-- 10. tools (rods, hammers, spanners)
+local D = SkillRouteData
+local function plan(line, from, to, priceFn, owned)
+  return P.Plan({ recipes = D.professions[line].recipes, items = items, tools = D.tools,
+    skill = from, target = to, known = {}, trainer = {}, price = priceFn or price,
+    hasTool = function(k) return owned and owned[k] or false end })
+end
+-- every step in every profession: its tools are owned or acquired by the plan, in time
+for line, prof in pairs(D.professions) do
+  local pl = plan(line, 1, 300)
+  for _, st in ipairs(pl.steps) do
+    for _, t in ipairs(st.spell and prof.recipes[st.spell].tool or {}) do
+      local u = pl.unlocks["t:" .. t]
+      check(u ~= nil, ("%s: %s needs %s but the plan never gets it"):format(prof.name, st.name, D.tools[t][1]))
+      check(not u or u.from <= st.from, ("%s: %s used before its tool can be made"):format(prof.name, st.name))
+    end
+  end
+end
+-- Enchanting with no rods on the AH: the rod is crafted, on the shopping list as a tool
+local noRods = {}
+for _, t in ipairs({ 373, 374, 375, 376, 377 }) do for _, it in ipairs(D.tools[t][2]) do noRods[it] = true end end
+local ench = plan(333, 1, 120, function(id) if noRods[id] then return nil end return price(id) end)
+local rod = ench.unlocks["t:373"]
+check(rod and rod.craftSpell, "Enchanting crafts its Runed Copper Rod when it can't be bought")
+local listed = false
+for _, c in ipairs(ench.shopping.craft) do if c.tool then listed = true end end
+check(listed, "crafted rod is on the shopping list")
+-- Blacksmithing: buys a hammer unless one is owned
+local bs = plan(164, 1, 100)
+local hammer = bs.unlocks["t:162"]
+check(hammer and not hammer.craftSpell and hammer.price == D.items[5956][3], "buys a Blacksmith Hammer from a vendor")
+local onList = false
+for _, b in ipairs(bs.shopping.buy) do if b.tool and b.item == 5956 then onList = true end end
+check(onList, "hammer on the shopping list")
+check(plan(164, 1, 100, nil, { [162] = true }).unlocks["t:162"] == nil, "owned hammer is not bought again")
 
 print("\n110->300 route (mock prices):")
 for _, st in ipairs(sticky.steps) do

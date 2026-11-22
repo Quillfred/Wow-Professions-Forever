@@ -16,6 +16,13 @@ A WoW Forever addon that plans the cheapest way to level a crafting profession.
   each recipe is learned at (so cheap orange windows are used), trainer costs, and
   where patterns come from. The trainer window in game still overrides this if it
   disagrees.
+- **All crafting professions:** Alchemy, Blacksmithing, Cooking, Enchanting,
+  Engineering, First Aid, Leatherworking and Tailoring. The window shows the ones
+  your character has; switch with the arrows.
+- **Tools:** recipes that need a rod, hammer, spanner or Philosopher's Stone are
+  only planned once you own one, or the route gets one first: bought (a vendor's
+  Blacksmith Hammer) or crafted by the profession itself (enchanting rods), whichever
+  is cheaper. A tool in the bank doesn't count; keep it in your bags.
 - **Buys vendor patterns when they pay off:** a vendor pattern is bought when it
   makes the whole route cheaper, its price included (each one is checked with a full
   re-plan), or when no trainer recipe covers a range (Tailoring 255-300). Patterns

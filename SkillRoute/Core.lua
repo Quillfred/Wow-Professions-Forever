@@ -211,11 +211,33 @@ function Core.Have(item)
   return getCount and getCount(item, true) or 0 -- bags + bank
 end
 
+-- A tool only counts in your bags (or equipped), not in the bank.
+function Core.HasTool(key)
+  local def = Data.tools[key]
+  if not (def and getCount) then return false end
+  for _, item in ipairs(def[2]) do
+    if getCount(item) > 0 then return true end
+  end
+  return false
+end
+
+local toolsFor = {}
+function Core.ToolsFor(line) -- tool keys any recipe of this profession needs
+  if not toolsFor[line] then
+    local set = {}
+    for _, r in pairs(Data.professions[line].recipes) do
+      for _, t in ipairs(r.tool or {}) do set[t] = true end
+    end
+    toolsFor[line] = set
+  end
+  return toolsFor[line]
+end
+
 -- Planning ---------------------------------------------------------------------
--- The vendor-pattern search (tens of ms) only depends on skill, target, known
--- recipes, trainer data, prices and settings, not on bags. Bag changes re-plan
--- with the cached pattern choice (a few ms). Any input change, an Auctionator
--- scan, or reopening the window starts a fresh search.
+-- The search for patterns/tools worth buying (tens of ms) depends on skill,
+-- target, known recipes, trainer data, owned tools, prices and settings, but not
+-- on reagents in your bags. Bag changes re-plan with the cached choice (a few ms).
+-- Any input change, an Auctionator scan, or reopening the window searches again.
 Core.dataVersion = 0
 local patternCache = {}
 function Core.InvalidatePatterns() patternCache = {} end
@@ -234,17 +256,22 @@ function Core.Plan(line, target)
   for _ in pairs(known) do nKnown = nKnown + 1 end
   local key = table.concat({ s.rank, target, nKnown, Core.dataVersion, settings.bonus or 0,
                              tostring(settings.estimate) }, ":")
+  local recipes = Data.professions[line].recipes
+  local owned = {}
+  for key in pairs(Core.ToolsFor(line)) do if Core.HasTool(key) then owned[#owned + 1] = key end end
+  table.sort(owned)
+  key = key .. ":" .. table.concat(owned, ",")
   local cached = patternCache[line]
   local plan = Planner.Plan({
-    recipes = Data.professions[line].recipes, items = Data.items,
+    recipes = recipes, items = Data.items, tools = Data.tools,
     skill = s.rank, target = target,
     known = known, trainer = db().trainer[line] or {},
-    price = Core.Price, have = Core.Have, bonus = settings.bonus or 0,
-    fixedPatterns = cached and cached.key == key and cached.set or nil,
+    price = Core.Price, have = Core.Have, hasTool = Core.HasTool, bonus = settings.bonus or 0,
+    fixedUnlocks = cached and cached.key == key and cached.set or nil,
   })
   if not (cached and cached.key == key) then
     local set = {}
-    for spell in pairs(plan.patterns or {}) do set[spell] = true end
+    for k in pairs(plan.unlocks or {}) do set[k] = true end
     patternCache[line] = { key = key, set = set }
   end
   plan.ms = t0 and (debugprofilestop() - t0)
