@@ -52,8 +52,9 @@ Copy the `SkillRoute` folder into `World of Warcraft/_forever_/Interface/AddOns/
   re-plan without it; `/sr unskip` brings skipped recipes back. Patterns are only
   "on the AH" if Auctionator saw one today or yesterday.
 
-**Where to go:** "Train Expert" rows and "Buy pattern from ..." steps name the nearest
-trainer / vendor for your faction, with zone and map coordinates (Classic NPC data;
+**Where to go:** "Train Expert" rows and "Buy pattern from ..." steps name the trainer /
+vendor for your faction that is quickest to reach (running, plus the boats and zeppelins
+your faction can use; flight paths aren't counted), with zone and map coordinates (Classic NPC data;
 the zone is resolved by the game's own map, so it matches your map). **Click** the
 row to set a waypoint: TomTom if installed, else the game's map pin, else the
 coordinates in chat.

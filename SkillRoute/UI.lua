@@ -169,6 +169,7 @@ local function routeRows(plan)
       else
         tip[1] = "No trainer known. Talk to one once and SkillRoute will remember where they are."
       end
+      if loc and Core.TravelText(loc) then tip[#tip + 1] = Core.TravelText(loc) .. "." end
       if loc then tip[#tip + 1] = "|cff808080Click: set a waypoint (TomTom).|r" end
       add({ icon = "Interface\\Icons\\INV_Misc_Book_09",
             text = ("|cffffd100Train %s|r"):format(rank) .. (loc and (" at " .. loc.npc) or " at your trainer"),
@@ -265,6 +266,7 @@ local function routeRows(plan)
       if trainerLoc then
         tip[#tip + 1] = ("Trainer: %s, %s%s"):format(trainerLoc.npc, Core.Where(trainerLoc) or "?",
           exact and " (teaches it in the Classic data)" or " (nearest trainer of a high enough rank)")
+          .. (Core.TravelText(trainerLoc) and (", " .. Core.TravelText(trainerLoc)) or "")
       end
       if st.learn == "pattern" and st.unlock then
         local p, n = Core.Place("vendor", st.unlock.item)
@@ -274,7 +276,8 @@ local function routeRows(plan)
           tip[#tip + 1] = ("Sold by %s%s.%s"):format(Core.FormatPlace(p, true), p.limited and " (limited stock)" or "",
             n > 1 and (" %d vendors known."):format(n) or "")
         elseif near then
-          tip[#tip + 1] = ("Nearest vendor for your faction: %s, %s (Classic NPC data)."):format(near.npc, Core.Where(near) or "?")
+          tip[#tip + 1] = ("Nearest vendor for your faction: %s, %s (Classic NPC data)%s."):format(near.npc,
+            Core.Where(near) or "?", Core.TravelText(near) and (", " .. Core.TravelText(near)) or "")
         elseif st.unlock.vendorNames then
           tip[#tip + 1] = "Sold to your faction by: " .. st.unlock.vendorNames .. " (Classic vendor data)."
         elseif r.where then

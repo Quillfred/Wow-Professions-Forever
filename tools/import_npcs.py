@@ -166,7 +166,43 @@ def main():
             npcs[str(entry)] = {"n": t[N], "side": side, "map": mapid, "x": round(x, 1), "y": round(y, 1),
                                 "cui": c[0] if c else None, "cx": c[1] if c else None, "cy": c[2] if c else None,
                                 "zone": z[0] if z else None, "zx": z[1] if z else None, "zy": z[2] if z else None}
-    out = {"recipes": {str(rc): sorted(e for e in es if str(e) in npcs)
+    # Boats and zeppelins: stops from the transport's path in Forever's TaxiPathNode
+    # (nodes with a delay), period from the Classic transports table.
+    tc = columns(sqlgz, "gameobject_template")
+    GE, GD0 = tc.index("entry"), tc.index("data0")
+    tpath = {int(r[GE]): int(r[GD0]) for r in sql_rows(sqlgz, "gameobject_template") if r[tc.index("type")] == "15"}
+    tnodes = {}
+    for r in rows(tbl("TaxiPathNode")):
+        tnodes.setdefault(int(r["PathID"]), []).append(r)
+    transports = []
+    for r in sql_rows(sqlgz, "transports"):
+        entry, name, period = int(r[0]), r[1], int(r[2])
+        if "Naxxramas" in name or entry not in tpath:
+            continue
+        ns = sorted(tnodes.get(tpath[entry], []), key=lambda n: int(n["NodeIndex"]))
+        stops, seen = [], set()
+        for n in ns:
+            if int(n["Delay"]) > 0:
+                key = (int(n["ContinentID"]), round(float(n["Loc_0"])), round(float(n["Loc_1"])))
+                if key not in seen:
+                    seen.add(key)
+                    stops.append(list(key))
+        if len(stops) < 2:
+            continue
+        horde = any(w in name for w in ("Orgrimmar", "Undercity"))
+        alliance = any(w in name for w in ("Menethil", "Teldrassil", "Feathermoon"))
+        side = "H" if horde else "A" if alliance else "AH"
+        transports.append({"name": name, "side": side, "sec": round(period / 1000), "stops": stops})
+    # continent maps: world rectangle + where it sits on the UI map, to turn your
+    # map position into world coordinates in game
+    conts = {}
+    for mapid, a in continent.items():
+        conts[str(mapid)] = {"ui": int(a["UiMapID"]),
+                             "r": [float(a[f"Region_{i}"]) for i in (0, 1, 3, 4)],
+                             "u": [float(a[k]) for k in ("UiMin_0", "UiMin_1", "UiMax_0", "UiMax_1")]}
+
+    out = {"transports": transports, "continents": conts,
+           "recipes": {str(rc): sorted(e for e in es if str(e) in npcs)
                        for rc, es in recipe_trainers.items() if any(str(e) in npcs for e in es)},
            "npcs": npcs,
            "trainers": {line: {e: r for e, r in d.items() if e in npcs} for line, d in trainers.items()},

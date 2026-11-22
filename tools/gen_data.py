@@ -333,6 +333,15 @@ def main():
             v = lambda k: "nil" if n.get(k) is None else str(n[k])
             lines.append(f"    [{e}]={{{lua_str(n['n'])},\"{n['side']}\",{n['map']},{n['x']},{n['y']},"
                          f"{v('cui')},{v('cx')},{v('cy')},{zone},{v('zx')},{v('zy')}}},")
+    lines += ["  },", "  -- boats/zeppelins: {name, \"A\"|\"H\"|\"AH\", seconds per trip, {map, worldX, worldY}, ...}",
+              "  transports = {"]
+    for t in npcdata.get("transports", []):
+        stops = ",".join("{%d,%d,%d}" % tuple(st) for st in t["stops"])
+        lines.append(f"    {{{lua_str(t['name'])},\"{t['side']}\",{t['sec']},{stops}}},")
+    lines += ["  },", "  -- continent maps: [map] = {uiMapID, worldX0, worldY0, worldX1, worldY1, uMin, vMin, uMax, vMax}",
+              "  continents = {"]
+    for m, c in sorted(npcdata.get("continents", {}).items()):
+        lines.append(f"    [{m}]={{{c['ui']},{','.join(str(round(v, 3)) for v in c['r'] + c['u'])}}},")
     factions = {int(r["ID"]): r["Name_lang"] for r in rows(p["Faction"])}
     lines += ["  },", "  factions = {"]
     for f in sorted(used_factions):

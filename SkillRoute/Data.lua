@@ -6437,6 +6437,22 @@ SkillRouteData = {
     [15179]={"Mishta","AH",1,-6802.3,800.0,1414,44.2,79.9,nil,nil,nil},
     [15419]={"Kania","AH",1,-6880.5,727.2,1414,44.4,80.22,nil,nil,nil},
   },
+  -- boats/zeppelins: {name, "A"|"H"|"AH", seconds per trip, {map, worldX, worldY}, ...}
+  transports = {
+    {"Ratchet and Booty Bay","AH",351,{1,-1006,-3842},{0,-14278,583}},
+    {"Orgrimmar and Undercity","H",356,{1,1318,-4658},{0,2062,293}},
+    {"Grom'Gol Base Camp and Orgrimmar","H",303,{0,-12464,232},{1,1361,-4631}},
+    {"Menethil Harbor and Theramore Isle","A",329,{0,-3905,-586},{1,-4016,-4741}},
+    {"Teldrassil and Auberdine","A",316,{1,8532,1024},{1,6594,760}},
+    {"Menethil Harbor and Auberdine","A",296,{0,-3709,-575},{1,6406,823}},
+    {"Grom'Gol Base Camp and Undercity","H",333,{0,-12407,212},{0,2063,235}},
+    {"Forgotton Coast and Feathermoon Stronghold","A",317,{1,-4197,3287},{1,-4348,2444}},
+  },
+  -- continent maps: [map] = {uiMapID, worldX0, worldY0, worldX1, worldY1, uMin, vMin, uMax, vMax}
+  continents = {
+    [0]={1415,-16000.0,-19199.9,7466.6,16000.0,0.0,0.0,1.0,1.0},
+    [1]={1414,-11733.3,-19733.211,12799.9,17066.6,0.0,0.0,1.0,1.0},
+  },
   factions = {
     [59]="Thorium Brotherhood",
     [270]="Zandalar Tribe",

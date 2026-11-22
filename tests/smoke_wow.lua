@@ -269,6 +269,22 @@ do
   local t2, exact2 = Core.NearestRecipeTrainer(197, 999999, 160)
   assert(t2 and not exact2, "unknown recipe: nearest Expert+ trainer")
   print("Silk Headband trainer (Horde): " .. t1.npc)
+  -- travel: from Orgrimmar, Expert (needs Artisan/Master) -> Josef Gregorian in Undercity
+  -- via the zeppelin, not Daryl Stack (Hillsbrad); Artisan (needs Master) -> Daryl Stack
+  local savedPos = C_Map.GetPlayerMapPosition
+  C_Map.GetPlayerMapPosition = function(m) -- Orgrimmar on the Kalimdor map
+    if m == 1414 then return { GetXY = function() return 0.588, 0.448 end } end
+    return { GetXY = function() return 0.4723, 0.6181 end }
+  end
+  local e3 = Core.NearestTrainer(197, 3)
+  assert(e3 and e3.npc == "Josef Gregorian" and e3.via == "Orgrimmar and Undercity",
+    "Expert from Orgrimmar: Josef via zeppelin, got " .. tostring(e3 and e3.npc) .. " via " .. tostring(e3 and e3.via))
+  local e4 = Core.NearestTrainer(197, 4)
+  assert(e4 and e4.npc == "Daryl Stack", "Artisan: Daryl Stack (Master)")
+  print(("from Orgrimmar: Expert -> %s, %s; Artisan -> %s, %s"):format(e3.npc, Core.TravelText(e3), e4.npc, Core.TravelText(e4)))
+  local j2 = Core.NearestTrainer(197, 2)
+  assert(j2 and j2.npc == "Magar", "Journeyman from Orgrimmar: Magar, got " .. tostring(j2 and j2.npc))
+  C_Map.GetPlayerMapPosition = savedPos
   -- TomTom waypoint
   local got
   _G.TomTom = { AddWaypoint = function(self, ui, x, y, opts) got = { ui, x, y, opts.title } end }

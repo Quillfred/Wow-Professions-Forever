@@ -311,21 +311,111 @@ local function playerContinent()
   end
 end
 
--- The nearest of these NPCs that deals with your faction: same continent first.
-function Core.NearestNPC(ids)
+-- Travel ---------------------------------------------------------------------------
+-- "Nearest" = shortest travel time: running (RUN yards/second) on a continent, plus
+-- boats/zeppelins your faction can use (a full trip each, to cover waiting + riding),
+-- chained as needed (Orgrimmar -> Undercity -> Grom'gol). Flight paths and terrain
+-- are ignored: it ranks trainers, it isn't an ETA.
+local RUN = 7
+
+local function myLetter()
   local mine = UnitFactionGroup and UnitFactionGroup("player")
-  local letter = mine == "Alliance" and "A" or mine == "Horde" and "H" or nil
+  return mine == "Alliance" and "A" or mine == "Horde" and "H" or nil
+end
+
+-- your world position (map, x, y) from your spot on the continent map
+local function playerWorld()
   local cui, px, py = playerContinent()
-  local best, bestD
+  if not cui then return end
+  for map, c in pairs(Data.continents or {}) do
+    if c[1] == cui then
+      local u, v = px / 100, py / 100
+      local x0, y0, x1, y1, u0, v0, u1, v1 = c[2], c[3], c[4], c[5], c[6], c[7], c[8], c[9]
+      return map, x1 - (v - v0) / (v1 - v0) * (x1 - x0), y1 - (u - u0) / (u1 - u0) * (y1 - y0)
+    end
+  end
+end
+
+local function walk(ax, ay, bx, by) return math.sqrt((ax - bx) ^ 2 + (ay - by) ^ 2) / RUN end
+
+-- seconds from you to every boat/zeppelin stop (Dijkstra over ~16 stops)
+local function travelTable(pm, px, py)
+  local letter = myLetter()
+  local stops, edges = {}, {}
+  for _, t in ipairs(Data.transports or {}) do
+    if not letter or t[2]:find(letter, 1, true) then
+      local first = #stops + 1
+      for i = 4, #t do stops[#stops + 1] = t[i] end
+      for a = first, #stops do
+        for b = first, #stops do
+          if a ~= b then edges[#edges + 1] = { a, b, t[3], t[1] } end
+        end
+      end
+    end
+  end
+  local dist, via, done = {}, {}, {}
+  for i, st in ipairs(stops) do
+    dist[i] = st[1] == pm and walk(px, py, st[2], st[3]) or math.huge
+  end
+  for _ = 1, #stops do
+    local u, best = nil, math.huge
+    for i = 1, #stops do if not done[i] and dist[i] < best then u, best = i, dist[i] end end
+    if not u then break end
+    done[u] = true
+    local function relax(v, c, name)
+      if dist[u] + c < dist[v] then dist[v] = dist[u] + c; via[v] = name or via[u] end
+    end
+    for v = 1, #stops do -- run between stops on the same continent
+      if not done[v] and stops[v][1] == stops[u][1] then relax(v, walk(stops[u][2], stops[u][3], stops[v][2], stops[v][3])) end
+    end
+    for _, e in ipairs(edges) do
+      if e[1] == u and not done[e[2]] then relax(e[2], e[3], e[4]) end
+    end
+  end
+  return stops, dist, via
+end
+
+-- seconds from you to an NPC, and the first boat/zeppelin on the way (or nil)
+local function travelTo(tt, pm, px, py, n)
+  local best, how = math.huge, nil
+  if n[3] == pm then best = walk(px, py, n[4], n[5]) end
+  local stops, dist, via = tt[1], tt[2], tt[3]
+  for i, st in ipairs(stops) do
+    if st[1] == n[3] and dist[i] < math.huge then
+      local c = dist[i] + walk(st[2], st[3], n[4], n[5])
+      if c < best then best, how = c, via[i] end
+    end
+  end
+  return best, how
+end
+
+-- The nearest (by travel time) of these NPCs that deals with your faction.
+function Core.NearestNPC(ids)
+  local letter = myLetter()
+  local pm, px, py = playerWorld()
+  local tt = pm and { travelTable(pm, px, py) }
+  local best, bestD, bestHow
   for _, id in ipairs(ids or {}) do
     local n = Data.npcs and Data.npcs[id]
     if n and (not letter or n[2]:find(letter, 1, true)) then
-      local d = 1e9
-      if cui and n[6] == cui then d = (n[7] - px) ^ 2 + (n[8] - py) ^ 2 end
-      if not bestD or d < bestD then best, bestD = id, d end
+      local d, how = math.huge, nil
+      if tt then d, how = travelTo(tt, pm, px, py, n) end
+      if not bestD or d < bestD then best, bestD, bestHow = id, d, how end
     end
   end
-  return best and Core.NPCLocation(best)
+  if not best then return nil end
+  local loc = Core.NPCLocation(best)
+  local copy = {}
+  for k, v in pairs(loc) do copy[k] = v end
+  copy.travel = bestD < math.huge and bestD or nil
+  copy.via = bestHow
+  return copy
+end
+
+function Core.TravelText(loc)
+  if not (loc and loc.travel) then return nil end
+  local min = math.max(1, math.floor(loc.travel / 60 + 0.5))
+  return ("about %d min away%s"):format(min, loc.via and (" (by boat/zeppelin: " .. loc.via .. ")") or "")
 end
 
 -- Who can teach a rank-up (rankStep: 2 Journeyman, 3 Expert, 4 Artisan)? In Forever a
