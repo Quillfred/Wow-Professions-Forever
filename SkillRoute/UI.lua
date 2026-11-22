@@ -10,13 +10,23 @@ local RANKS = { [75] = "Journeyman", [150] = "Expert", [225] = "Artisan" }
 local RANK_NAMES = { [3] = "Neutral", [4] = "Friendly", [5] = "Honored", [6] = "Revered", [7] = "Exalted" }
 local COLORS = { orange = "ff8040", yellow = "ffff00", green = "40bf40", grey = "808080" }
 
-local function money(c)
-  if not c then return "|cff808080no price|r" end
+-- Money like the game's money display: numbers in the text colour, with "g", "s"
+-- and "c" in gold, silver and copper. resume = colour of the text around it, so a
+-- cost inside yellow text stays yellow after each coloured letter.
+local GOLD, SILVER, COPPER = "ffd700", "c7c7cf", "eda55f"
+local function money(c, resume)
+  if not c then return "|cff808080no price|r" .. (resume and ("|cff" .. resume) or "") end
   c = math.floor(c + 0.5)
-  if GetCoinTextureString then return GetCoinTextureString(c) end
+  local after = resume and ("|cff" .. resume) or ""
+  local function unit(n, col, letter) return n .. "|cff" .. col .. letter .. "|r" .. after end
   local g, s, cp = math.floor(c / 10000), math.floor(c / 100) % 100, c % 100
-  return (g > 0 and (g .. "g ") or "") .. ((g > 0 or s > 0) and (s .. "s ") or "") .. cp .. "c"
+  local out = {}
+  if g > 0 then out[#out + 1] = unit(g, GOLD, "g") end
+  if g > 0 or s > 0 then out[#out + 1] = unit(s, SILVER, "s") end
+  out[#out + 1] = unit(cp, COPPER, "c")
+  return table.concat(out, " ")
 end
+local YELLOW = "ffd100"
 
 local function icon(item, spell)
   local tex = item and ((C_Item and C_Item.GetItemIconByID and C_Item.GetItemIconByID(item))
@@ -129,7 +139,7 @@ local function routeRows(plan)
         toolShown[u] = true
         local learn = ""
         if u.learnHow == "trainer" then
-          learn = "  |cffffd100Learn at trainer" .. (u.learnCost and (" (" .. money(u.learnCost) .. ")") or "") .. "|r"
+          learn = "  |cffffd100Learn at trainer" .. (u.learnCost and (" (" .. money(u.learnCost, YELLOW) .. ")") or "") .. "|r"
         elseif u.learnHow == "trainer?" then
           learn = "  |cffffd100Learn at trainer (not confirmed yet)|r"
         end
@@ -171,9 +181,9 @@ local function routeRows(plan)
       local r = Data.professions[plan.line].recipes[st.spell]
       local learn = ""
       if st.learn == "trainer" then
-        learn = "  |cffffd100Learn at trainer" .. (st.learnCost and (" (" .. money(st.learnCost) .. ")") or "") .. "|r"
+        learn = "  |cffffd100Learn at trainer" .. (st.learnCost and (" (" .. money(st.learnCost, YELLOW) .. ")") or "") .. "|r"
       elseif st.learn == "pattern" then
-        learn = "  |cffffd100Buy pattern from a vendor (" .. money(st.learnCost) .. ")|r"
+        learn = "  |cffffd100Buy pattern from a vendor (" .. money(st.learnCost, YELLOW) .. ")|r"
       elseif st.learn == "trainer?" then
         learn = "  |cffffd100Learn at trainer (not confirmed yet)|r"
       end
@@ -280,7 +290,7 @@ function UI.Refresh()
   for i = n + 1, #rows do rows[i]:Hide() end
   content:SetHeight(math.max(1, n * ROW_H + ROWS_PAD))
   modeBtn:SetText(state.mode == "route" and "Shopping list" or "Route")
-  footer:SetText(("Buy for %s%s   |cff808080planned in %s|r"):format(money(plan.total),
+  footer:SetText(("Buy for |cffffffff%s|r%s   |cff808080planned in %s|r"):format(money(plan.total, "ffffff"),
     plan.estimated and " |cffff8040(includes estimates)|r" or "",
     plan.ms and ("%.1f ms"):format(plan.ms) or "?"))
 end

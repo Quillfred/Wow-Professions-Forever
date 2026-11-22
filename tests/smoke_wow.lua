@@ -148,4 +148,11 @@ C_TradeSkillUI.IsTradeSkillLinked = nil
 SlashCmdList.SKILLROUTE("auto off")
 fire("TRADE_SKILL_SHOW"); assert(not UI.IsShown(), "auto off respected")
 SlashCmdList.SKILLROUTE("auto on")
+-- money is drawn like the game's: coloured g/s/c, surrounding colour resumed
+do
+  local foot
+  for _, t in ipairs(texts) do local v = rawget(t, "text"); if type(v) == "string" and v:find("^Buy for") then foot = v end end
+  assert(foot and foot:find("|cffffd700g|r", 1, true) or foot:find("|cffeda55fc|r", 1, true), "footer uses coloured coin letters")
+  print("footer: " .. foot)
+end
 print("SMOKE TEST PASSED")
