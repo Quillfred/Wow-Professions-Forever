@@ -6,6 +6,11 @@ ns.UI = UI
 
 local Data, Core = SkillRouteData, ns.Core
 local ROW_H, ROWS_PAD = 36, 4
+-- Right-hand columns: skill range (fixed position, left-aligned, blue) and cost
+-- (right-aligned at the edge), so neither moves with the other's length.
+local COST_W, RANGE_W, COL_GAP, EDGE = 100, 62, 10, 6
+local RANGE_X = EDGE + COST_W + COL_GAP            -- range column's right edge, from row's right
+local RANGE_COLOR = { 0.55, 0.80, 1.00 }
 local RANKS = { [75] = "Journeyman", [150] = "Expert", [225] = "Artisan" }
 local RANK_NAMES = { [3] = "Neutral", [4] = "Friendly", [5] = "Honored", [6] = "Revered", [7] = "Exalted" }
 local COLORS = { orange = "ff8040", yellow = "ffff00", green = "40bf40", grey = "808080" }
@@ -51,7 +56,7 @@ local function mats(spell, line)
 end
 
 -- Frame ----------------------------------------------------------------------------
-local frame, scroll, content, info, footer, targetBox, profText, modeBtn
+local frame, scroll, content, info, footer, targetBox, profText, modeBtn, hRange
 local rows = {}
 local state = { mode = "route" }
 UI._state = state -- for tests
@@ -74,7 +79,7 @@ local function row(i)
   r.icon:SetPoint("LEFT", 4, 0)
   r.text = r:CreateFontString(nil, "OVERLAY", "GameFontNormal")
   r.text:SetPoint("TOPLEFT", r.icon, "TOPRIGHT", 6, 1)
-  r.text:SetPoint("RIGHT", r, "RIGHT", -110, 0)
+  r.text:SetPoint("RIGHT", r, "RIGHT", -(RANGE_X + RANGE_W + 6), 0)
   r.text:SetJustifyH("LEFT")
   r.text:SetWordWrap(false)
   r.sub = r:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
@@ -83,8 +88,14 @@ local function row(i)
   r.sub:SetJustifyH("LEFT")
   r.sub:SetWordWrap(false)
   r.right = r:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
-  r.right:SetPoint("TOPRIGHT", -6, -3)
+  r.right:SetPoint("TOPRIGHT", -EDGE, -3)
+  r.right:SetWidth(COST_W)
   r.right:SetJustifyH("RIGHT")
+  r.range = r:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
+  r.range:SetPoint("TOPRIGHT", -RANGE_X, -3)
+  r.range:SetWidth(RANGE_W)
+  r.range:SetJustifyH("LEFT")
+  r.range:SetTextColor(RANGE_COLOR[1], RANGE_COLOR[2], RANGE_COLOR[3])
   local hl = r:CreateTexture(nil, "HIGHLIGHT")
   hl:SetAllPoints()
   hl:SetColorTexture(1, 1, 1, 0.06)
@@ -108,6 +119,7 @@ local function setRow(i, opts)
   r.text:SetText(opts.text or "")
   r.sub:SetText(opts.sub or "")
   r.right:SetText(opts.right or "")
+  r.range:SetText(opts.range or "")
   r.item, r.spell, r.tip, r.tipTitle = opts.item, opts.spell, opts.tip, opts.tipTitle or opts.title
   r:Show()
 end
@@ -130,7 +142,7 @@ local function routeRows(plan)
     while RANKS[trained] and st.from >= trained do
       add({ icon = "Interface\\Icons\\INV_Misc_Book_09",
             text = ("|cffffd100Train %s at your trainer|r"):format(RANKS[trained]),
-            sub = ("Needed to go past %d"):format(trained), right = tostring(trained) })
+            sub = ("Needed to go past %d"):format(trained), range = tostring(trained) })
       trained = trained + 75
     end
     -- get each tool (rod, hammer...) right before the first step that needs it
@@ -145,15 +157,16 @@ local function routeRows(plan)
         end
         if u.craftSpell then
           add({ item = u.item, spell = u.craftSpell,
-                text = ("|cffff8040Craft 1 x %s|r  (tool: keep it in your bags)"):format(itemName(u.item)),
+                text = ("|cffff8040Craft 1 x %s|r (tool)"):format(itemName(u.item)),
                 sub = mats(u.craftSpell, plan.line) .. learn,
-                right = ("%d+  %s"):format(math.max(u.from, st.from), money(u.price)),
-                tip = { ("Needed from %d on. Craft it once and keep it in your bags (not the bank)."):format(st.from) } })
+                range = ("%d+"):format(math.max(u.from, st.from)), right = money(u.price),
+                tip = { ("A tool: needed from %d on. Craft it once and keep it in your bags (not the bank)."):format(st.from) } })
         else
           add({ item = u.item,
-                text = ("|cffff8040Buy 1 x %s|r  (tool: keep it in your bags)"):format(itemName(u.item)),
+                text = ("|cffff8040Buy 1 x %s|r (tool)"):format(itemName(u.item)),
                 sub = (Data.items[u.item] and Data.items[u.item][3]) and "From a trade supplies vendor" or "From the auction house",
-                right = money(u.price) })
+                right = money(u.price),
+                tip = { ("A tool: needed from %d on. Keep it in your bags (not the bank)."):format(st.from) } })
         end
       end
     end
@@ -162,7 +175,7 @@ local function routeRows(plan)
             text = ("|cffff4040No usable recipe for %d-%d|r"):format(st.from, st.to),
             sub = plan.unpriced > 0 and "Scan the AH (some recipes had no prices), or get a pattern:"
                   or "Needs a pattern. Cheapest that cover this range:",
-            right = st.from .. "-" .. st.to })
+            range = st.from .. "-" .. st.to })
       for _, g in ipairs(plan.gaps) do
         if g.from == st.from then
           for k = 1, math.min(5, #g.patterns) do
@@ -221,7 +234,7 @@ local function routeRows(plan)
       add({ item = r.out, spell = st.spell, tip = tip,
             text = ("|cff%s~%d|r x %s"):format(COLORS[st.color] or "ffffff", math.ceil(st.crafts - 1e-9), st.name),
             sub = mats(st.spell, plan.line) .. learn,
-            right = ("%d-%d  %s"):format(st.from, st.to, money(st.cost)) })
+            range = ("%d-%d"):format(st.from, st.to), right = money(st.cost) })
     end
   end
   return n
@@ -290,6 +303,7 @@ function UI.Refresh()
   for i = n + 1, #rows do rows[i]:Hide() end
   content:SetHeight(math.max(1, n * ROW_H + ROWS_PAD))
   modeBtn:SetText(state.mode == "route" and "Shopping list" or "Route")
+  if state.mode == "route" then hRange:Show() else hRange:Hide() end
   footer:SetText(("Buy for |cffffffff%s|r%s   |cff808080planned in %s|r"):format(money(plan.total, "ffffff"),
     plan.estimated and " |cffff8040(includes estimates)|r" or "",
     plan.ms and ("%.1f ms"):format(plan.ms) or "?"))
@@ -299,7 +313,7 @@ function UI.IsShown() return frame and frame:IsShown() end
 
 local function build()
   frame = CreateFrame("Frame", "SkillRouteFrame", UIParent, "BasicFrameTemplateWithInset")
-  frame:SetSize(560, 560)
+  frame:SetSize(600, 560)
   frame:SetPoint("CENTER")
   frame:SetMovable(true)
   frame:EnableMouse(true)
@@ -358,10 +372,18 @@ local function build()
   info:SetPoint("TOPLEFT", 14, -60); info:SetPoint("RIGHT", -14, 0); info:SetJustifyH("LEFT")
 
   scroll = CreateFrame("ScrollFrame", nil, frame, "UIPanelScrollFrameTemplate")
-  scroll:SetPoint("TOPLEFT", 10, -98)
+  scroll:SetPoint("TOPLEFT", 10, -112)
+  -- column headings, aligned with the row columns (scroll area ends 32px from the edge)
+  hRange = frame:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+  hRange:SetPoint("TOPRIGHT", frame, "TOPRIGHT", -(32 + RANGE_X), -98)
+  hRange:SetWidth(RANGE_W); hRange:SetJustifyH("LEFT"); hRange:SetText("Skill")
+  hRange:SetTextColor(RANGE_COLOR[1], RANGE_COLOR[2], RANGE_COLOR[3])
+  local hCost = frame:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+  hCost:SetPoint("TOPRIGHT", frame, "TOPRIGHT", -(32 + EDGE), -98)
+  hCost:SetWidth(COST_W); hCost:SetJustifyH("RIGHT"); hCost:SetText("Cost")
   scroll:SetPoint("BOTTOMRIGHT", -32, 34)
   content = CreateFrame("Frame", nil, scroll)
-  content:SetSize(510, 1)
+  content:SetSize(550, 1)
   scroll:SetScrollChild(content)
   scroll:SetScript("OnSizeChanged", function(_, w) content:SetWidth(w) end)
 
