@@ -337,6 +337,15 @@ function Core.NearestTrainer(line, rankStep) -- rankStep: 2 Journeyman, 3 Expert
   return Core.NearestNPC(ids)
 end
 
+-- Nearest trainer who teaches this recipe: the Classic trainer lists when the recipe
+-- is in them, else any trainer of the profession whose rank covers its learn level.
+function Core.NearestRecipeTrainer(line, spell, learnAt)
+  local set = Data.recipeTrainers and Data.recipeTrainers[spell]
+  if set then return Core.NearestNPC(Data.trainerSets[set]), true end
+  local need = (learnAt or 0) >= 225 and 4 or (learnAt or 0) >= 150 and 3 or (learnAt or 0) >= 75 and 2 or 1
+  return Core.NearestTrainer(line, need), false
+end
+
 function Core.NearestVendor(item)
   return Core.NearestNPC(Data.vendorNpcs and Data.vendorNpcs[item])
 end

@@ -225,8 +225,13 @@ local function routeRows(plan)
     else
       local r = Data.professions[plan.line].recipes[st.spell]
       local learn = ""
+      local trainerLoc, exact
+      if st.learn == "trainer" or st.learn == "trainer?" then
+        trainerLoc, exact = Core.NearestRecipeTrainer(plan.line, st.spell, r.learn or r.y)
+      end
       if st.learn == "trainer" then
-        learn = "  |cffffd100Learn at trainer" .. (st.learnCost and (" (" .. money(st.learnCost, YELLOW) .. ")") or "") .. "|r"
+        learn = "  |cffffd100Learn at " .. (trainerLoc and trainerLoc.npc or "trainer")
+                .. (st.learnCost and (" (" .. money(st.learnCost, YELLOW) .. ")") or "") .. "|r"
       elseif st.learn == "pattern" then
         if st.unlock and st.unlock.via == "ah" then
           learn = "  |cffffd100Buy pattern on the AH (last seen " .. money(st.learnCost, YELLOW) .. ")|r"
@@ -254,7 +259,11 @@ local function routeRows(plan)
         tip[#tip + 1] = sv and ("Buying the pattern saves about %s over the whole route, its price included."):format(money(sv))
                         or "No trainer recipe covers this range; this is the cheapest way through."
       end
-      local waypoint
+      local waypoint = trainerLoc
+      if trainerLoc then
+        tip[#tip + 1] = ("Trainer: %s, %s%s"):format(trainerLoc.npc, Core.Where(trainerLoc) or "?",
+          exact and " (teaches this recipe in Classic data)" or " (nearest trainer of a high enough rank)")
+      end
       if st.learn == "pattern" and st.unlock then
         local p, n = Core.Place("vendor", st.unlock.item)
         local near = not p and st.unlock.via ~= "ah" and Core.NearestVendor(st.unlock.item)
@@ -289,7 +298,7 @@ local function routeRows(plan)
         for _, u in ipairs(st.tools) do names[#names + 1] = u.name end
         learn = learn .. "  |cffff8040needs " .. table.concat(names, ", ") .. "|r"
       end
-      if waypoint then tip[#tip + 1] = "|cff808080Click: set a waypoint to the vendor (TomTom).|r" end
+      if waypoint then tip[#tip + 1] = "|cff808080Click: set a waypoint (TomTom).|r" end
       tip[#tip + 1] = "|cff808080Right-click: skip this recipe (e.g. pattern not for sale) and plan without it.|r"
       add({ item = r.out, spell = st.spell, tip = tip, skipSpell = st.spell, skipName = st.name, waypoint = waypoint,
             text = ("|cff%s~%d|r x %s"):format(COLORS[st.color] or "ffffff", math.ceil(st.crafts - 1e-9), st.name),

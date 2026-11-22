@@ -256,6 +256,12 @@ do
   local v = Core.NearestVendor(SkillRouteData.professions[197].recipes[select(1, (function()
     for sp, r in pairs(SkillRouteData.professions[197].recipes) do if r.n == "Bright Yellow Shirt" then return sp end end end)())].pat[1])
   assert(v == nil, "Bright Yellow Shirt: no Horde vendor")
+  -- recipe trainers: exact list for Silk Headband; rank fallback for a recipe not in it
+  local t1, exact1 = Core.NearestRecipeTrainer(197, 8762, 125)
+  assert(t1 and exact1 and t1.side:find("H"), "Silk Headband: a Horde trainer from the Classic lists")
+  local t2, exact2 = Core.NearestRecipeTrainer(197, 999999, 160)
+  assert(t2 and not exact2, "unknown recipe: nearest Expert+ trainer")
+  print("Silk Headband trainer (Horde): " .. t1.npc)
   -- TomTom waypoint
   local got
   _G.TomTom = { AddWaypoint = function(self, ui, x, y, opts) got = { ui, x, y, opts.title } end }

@@ -301,6 +301,27 @@ def main():
     lines += ["  },", "  -- profession trainers: [skillLine] = {[npcID] = highest rank taught (2 Journeyman, 3 Expert, 4 Artisan)}",
               "  trainers = {"] + tr_lines
     lines += ["  },", "  -- [patternItem] = {npcIDs of vendors selling it}", "  vendorNpcs = {"] + vend_lines
+    # which trainers teach each trainer recipe; identical trainer lists stored once
+    sets, set_index, rec_lines = [], {}, []
+    for line in sorted(PROFESSIONS):
+        for row in out[line]:
+            sp = int(row.split("]")[0].strip()[1:])
+            if 'src="T"' not in row and 'src="t"' not in row:
+                continue
+            es = npcdata.get("recipes", {}).get(str(sp))
+            if not es:
+                continue
+            key = tuple(es)
+            if key not in set_index:
+                set_index[key] = len(sets) + 1
+                sets.append(key)
+                used_npcs.update(es)
+            rec_lines.append(f"[{sp}]={set_index[key]}")
+    lines += ["  },", "  -- trainer lists, and [recipe spell] = index of the list of trainers that teach it",
+              "  trainerSets = {"] + ["    {" + ",".join(map(str, k)) + "}," for k in sets]
+    lines += ["  },", "  recipeTrainers = {"]
+    for i in range(0, len(rec_lines), 12):
+        lines.append("    " + ",".join(rec_lines[i:i + 12]) + ",")
     lines += ["  },", "  -- [npcID] = {name, faction \"A\"|\"H\"|\"AH\", map, worldX, worldY, continentUiMap, contX, contY, zone, zoneX, zoneY}",
               "  -- (Classic spawns; zone only when unambiguous, the game resolves the rest)",
               "  npcs = {"]

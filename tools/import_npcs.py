@@ -9,6 +9,9 @@ rank (SpellEffect), and the zone maps used to turn a world position into the zon
 name and the map coordinates you see in game (UiMapAssignment, UiMap).
 
 Usage: python3 -I tools/import_npcs.py CLASSICDB.sql.gz WAGO_CACHE_DIR BUILD [NPC IDs to print]
+  WAGO_CACHE_DIR must also hold SpellEffect-era.csv (Classic Era client, wago.tools build 1.15.x):
+  Classic trainer lists name "teach" spells that Forever's client no longer has; the
+  Classic Era client maps them to the recipe they teach.
 Writes tools/npcs.json. Classic data: Forever may have moved, added or removed NPCs;
 NPCs you visit in game override this.
 """
@@ -48,6 +51,14 @@ def main():
     for s, t in learn.items():
         if t in step and s not in step:
             step[s] = step[t]
+    teach = {}  # Classic teach spell -> recipe spell (Classic Era client)
+    era = os.path.join(cache, "SpellEffect-era.csv")
+    if os.path.exists(era):
+        for r in rows(era):
+            if r["Effect"] == EFFECT_LEARN:
+                teach.setdefault(int(r["SpellID"]), set()).add(int(r["EffectTriggerSpell"]))
+    for s, ts in learn.items():
+        teach.setdefault(s, set()).add(ts)
 
     # zone maps
     uimap = {int(r["ID"]): r for r in rows(tbl("UiMap"))}
@@ -109,7 +120,7 @@ def main():
     for r in sql_rows(sqlgz, "npc_vendor_template"):
         sells.setdefault(("tpl", int(r[0])), set()).add(int(r[1]))
 
-    trainers, vendors, wanted = {}, {}, set()
+    trainers, vendors, recipe_trainers, wanted = {}, {}, {}, set()
     for entry, t in tmpl.items():
         spells = teaches.get(("npc", entry), set()) | teaches.get(("tpl", int(t[TT] or 0)), set())
         for s in spells:
@@ -117,6 +128,8 @@ def main():
                 line, st = step[s]
                 trainers.setdefault(str(line), {}).setdefault(str(entry), set()).add(st)
                 wanted.add(entry)
+            for recipe in {s} | teach.get(s, set()):
+                recipe_trainers.setdefault(recipe, set()).add(entry)
         items = sells.get(("npc", entry), set()) | sells.get(("tpl", int(t[VT] or 0)), set())
         for it in items:
             if str(it) in vendor_items:
@@ -141,7 +154,9 @@ def main():
             npcs[str(entry)] = {"n": t[N], "side": side, "map": mapid, "x": round(x, 1), "y": round(y, 1),
                                 "cui": c[0] if c else None, "cx": c[1] if c else None, "cy": c[2] if c else None,
                                 "zone": z[0] if z else None, "zx": z[1] if z else None, "zy": z[2] if z else None}
-    out = {"npcs": npcs,
+    out = {"recipes": {str(rc): sorted(e for e in es if str(e) in npcs)
+                       for rc, es in recipe_trainers.items() if any(str(e) in npcs for e in es)},
+           "npcs": npcs,
            "trainers": {line: {e: sorted(s) for e, s in d.items() if e in npcs} for line, d in trainers.items()},
            "vendors": {it: sorted({e for e in es if str(e) in npcs}) for it, es in vendors.items()}}
     dst = os.path.join(os.path.dirname(os.path.abspath(__file__)), "npcs.json")
