@@ -157,4 +157,17 @@ do
   assert(foot and foot:find("|cffffd700g|r", 1, true) or foot:find("|cffeda55fc|r", 1, true), "footer uses coloured coin letters")
   print("footer: " .. foot)
 end
+-- intermediate steps (bolts) show "counted later", not a near-zero cost
+do
+  local saved = { GetProfessions, GetProfessionInfo }
+  GetProfessions = function() return 1 end
+  GetProfessionInfo = function() return "Tailoring", 0, 117, 150, 0, 0, 197 end
+  for id, it in pairs(SkillRouteData.items) do prices[id] = math.max(1, it[2]) * 3 end
+  UI.Toggle(197)
+  local later = false
+  for _, t in ipairs(texts) do local v = rawget(t, "text"); if type(v) == "string" and v:find("counted later", 1, true) then later = true end end
+  assert(later, "an intermediate step shows 'counted later'")
+  UI.Toggle()
+  GetProfessions, GetProfessionInfo = saved[1], saved[2]
+end
 print("SMOKE TEST PASSED")

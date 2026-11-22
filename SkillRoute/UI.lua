@@ -209,7 +209,8 @@ local function routeRows(plan)
         ("Skill-up chance falls from yellow %d to grey %d."):format(r.y, r.g),
       }
       if st.credited then
-        tip[#tip + 1] = ("Makes %s used later in this route, so its cost is counted there."):format(itemName(r.out))
+        tip[#tip + 1] = ("These crafts use about %s of materials. Later steps use the %s they make and include that cost, so it isn't counted twice.")
+          :format(money(st.grossCost), itemName(r.out))
       elseif st.vendorBack > 0 then
         tip[#tip + 1] = ("Vendoring the results gives back about %s (not counted)."):format(money(st.vendorBack))
       end
@@ -238,7 +239,8 @@ local function routeRows(plan)
       add({ item = r.out, spell = st.spell, tip = tip,
             text = ("|cff%s~%d|r x %s"):format(COLORS[st.color] or "ffffff", math.ceil(st.crafts - 1e-9), st.name),
             sub = mats(st.spell, plan.line) .. learn,
-            range = ("%d-%d"):format(st.from, st.to), right = money(st.cost) })
+            range = ("%d-%d"):format(st.from, st.to),
+            right = st.credited and "|cff808080counted later|r" or money(st.cost) })
     end
   end
   return n

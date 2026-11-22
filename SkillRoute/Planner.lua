@@ -491,6 +491,7 @@ function Planner.PlanOnce(ctx, credit)
         color = Planner.Color(c.r, s),
         vendorBack = c.r.out and ctx.items[c.r.out] and ctx.items[c.r.out][2] * (c.r.outN or 1) * crafts or 0,
         credited = c.r.out and (credit[c.r.out] or 0) > 0 or false,
+        grossCost = (reagentCost(c.r, unit) or 0) * crafts, -- materials, before crediting
         alt = a and { name = cands[a.k].r.n, perPoint = a.c, ours = c.cost / Planner.Chance(c.r, s, ctx.bonus) },
       }
       s = e
