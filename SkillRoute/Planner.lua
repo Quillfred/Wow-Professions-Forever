@@ -509,7 +509,7 @@ function Planner.PatternsFor(ctx, s)
       local item = bestItem or r.pat[1]
       local ok, faction, rank = Planner.RepOK(ctx, r, item)
       list[#list + 1] = { spell = spell, name = r.n, item = item, price = bestP, to = r.g,
-                          from = r.from, repFaction = not ok and faction or nil, repRank = rank }
+                          from = r.from, where = r.where, repFaction = not ok and faction or nil, repRank = rank }
     end
   end
   table.sort(list, function(a, b)

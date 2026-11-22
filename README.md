@@ -49,6 +49,7 @@ and visit your trainer once.
 ## Updating the data after a patch
 ```
 python3 -I tools/import_wowhead.py wow-forever-recipes.json   # optional: new Wowhead export
+python3 -I tools/import_sources.py blank-source-recipes.csv   # optional: sources Wowhead left blank
 python3 -I tools/gen_data.py            # newest Forever build on wago.tools
 python3 -I tools/gen_data.py 1.60.1.71037
 ```

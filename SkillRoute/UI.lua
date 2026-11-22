@@ -134,6 +134,7 @@ local function routeRows(plan)
             local pt = g.patterns[k]
             add({ item = pt.item, text = "   " .. pt.name,
                   sub = "   Good until " .. pt.to .. (pt.from and ("  -  " .. pt.from) or "")
+                        .. (pt.where and ("  -  " .. pt.where) or "")
                         .. (pt.repFaction and ("  -  |cffff8040needs %s with %s|r"):format(
                               RANK_NAMES[pt.repRank] or "?", Data.factions[pt.repFaction] or "?") or "")
                         .. (pt.price and "  -  AH" or "  -  not on the AH in your last scan"),
@@ -165,6 +166,7 @@ local function routeRows(plan)
         tip[#tip + 1] = sv and ("Buying the pattern saves about %s over the whole route, its price included."):format(money(sv))
                         or "No trainer recipe covers this range; this is the cheapest way through."
       end
+      if r.where and st.learn == "pattern" then tip[#tip + 1] = "Where: " .. r.where end
       for _, u in ipairs(st.tools or {}) do
         tip[#tip + 1] = ("Needs a %s in your bags: %s."):format(u.name,
           u.craftSpell and "craft one first (on the shopping list)" or ("buy one for " .. money(u.price)))

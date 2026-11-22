@@ -256,6 +256,13 @@ local dearRod = function(id) if id == 16207 then return 1e9, false end return ch
 check(not plan(333, 290, 300, dearRod, owned4, friendlyTB).unlocks["t:377"], "an expensive rod is not bought")
 check(not plan(333, 290, 300, cheapCombo, owned4).unlocks["p:" .. ws], "no reputation -> formula not bought")
 
+-- 10c. First Aid: the probable trainer bandages close the old 270-290 gap, marked unconfirmed
+local fa = plan(129, 1, 300)
+check(fa.gapPoints == 0, "First Aid plans all the way to 300")
+for _, st in ipairs(fa.steps) do
+  if st.spell == 18630 or st.spell == 18629 then check(st.learn == "trainer?", st.name .. " marked not confirmed") end
+end
+
 -- 11. reputation patterns: only with the standing they need
 local function repPlan(standing)
   return P.Plan({ recipes = T, items = items, tools = D.tools, hasTool = function() return false end,

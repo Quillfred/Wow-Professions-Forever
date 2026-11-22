@@ -1,0 +1,577 @@
+{
+"10550": {
+"src": [
+"Drop"
+],
+"where": "Dropped by: Bristleback Skullcrusher, Bristleback Nomad, Bristleback Thornweaver"
+},
+"10841": {
+"likelyTrainer": true
+},
+"11452": {
+"likelyTrainer": true
+},
+"12044": {
+"likelyTrainer": true
+},
+"12062": {
+"src": [
+"Drop"
+],
+"where": "Dropped by: Maraudine Stormer"
+},
+"12063": {
+"src": [
+"Vendor",
+"Quest",
+"Holiday"
+],
+"where": "Sold by: Molkar, Gorhak | Quest: I Need a Tailor"
+},
+"12083": {
+"src": [
+"Drop"
+],
+"where": "Dropped by: Firemane Flamecaller"
+},
+"12087": {
+"src": [
+"Drop"
+],
+"where": "Dropped by: Glassweb Spider"
+},
+"12090": {
+"src": [
+"Drop"
+],
+"where": "Dropped by: Hatecrest Serpent Guard"
+},
+"1224609": {
+"classic": true,
+"src": [
+"Drop"
+],
+"where": "Dropped by: High Commander Beatrix, Grand Crusader Caldoran"
+},
+"12260": {
+"likelyTrainer": true
+},
+"1226206": {
+"classic": true,
+"src": [
+"Quest"
+],
+"where": "Quest: Goblin Tinkering"
+},
+"1226207": {
+"classic": true,
+"src": [
+"Quest"
+],
+"where": "Quest: Whimsical Horrors"
+},
+"1226209": {
+"likelyTrainer": true
+},
+"1226210": {
+"classic": true,
+"src": [
+"Quest"
+],
+"where": "Quest: Increased Drop Rate"
+},
+"1226211": {
+"likelyTrainer": true
+},
+"1226212": {
+"classic": true,
+"src": [
+"Quest"
+],
+"where": "Quest: Increased Drop Rate"
+},
+"1226213": {
+"classic": true,
+"src": [
+"Quest"
+],
+"where": "Quest: A Complicated Escape Plan"
+},
+"1227723": {
+"classic": true,
+"src": [
+"Quest"
+],
+"where": "Quest: Holy Threads"
+},
+"1227724": {
+"classic": true,
+"src": [
+"Quest"
+],
+"where": "Quest: Red is Not Dead"
+},
+"1245246": {
+"likelyTrainer": true
+},
+"1245250": {
+"likelyTrainer": true
+},
+"1245287": {
+"likelyTrainer": true
+},
+"1245320": {
+"likelyTrainer": true
+},
+"1245321": {
+"likelyTrainer": true
+},
+"1247741": {
+"likelyTrainer": true
+},
+"1250775": {
+"likelyTrainer": true
+},
+"1252342": {
+"src": [
+"Drop"
+],
+"where": "Dropped by: Scarlet Paladin"
+},
+"1270632": {
+"likelyTrainer": true
+},
+"13028": {
+"likelyTrainer": true
+},
+"13240": {
+"likelyTrainer": true
+},
+"15293": {
+"src": [
+"Container"
+],
+"where": "Found in: Blacksmithing Plans"
+},
+"15295": {
+"src": [
+"Container"
+],
+"where": "Found in: Blacksmithing Plans"
+},
+"15628": {
+"src": [
+"Container"
+],
+"where": "Found in: Goblin Engineer's Renewal Gift"
+},
+"15633": {
+"src": [
+"Container"
+],
+"where": "Found in: Gnome Engineer's Renewal Gift"
+},
+"16664": {
+"src": [
+"Drop"
+],
+"where": "Dropped by: Strashaz Serpent Guard"
+},
+"16665": {
+"src": [
+"Drop"
+],
+"where": "Dropped by: Scarlet Cavalier"
+},
+"16726": {
+"src": [
+"Drop"
+],
+"where": "Dropped by: Strashaz Warrior"
+},
+"16731": {
+"src": [
+"Drop"
+],
+"where": "Dropped by: Strashaz Myrmidon, Tidelord Rrurgaz"
+},
+"16983": {
+"src": [
+"Container"
+],
+"where": "Found in: Blacksmithing Plans"
+},
+"17555": {
+"src": [
+"Drop"
+],
+"where": "Dropped by (4 sources, top): Scarlet Enchanter, Scarlet Cleric, Scarlet Curate"
+},
+"17572": {
+"src": [
+"Container"
+],
+"where": "Dropped by (115 sources, top): Blackwing Technician, Onyxia, Plague Ghoul | Found in: Thorium Lockbox, Mithril Lockbox, "
+},
+"17576": {
+"src": [
+"Drop"
+],
+"where": "Dropped by: Rotting Behemoth, Decaying Horror"
+},
+"17578": {
+"src": [
+"Drop"
+],
+"where": "Dropped by: Dark Adept, Shadowmage"
+},
+"18418": {
+"classic": true,
+"src": [
+"Drop"
+],
+"where": "Dropped by: Thaurissan Firewalker"
+},
+"18421": {
+"src": [
+"Drop"
+],
+"where": "Dropped by: Dark Summoner"
+},
+"18446": {
+"src": [
+"Drop"
+],
+"where": "Dropped by: Dark Caster"
+},
+"18629": {
+"likelyTrainer": true
+},
+"18630": {
+"likelyTrainer": true
+},
+"19090": {
+"src": [
+"Drop"
+],
+"where": "Dropped by: Son of Arkkoroc"
+},
+"20028": {
+"src": [
+"Drop"
+],
+"where": "Dropped by: Scarlet Enchanter"
+},
+"2149": {
+"likelyTrainer": true
+},
+"2152": {
+"likelyTrainer": true
+},
+"21913": {
+"src": [
+"Container",
+"Holiday"
+],
+"where": "Found in: Smokywood Pastures Special Gift, Ticking Present"
+},
+"21923": {
+"src": [
+"Container"
+],
+"where": "Found in: Smokywood Pastures Special Gift, Ticking Present"
+},
+"21931": {
+"src": [
+"Container",
+"Holiday"
+],
+"where": "Found in: Smokywood Pastures Special Gift, Ticking Present"
+},
+"21940": {
+"src": [
+"Container"
+],
+"where": "Found in: Smokywood Pastures Special Gift, Ticking Present"
+},
+"21943": {
+"src": [
+"Holiday"
+]
+},
+"21945": {
+"src": [
+"Container",
+"Holiday"
+],
+"where": "Found in: Smokywood Pastures Special Gift, Ticking Present"
+},
+"22749": {
+"src": [
+"Drop"
+],
+"where": "Dropped by (7 sources, top): Baron Geddon, Garr, Golemagg the Incinerator"
+},
+"22759": {
+"src": [
+"Drop"
+],
+"where": "Dropped by (7 sources, top): Golemagg the Incinerator, Baron Geddon, Garr"
+},
+"22793": {
+"src": [
+"Drop"
+],
+"where": "Dropped by (7 sources, top): Baron Geddon, Golemagg the Incinerator, Garr"
+},
+"22795": {
+"src": [
+"Drop"
+],
+"where": "Dropped by (7 sources, top): Golemagg the Incinerator, Garr, Baron Geddon"
+},
+"22797": {
+"src": [
+"Drop"
+],
+"where": "Dropped by (7 sources, top): Golemagg the Incinerator, Baron Geddon, Garr"
+},
+"22813": {
+"likelyTrainer": true
+},
+"22815": {
+"likelyTrainer": true
+},
+"22866": {
+"src": [
+"Container"
+],
+"where": "Found in: Knot Thimblejack's Cache"
+},
+"23486": {
+"likelyTrainer": true
+},
+"23489": {
+"likelyTrainer": true
+},
+"2365": {
+"likelyTrainer": true
+},
+"2387": {
+"likelyTrainer": true
+},
+"24847": {
+"classic": true,
+"src": [
+"Vendor"
+],
+"where": "Sold by: Aendel Windspear"
+},
+"24901": {
+"src": [
+"Container"
+],
+"where": "Found in: Decoded True Believer Clippings"
+},
+"24902": {
+"src": [
+"Container"
+],
+"where": "Found in: Decoded True Believer Clippings"
+},
+"24903": {
+"src": [
+"Container"
+],
+"where": "Found in: Decoded True Believer Clippings"
+},
+"24912": {
+"src": [
+"Container"
+],
+"where": "Found in: Decoded True Believer Clippings"
+},
+"24914": {
+"src": [
+"Container"
+],
+"where": "Found in: Decoded True Believer Clippings"
+},
+"25072": {
+"src": [
+"Drop",
+"Holiday"
+],
+"where": "Dropped by: Emperor Vek'nilash"
+},
+"25084": {
+"src": [
+"Drop"
+],
+"where": "Dropped by: Emperor Vek'lor"
+},
+"2538": {
+"likelyTrainer": true
+},
+"2540": {
+"likelyTrainer": true
+},
+"26087": {
+"src": [
+"Drop"
+],
+"where": "Dropped by (8 sources, top): Baron Geddon, Golemagg the Incinerator, Garr"
+},
+"26279": {
+"src": [
+"Holiday"
+]
+},
+"2660": {
+"likelyTrainer": true
+},
+"2663": {
+"likelyTrainer": true
+},
+"27829": {
+"src": [
+"Drop",
+"Container"
+],
+"where": "Dropped by (7 sources, top): Nefarian, Taerar, Ysondre | Found in: Thorium Lockbox"
+},
+"28205": {
+"src": [
+"Holiday"
+]
+},
+"28220": {
+"src": [
+"Holiday"
+]
+},
+"28462": {
+"src": [
+"Holiday"
+]
+},
+"2881": {
+"likelyTrainer": true
+},
+"2963": {
+"likelyTrainer": true
+},
+"3115": {
+"likelyTrainer": true
+},
+"3174": {
+"src": [
+"Container"
+],
+"where": "Dropped by (153 sources, top): Defias Captive, Defias Prisoner, Defias Convict | Found in: Heavy Bronze Lockbox, Ornate "
+},
+"3275": {
+"likelyTrainer": true
+},
+"3915": {
+"likelyTrainer": true
+},
+"3918": {
+"likelyTrainer": true
+},
+"3919": {
+"likelyTrainer": true
+},
+"3920": {
+"likelyTrainer": true
+},
+"429348": {
+"likelyTrainer": true
+},
+"446179": {
+"likelyTrainer": true
+},
+"446188": {
+"likelyTrainer": true
+},
+"446191": {
+"likelyTrainer": true
+},
+"446193": {
+"likelyTrainer": true
+},
+"446194": {
+"likelyTrainer": true
+},
+"446195": {
+"likelyTrainer": true
+},
+"446226": {
+"likelyTrainer": true
+},
+"446236": {
+"likelyTrainer": true
+},
+"446237": {
+"likelyTrainer": true
+},
+"446238": {
+"likelyTrainer": true
+},
+"446243": {
+"likelyTrainer": true
+},
+"446851": {
+"likelyTrainer": true
+},
+"448085": {
+"likelyTrainer": true
+},
+"44950": {
+"src": [
+"Holiday"
+]
+},
+"44953": {
+"src": [
+"Holiday"
+]
+},
+"44958": {
+"src": [
+"Holiday"
+]
+},
+"7126": {
+"likelyTrainer": true
+},
+"7183": {
+"likelyTrainer": true
+},
+"7418": {
+"likelyTrainer": true
+},
+"7421": {
+"likelyTrainer": true
+},
+"7428": {
+"likelyTrainer": true
+},
+"818": {
+"likelyTrainer": true
+},
+"8604": {
+"likelyTrainer": true
+},
+"9058": {
+"likelyTrainer": true
+},
+"9059": {
+"likelyTrainer": true
+},
+"9942": {
+"src": [
+"Holiday"
+]
+}
+}

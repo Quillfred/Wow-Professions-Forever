@@ -19,7 +19,10 @@ TABLES = ["SkillLineAbility", "SpellReagents", "SpellName", "SpellEffect",
           "SpellTotems", "TotemCategory", "Faction"]
 # Not trainer recipes even though no item teaches them (quest rewards etc.). Only
 # used when the player knows them.
-NOT_TRAINER = {22813, 19435}
+NOT_TRAINER = {22813, 22815, 19435,  # Gordok Ogre Suits (quest), Mooncloth Boots (quest)
+               11452,                # Restorative Potion (quest)
+               23486, 23489, 13240}  # Goblin/Gnomish specialization only
+SOD_SPELLS = range(400000, 500000)   # Season of Discovery recipes: never assumed trainer
 # Reagents sold by trade-supply vendors. Used only as a price fallback; Auctionator's
 # own vendor price wins when it has one. Matched by name, prices from the client.
 VENDOR = {"Coarse Thread", "Fine Thread", "Silken Thread", "Heavy Silken Thread", "Rune Thread",
@@ -73,6 +76,13 @@ def main():
         with open(whpath, encoding="utf-8") as f:
             wowhead = {int(k): {int(sp): v for sp, v in rec.items()}
                        for k, rec in json.load(f)["professions"].items()}
+
+    # Optional: sources for recipes Wowhead's Recipes tab left blank (tools/import_sources.py).
+    extra = {}
+    xpath = os.path.join(os.path.dirname(os.path.abspath(__file__)), "forever_sources.json")
+    if os.path.exists(xpath):
+        with open(xpath, encoding="utf-8") as f:
+            extra = {int(k): v for k, v in json.load(f).items()}
 
     abil = {}  # spell -> SkillLineAbility row (crafting recipes only)
     for r in rows(p["SkillLineAbility"]):
@@ -153,6 +163,10 @@ def main():
         pats = sorted(taught_by.get(s, ()))
         learn, cost, origin = None, None, None
         w = wowhead.get(int(a["SkillLine"]), {}).get(s)  # [learnedAt, [sources], trainingCost]
+        x = extra.get(s, {})
+        where = x.get("where")
+        if where and x.get("classic"):
+            where += " (Classic data)"
         if a["AcquireMethod"] == "1":
             src = "a"  # learned together with the profession
         elif w and "Trainer" in w[1]:
@@ -164,9 +178,10 @@ def main():
                      if i in items and int(items[i]["RequiredSkill"]) == int(a["SkillLine"])]
             # when it starts giving skill-ups (Wowhead) beats the pattern item's own requirement
             learn = w[0] if (w and w[0] is not None) else (min(ranks) if ranks else None)
-            origin = w and w[1]
-        elif w is None and s < 100000 and s not in NOT_TRAINER:
-            src = "t"  # classic trainer recipe, not on Wowhead: confirmed in-game at the trainer
+            origin = (w and w[1]) or x.get("src")
+        elif (w is None and s < 100000 and s not in NOT_TRAINER) or \
+                (x.get("likelyTrainer") and s not in NOT_TRAINER and s not in SOD_SPELLS):
+            src = "t"  # probably a trainer recipe (no item teaches it): confirmed in game at the trainer
         else:
             src = "x"  # quest/special/no known source: only used if the character knows it
             origin = w and w[1]
@@ -182,6 +197,8 @@ def main():
             fields.append(f"learn={learn}")
         if cost:
             fields.append(f"tc={cost}")
+        if where:
+            fields.append(f"where={lua_str(where)}")
         if origin:
             fields.append(f"from={lua_str('/'.join(origin))}")
             if "Vendor" in origin:
