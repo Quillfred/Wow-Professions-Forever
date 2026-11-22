@@ -105,6 +105,7 @@ def main():
 
     cc = columns(sqlgz, "creature_template")
     E, N, F, VT, TT = (cc.index(k) for k in ("Entry", "Name", "Faction", "VendorTemplateId", "TrainerTemplateId"))
+    SUB = cc.index("SubName")
     tmpl = {int(r[E]): r for r in sql_rows(sqlgz, "creature_template")}
 
     teaches = {}
@@ -137,6 +138,20 @@ def main():
                 wanted.add(entry)
 
     check = {int(a) for a in sys.argv[4:]}  # extra NPC IDs: print their zone/coords to verify
+    # Some trainer lists miss a rank the NPC's title shows (Magar <Expert Tailor> only
+    # lists Apprentice/Journeyman). For trainers of a profession, the title's rank counts too.
+    TITLE_RANK = {"Apprentice": 1, "Journeyman": 2, "Expert": 3, "Artisan": 4}
+    raised = []
+    for line, d in trainers.items():
+        for e, st in d.items():
+            sub = tmpl[int(e)][SUB]
+            for word, rank in TITLE_RANK.items():
+                if sub.startswith(word + " ") and rank > max(st):
+                    st.add(rank)
+                    raised.append(f"{tmpl[int(e)][N]} <{sub}>")
+    if raised:
+        print("rank raised from title:", ", ".join(sorted(raised)))
+
     npcs = {}
     for r in sql_rows(sqlgz, "creature"):
         if int(r[1]) in check:

@@ -262,7 +262,7 @@ local function routeRows(plan)
       local waypoint = trainerLoc
       if trainerLoc then
         tip[#tip + 1] = ("Trainer: %s, %s%s"):format(trainerLoc.npc, Core.Where(trainerLoc) or "?",
-          exact and " (teaches this recipe in Classic data)" or " (nearest trainer of a high enough rank)")
+          exact and " (teaches it in the Classic data)" or " (nearest trainer of a high enough rank)")
       end
       if st.learn == "pattern" and st.unlock then
         local p, n = Core.Place("vendor", st.unlock.item)

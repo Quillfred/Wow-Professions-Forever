@@ -337,13 +337,24 @@ function Core.NearestTrainer(line, rankStep) -- rankStep: 2 Journeyman, 3 Expert
   return Core.NearestNPC(ids)
 end
 
--- Nearest trainer who teaches this recipe: the Classic trainer lists when the recipe
--- is in them, else any trainer of the profession whose rank covers its learn level.
+-- Nearest trainer who teaches this recipe. Candidates: the Classic trainer lists
+-- for the recipe, plus every trainer of the profession whose rank (list or title)
+-- covers its learn level (Journeyman from 50, Expert from 125, Artisan from 225) -
+-- the Classic lists turned out to be incomplete (Magar <Expert Tailor>).
 function Core.NearestRecipeTrainer(line, spell, learnAt)
+  local L = learnAt or 0
+  local need = L >= 225 and 4 or L >= 125 and 3 or L >= 50 and 2 or 1
+  local ids, listed = {}, {}
   local set = Data.recipeTrainers and Data.recipeTrainers[spell]
-  if set then return Core.NearestNPC(Data.trainerSets[set]), true end
-  local need = (learnAt or 0) >= 225 and 4 or (learnAt or 0) >= 150 and 3 or (learnAt or 0) >= 75 and 2 or 1
-  return Core.NearestTrainer(line, need), false
+  for _, id in ipairs(set and Data.trainerSets[set] or {}) do ids[#ids + 1] = id; listed[id] = true end
+  for id, top in pairs(Data.trainers and Data.trainers[line] or {}) do
+    if top >= need and not listed[id] then ids[#ids + 1] = id end
+  end
+  table.sort(ids)
+  local loc = Core.NearestNPC(ids)
+  local id
+  if loc then for _, i in ipairs(ids) do if Data.npcs[i] and Data.npcs[i][1] == loc.npc then id = i end end end
+  return loc, id and listed[id] or false
 end
 
 function Core.NearestVendor(item)

@@ -257,8 +257,9 @@ do
     for sp, r in pairs(SkillRouteData.professions[197].recipes) do if r.n == "Bright Yellow Shirt" then return sp end end end)())].pat[1])
   assert(v == nil, "Bright Yellow Shirt: no Horde vendor")
   -- recipe trainers: exact list for Silk Headband; rank fallback for a recipe not in it
-  local t1, exact1 = Core.NearestRecipeTrainer(197, 8762, 125)
-  assert(t1 and exact1 and t1.side:find("H"), "Silk Headband: a Horde trainer from the Classic lists")
+  local t1 = Core.NearestRecipeTrainer(197, 8762, 125)
+  assert(t1 and t1.side:find("H"), "Silk Headband: a Horde trainer")
+  assert(SkillRouteData.npcs[3363] and SkillRouteData.trainers[197][3363] >= 3, "Magar counts as Expert Tailoring trainer")
   local t2, exact2 = Core.NearestRecipeTrainer(197, 999999, 160)
   assert(t2 and not exact2, "unknown recipe: nearest Expert+ trainer")
   print("Silk Headband trainer (Horde): " .. t1.npc)
