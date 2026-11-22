@@ -163,7 +163,9 @@ local function routeRows(plan)
       if p then
         tip[1] = ("You talked to %s here.%s"):format(p.npc, n > 1 and (" %d trainers known."):format(n) or "")
       elseif loc then
-        tip[1] = ("Nearest %s %s trainer for your faction (Classic NPC data; Forever may differ)."):format(rank, Data.professions[plan.line].name)
+        tip[1] = ("Nearest trainer for your faction who teaches %s %s (an Artisan or Master trainer for Expert:"
+                  .. " Forever trainers teach up to the rank below their own). Classic NPC data; Forever may differ.")
+                  :format(rank, Data.professions[plan.line].name)
       else
         tip[1] = "No trainer known. Talk to one once and SkillRoute will remember where they are."
       end

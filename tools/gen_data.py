@@ -291,14 +291,15 @@ def main():
     for line in sorted(PROFESSIONS):
         d = npcdata["trainers"].get(str(line), {})
         if d:
-            tr_lines.append(f"    [{line}]={{" + ",".join(f"[{e}]={max(st)}" for e, st in sorted(d.items(), key=lambda kv: int(kv[0]))) + "},")
+            tr_lines.append(f"    [{line}]={{" + ",".join(f"[{e}]={st}" for e, st in sorted(d.items(), key=lambda kv: int(kv[0]))) + "},")
             used_npcs.update(int(e) for e in d)
     for i in sorted(vendor_patterns):
         es = npcdata["vendors"].get(str(i))
         if es:
             vend_lines.append(f"    [{i}]={{{','.join(map(str, es))}}},")
             used_npcs.update(es)
-    lines += ["  },", "  -- profession trainers: [skillLine] = {[npcID] = highest rank taught (2 Journeyman, 3 Expert, 4 Artisan)}",
+    lines += ["  },", "  -- profession trainers: [skillLine] = {[npcID] = trainer rank (2 Journeyman .. 5 Master);",
+              "  -- in Forever a trainer teaches rank-ups up to the rank below its own}",
               "  trainers = {"] + tr_lines
     lines += ["  },", "  -- [patternItem] = {npcIDs of vendors selling it}", "  vendorNpcs = {"] + vend_lines
     # which trainers teach each trainer recipe; identical trainer lists stored once

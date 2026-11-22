@@ -244,7 +244,7 @@ do
   C_Map.GetMapInfoAtPosition = function() return { mapID = 1458, name = "Undercity" } end
 
   local loc = Core.NearestTrainer(197, 3) -- Expert Tailoring, Horde
-  assert(loc and loc.side:find("H") and loc.zone == "Undercity" and loc.ui == 1458 and loc.x == 70.8,
+  assert(loc and (loc.npc == "Josef Gregorian" or loc.npc == "Daryl Stack") and loc.zone == "Undercity" and loc.ui == 1458 and loc.x == 70.8,
     "nearest Horde Expert trainer, zone from the game: " .. tostring(loc and loc.npc))
   print("nearest Expert Tailoring trainer (Horde): " .. loc.npc .. ", " .. Core.Where(loc))
   -- the game wants the axes the other way round: detected via the continent check
@@ -259,7 +259,13 @@ do
   -- recipe trainers: exact list for Silk Headband; rank fallback for a recipe not in it
   local t1 = Core.NearestRecipeTrainer(197, 8762, 125)
   assert(t1 and t1.side:find("H"), "Silk Headband: a Horde trainer")
-  assert(SkillRouteData.npcs[3363] and SkillRouteData.trainers[197][3363] >= 3, "Magar counts as Expert Tailoring trainer")
+  -- Forever: Magar <Expert Tailor> teaches Journeyman, not Expert; Expert comes from an Artisan/Master
+  assert(SkillRouteData.trainers[197][3363] == 3, "Magar is rank 3 (Expert)")
+  assert(SkillRouteData.trainers[197][2399] == 5 and SkillRouteData.trainers[197][4576] == 4, "Daryl Stack Master, Josef Gregorian Artisan")
+  local ex = Core.NearestTrainer(197, 3)
+  assert(ex and (ex.npc == "Josef Gregorian" or ex.npc == "Daryl Stack"), "Horde Expert Tailoring from an Artisan/Master: " .. tostring(ex and ex.npc))
+  local jm = Core.NearestTrainer(197, 2)
+  assert(jm and jm.npc ~= "Snang" and jm.npc ~= "Kil'hala", "Journeyman needs an Expert+ trainer: " .. tostring(jm and jm.npc))
   local t2, exact2 = Core.NearestRecipeTrainer(197, 999999, 160)
   assert(t2 and not exact2, "unknown recipe: nearest Expert+ trainer")
   print("Silk Headband trainer (Horde): " .. t1.npc)

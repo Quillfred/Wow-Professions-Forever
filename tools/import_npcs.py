@@ -138,19 +138,16 @@ def main():
                 wanted.add(entry)
 
     check = {int(a) for a in sys.argv[4:]}  # extra NPC IDs: print their zone/coords to verify
-    # Some trainer lists miss a rank the NPC's title shows (Magar <Expert Tailor> only
-    # lists Apprentice/Journeyman). For trainers of a profession, the title's rank counts too.
-    TITLE_RANK = {"Apprentice": 1, "Journeyman": 2, "Expert": 3, "Artisan": 4}
-    raised = []
+    # A trainer's rank is its title: Journeyman 2, Expert 3, Artisan 4, Master 5 (new in
+    # Forever). In Forever a trainer teaches rank-ups only up to the rank below its own
+    # (Expert from an Artisan or Master). Trainers without a rank title keep their
+    # Classic list's highest rank-up + 1.
+    TITLE_RANK = {"Apprentice": 1, "Journeyman": 2, "Expert": 3, "Artisan": 4, "Master": 5}
     for line, d in trainers.items():
         for e, st in d.items():
             sub = tmpl[int(e)][SUB]
-            for word, rank in TITLE_RANK.items():
-                if sub.startswith(word + " ") and rank > max(st):
-                    st.add(rank)
-                    raised.append(f"{tmpl[int(e)][N]} <{sub}>")
-    if raised:
-        print("rank raised from title:", ", ".join(sorted(raised)))
+            title = next((r for w, r in TITLE_RANK.items() if sub.startswith(w + " ")), None)
+            d[e] = title if title else max(st) + 1
 
     npcs = {}
     for r in sql_rows(sqlgz, "creature"):
@@ -172,7 +169,7 @@ def main():
     out = {"recipes": {str(rc): sorted(e for e in es if str(e) in npcs)
                        for rc, es in recipe_trainers.items() if any(str(e) in npcs for e in es)},
            "npcs": npcs,
-           "trainers": {line: {e: sorted(s) for e, s in d.items() if e in npcs} for line, d in trainers.items()},
+           "trainers": {line: {e: r for e, r in d.items() if e in npcs} for line, d in trainers.items()},
            "vendors": {it: sorted({e for e in es if str(e) in npcs}) for it, es in vendors.items()}}
     dst = os.path.join(os.path.dirname(os.path.abspath(__file__)), "npcs.json")
     with open(dst, "w", encoding="utf-8") as f:

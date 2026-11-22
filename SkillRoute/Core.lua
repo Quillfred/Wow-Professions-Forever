@@ -328,10 +328,12 @@ function Core.NearestNPC(ids)
   return best and Core.NPCLocation(best)
 end
 
-function Core.NearestTrainer(line, rankStep) -- rankStep: 2 Journeyman, 3 Expert, 4 Artisan
+-- Who can teach a rank-up (rankStep: 2 Journeyman, 3 Expert, 4 Artisan)? In Forever a
+-- trainer teaches up to the rank below its own title: Expert from an Artisan or Master.
+function Core.NearestTrainer(line, rankStep)
   local ids = {}
-  for id, top in pairs(Data.trainers and Data.trainers[line] or {}) do
-    if top >= rankStep then ids[#ids + 1] = id end
+  for id, rank in pairs(Data.trainers and Data.trainers[line] or {}) do
+    if rank - 1 >= rankStep then ids[#ids + 1] = id end
   end
   table.sort(ids)
   return Core.NearestNPC(ids)
@@ -340,7 +342,8 @@ end
 -- Nearest trainer who teaches this recipe. Candidates: the Classic trainer lists
 -- for the recipe, plus every trainer of the profession whose rank (list or title)
 -- covers its learn level (Journeyman from 50, Expert from 125, Artisan from 225) -
--- the Classic lists turned out to be incomplete (Magar <Expert Tailor>).
+-- the Classic lists are incomplete. Assumption: a trainer teaches recipes of its own
+-- rank (only the rank-up rule is documented for Forever).
 function Core.NearestRecipeTrainer(line, spell, learnAt)
   local L = learnAt or 0
   local need = L >= 225 and 4 or L >= 125 and 3 or L >= 50 and 2 or 1
