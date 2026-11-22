@@ -192,6 +192,7 @@ local function routeRows(plan)
                   sub = "   Good until " .. pt.to .. (pt.from and ("  -  " .. pt.from) or "")
                         .. ((Core.Place("vendor", pt.item) and ("  -  Sold by " .. Core.FormatPlace(Core.Place("vendor", pt.item))))
                             or (pt.where and ("  -  " .. pt.where)) or "")
+                        .. (pt.otherSide and ("  -  |cffff8040%s vendors only|r"):format(pt.otherSide == "A" and "Alliance" or "Horde") or "")
                         .. (pt.repFaction and ("  -  |cffff8040needs %s with %s|r"):format(
                               RANK_NAMES[pt.repRank] or "?", Data.factions[pt.repFaction] or "?") or "")
                         .. (pt.price and "  -  AH" or "  -  not on the AH in your last scan"),
@@ -209,7 +210,9 @@ local function routeRows(plan)
           learn = "  |cffffd100Buy pattern on the AH (last seen " .. money(st.learnCost, YELLOW) .. ")|r"
         else
           local p = st.unlock and Core.Place("vendor", st.unlock.item)
-          learn = "  |cffffd100Buy pattern from " .. (p and p.npc or "a vendor") .. " (" .. money(st.learnCost, YELLOW) .. ")|r"
+          local who = (p and p.npc) or (st.unlock and st.unlock.vendorNames and st.unlock.vendorNames:match("^[^,]+")) or "a vendor"
+          learn = "  |cffffd100Buy pattern from " .. who .. " (" .. money(st.learnCost, YELLOW) .. ")|r"
+                  .. ((not p and st.unlock and st.unlock.unverified) and " |cff808080(vendor faction unverified)|r" or "")
         end
       elseif st.learn == "trainer?" then
         learn = "  |cffffd100Learn at trainer (not confirmed yet)|r"
@@ -234,8 +237,13 @@ local function routeRows(plan)
         if p then
           tip[#tip + 1] = ("Sold by %s%s.%s"):format(Core.FormatPlace(p, true), p.limited and " (limited stock)" or "",
             n > 1 and (" %d vendors known."):format(n) or "")
+        elseif st.unlock.vendorNames then
+          tip[#tip + 1] = "Sold to your faction by: " .. st.unlock.vendorNames .. " (Classic vendor data)."
         elseif r.where then
           tip[#tip + 1] = "Where: " .. r.where
+        end
+        if not p and st.unlock.unverified then
+          tip[#tip + 1] = "|cffff8040This pattern is new in Forever: no vendor data yet, so it's not certain a vendor of your faction sells it.|r"
         end
       end
       for _, u in ipairs(st.tools or {}) do

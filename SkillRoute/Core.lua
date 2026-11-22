@@ -420,6 +420,10 @@ function Core.Plan(line, target)
     known = known, trainer = db().trainer[line] or {},
     price = Core.Price, have = Core.Have, hasTool = Core.HasTool, standing = Core.Standing,
     avoidMats = not settings.cdmats and Data.cooldownMats or nil,
+    faction = (UnitFactionGroup and UnitFactionGroup("player") == "Alliance") and "A"
+              or (UnitFactionGroup and UnitFactionGroup("player") == "Horde") and "H" or nil,
+    patternVendors = Data.patternVendors,
+    vendorSeen = function(item) return Core.Place("vendor", item) ~= nil end,
     bonus = settings.bonus or 0,
     fixedUnlocks = cached and cached.key == key and cached.set or nil,
   })

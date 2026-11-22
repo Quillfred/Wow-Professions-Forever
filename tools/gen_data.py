@@ -89,6 +89,13 @@ def main():
         with open(xpath, encoding="utf-8") as f:
             extra = {int(k): v for k, v in json.load(f).items()}
 
+    # Optional: which factions can buy each pattern from a vendor (tools/import_vendors.py).
+    vendor_sides = {}
+    vpath = os.path.join(os.path.dirname(os.path.abspath(__file__)), "vendor_factions.json")
+    if os.path.exists(vpath):
+        with open(vpath, encoding="utf-8") as f:
+            vendor_sides = {int(k): v for k, v in json.load(f).items()}
+
     abil = {}  # spell -> SkillLineAbility row (crafting recipes only)
     for r in rows(p["SkillLineAbility"]):
         sl = int(r["SkillLine"])
@@ -260,6 +267,17 @@ def main():
     for i in sorted(used_items):
         if items.get(i, {}).get("Display_lang") in COOLDOWN_MATS:
             lines.append(f"    [{i}]=true,")
+    lines += ["  },", "  -- [patternItem] = {\"A\"|\"H\"|\"AH\" (who vendors sell it to), \"Alliance vendors\", \"Horde vendors\"}",
+              "  -- (Classic vendor lists; a vendor you visit in game overrides this)",
+              "  patternVendors = {"]
+    for i in sorted(vendor_patterns):
+        e = vendor_sides.get(i)
+        if not e:
+            continue
+        side = ("A" if e["A"] else "") + ("H" if e["H"] else "")
+        names_a = ", ".join(n for n, s in e["v"] if "A" in s)
+        names_h = ", ".join(n for n, s in e["v"] if "H" in s)
+        lines.append(f"    [{i}]={{\"{side}\",{lua_str(names_a)},{lua_str(names_h)}}},")
     factions = {int(r["ID"]): r["Name_lang"] for r in rows(p["Faction"])}
     lines += ["  },", "  factions = {"]
     for f in sorted(used_factions):

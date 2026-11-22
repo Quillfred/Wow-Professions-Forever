@@ -315,6 +315,28 @@ check(not usesCd(noRobe) and noRobe.gapPoints > 0, "left out (gap shown) when th
 print(("250->300 with cooldown mats: %s; without: %s, %d gap points"):format(
   usesCd(allowCd) or "none used", "none used", avoidCd.gapPoints))
 
+-- 10g. vendor patterns only from vendors of your faction (Bright Yellow Shirt: Alliance only)
+local bys
+for spell, r in pairs(T) do if r.n == "Bright Yellow Shirt" then bys = spell end end
+local bysItem = T[bys].pat[1]
+check(D.patternVendors[bysItem] and D.patternVendors[bysItem][1] == "A", "Bright Yellow Shirt pattern: Alliance vendors only")
+local function bysPrice(id)
+  if anyPattern[id] and id ~= bysItem then return nil end
+  if id == bysItem then return nil end -- not on the AH: only a vendor could sell it
+  local r = T[bys]; for i = 1, #r.r, 2 do if id == r.r[i] then return 1, false end end
+  return price(id)
+end
+local function factionPlan(f) return P.Plan(ctxFor(110, 150, nil, { price = bysPrice, faction = f,
+  patternVendors = D.patternVendors, vendorSeen = function() return false end })) end
+local horde, alliance = factionPlan("H"), factionPlan("A")
+check(not horde.unlocks["p:" .. bys], "Horde: Bright Yellow Shirt pattern never bought from a vendor")
+check(alliance.unlocks["p:" .. bys] and alliance.unlocks["p:" .. bys].vendorNames == "Danielle Zipstitch",
+  "Alliance: bought from Danielle Zipstitch")
+-- a Horde-visited vendor that sells it overrides the vendor lists
+local seenPlan = P.Plan(ctxFor(110, 150, nil, { price = bysPrice, faction = "H",
+  patternVendors = D.patternVendors, vendorSeen = function(it) return it == bysItem end }))
+check(seenPlan.unlocks["p:" .. bys], "a vendor you visited counts, whatever the lists say")
+
 -- 11. reputation patterns: only with the standing they need
 local function repPlan(standing)
   return P.Plan({ recipes = T, items = items, tools = D.tools, hasTool = function() return false end,

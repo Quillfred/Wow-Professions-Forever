@@ -158,20 +158,37 @@ local function findUnlocks(ctx, unit)
       -- untradeable patterns have no AH price, so they never show up here.
       if r.pat and not ctx.known[spell] and not r.cd then
         local isVendor = r.from and r.from:find("Vendor")
-        local best, bestItem, bestVia
+        local best, bestItem, bestVia, bestInfo
         for _, it in ipairs(r.pat) do
           if Planner.RepOK(ctx, r, it) then
-            local v = isVendor and ctx.items[it] and ctx.items[it][3] or nil
+            -- Can a vendor of YOUR faction sell it? A vendor you visited: yes. Else the
+            -- vendor lists (Classic data): only if one serves your faction. Not listed
+            -- (new in Forever): allowed, flagged unverified.
+            local pv = ctx.patternVendors and ctx.patternVendors[it]
+            local vendorOK, info = isVendor, nil
+            if isVendor and not (ctx.vendorSeen and ctx.vendorSeen(it)) and ctx.faction then
+              if pv then
+                vendorOK = pv[1]:find(ctx.faction, 1, true) ~= nil
+                info = { names = ctx.faction == "A" and pv[2] or pv[3] }
+              else
+                info = { unverified = true }
+              end
+            end
+            local v = vendorOK and ctx.items[it] and ctx.items[it][3] or nil
             local ah, est = ctx.price(it)
             if est or ah == v then ah = nil end -- estimate, or just the vendor price echoed back
             local p, via
             if v and (not ah or v <= ah) then p, via = v, "vendor" elseif ah then p, via = ah, "ah" end
-            if p and (not best or p < best) then best, bestItem, bestVia = p, it, via end
+            if p and (not best or p < best) then
+              best, bestItem, bestVia, bestInfo = p, it, via, via == "vendor" and info or nil
+            end
           end
         end
         if best then
           all["p:" .. spell] = { kind = "pattern", spell = spell, price = best, item = bestItem, from = 0,
-                                 name = r.n, via = bestVia }
+                                 name = r.n, via = bestVia,
+                                 vendorNames = bestInfo and bestInfo.names ~= "" and bestInfo.names or nil,
+                                 unverified = bestInfo and bestInfo.unverified or nil }
         end
       end
     end
@@ -291,6 +308,8 @@ end
   have    = function(itemID) -> count       (optional)
   hasTool = function(toolKey) -> bool       (optional)
   avoidMats = {[itemID]=true}               (optional; recipes using these are left out)
+  faction = "A" | "H", patternVendors = Data.patternVendors, vendorSeen = function(item) -> bool
+                                            (optional; vendor patterns only from your faction's vendors)
   maxSkill = current cap (e.g. 225)         (optional; steps split only at caps not yet trained)
   bonus   = 0..1                            (optional)
   fixedUnlocks = {[key]=true}  reuse an earlier choice instead of searching
@@ -526,8 +545,11 @@ function Planner.PatternsFor(ctx, s)
       end
       local item = bestItem or r.pat[1]
       local ok, faction, rank = Planner.RepOK(ctx, r, item)
+      local pv = ctx.patternVendors and ctx.patternVendors[item]
+      local otherSide = pv and ctx.faction and not pv[1]:find(ctx.faction, 1, true) and pv[1] or nil
       list[#list + 1] = { spell = spell, name = r.n, item = item, price = bestP, to = r.g,
-                          from = r.from, where = r.where, repFaction = not ok and faction or nil, repRank = rank }
+                          from = r.from, where = r.where, repFaction = not ok and faction or nil, repRank = rank,
+                          otherSide = otherSide }
     end
   end
   table.sort(list, function(a, b)
