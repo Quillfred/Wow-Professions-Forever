@@ -29,6 +29,7 @@ end
 _G.IsPlayerSpell = function(id) return id == 3848 end
 _G.GetItemCount = function(id) return id == 2592 and 40 or 0 end
 _G.GetItemInfo = function() return nil end
+_G.GetFactionInfoByID = function(f) if f == 609 then return "Cenarion Circle", "", 5 end end
 local prices = {}
 _G.Auctionator = { API = { v1 = {
   GetAuctionPriceByItemID = function(_, id) return prices[id] end,
@@ -91,4 +92,5 @@ UI._state.mode = "shopping"; UI.Refresh(); UI._state.mode = "route"
 UI.AttachButton()
 SlashCmdList.SKILLROUTE("") -- close
 assert(not UI.IsShown())
+assert(Core.Standing(609) == 4 and Core.Standing(576) == nil, "standing from GetFactionInfoByID (standingID - 1)")
 print("SMOKE TEST PASSED")

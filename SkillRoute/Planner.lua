@@ -45,6 +45,24 @@ function Planner.LearnAt(spell, r, ctx)
   return nil
 end
 
+-- Reputation: r.rep = {patternItem, factionID, rank, ...} for pattern items that
+-- need it (rank 0-7: 4 Friendly, 5 Honored, 6 Revered, 7 Exalted).
+-- ctx.standing(factionID) -> your rank 0-7, or nil if unknown.
+function Planner.RepNeed(r, item)
+  local rep = r.rep
+  if not rep then return nil end
+  for i = 1, #rep, 3 do
+    if rep[i] == item then return rep[i + 1], rep[i + 2] end
+  end
+end
+
+function Planner.RepOK(ctx, r, item)
+  local faction, rank = Planner.RepNeed(r, item)
+  if not faction then return true end
+  local mine = ctx.standing and ctx.standing(faction)
+  return mine ~= nil and mine >= rank, faction, rank
+end
+
 local function hasTool(ctx, key)
   if not ctx.tools then return true end -- no tool data: don't block anything
   return ctx.hasTool and ctx.hasTool(key) or false
@@ -128,20 +146,22 @@ local function craftCostFn(ctx, unit, credit)
 end
 
 --[[ One-time unlocks: things bought once that make recipes usable.
-  "p:<spell>"  a vendor pattern (no reputation needed, no cooldown)
+  "p:<spell>"  a vendor pattern, no cooldown, reputation requirement met
   "t:<tool>"   a tool you keep in your bags (rod, hammer, spanner); bought, or
                crafted once by this profession from the skill its recipe allows ]]
 local function findUnlocks(ctx, unit)
   local all = {}
   if not ctx.noPatterns then
     for spell, r in pairs(ctx.recipes) do
-      if r.pat and not ctx.known[spell] and not r.rep and not r.cd and r.from and r.from:find("Vendor") then
+      if r.pat and not ctx.known[spell] and not r.cd and r.from and r.from:find("Vendor") then
         local best, bestItem
         for _, it in ipairs(r.pat) do
-          local v = ctx.items[it] and ctx.items[it][3]
-          local ah = ctx.price(it)
-          local p = (v and ah) and math.min(v, ah) or v or ah
-          if p and (not best or p < best) then best, bestItem = p, it end
+          if Planner.RepOK(ctx, r, it) then
+            local v = ctx.items[it] and ctx.items[it][3]
+            local ah = ctx.price(it)
+            local p = (v and ah) and math.min(v, ah) or v or ah
+            if p and (not best or p < best) then best, bestItem = p, it end
+          end
         end
         if best then
           all["p:" .. spell] = { kind = "pattern", spell = spell, price = best, item = bestItem, from = 0,
@@ -468,8 +488,10 @@ function Planner.PatternsFor(ctx, s)
         local p = ctx.price(it)
         if p and (not bestP or p < bestP) then bestP, bestItem = p, it end
       end
-      list[#list + 1] = { spell = spell, name = r.n, item = bestItem or r.pat[1], price = bestP, to = r.g,
-                          from = r.from, rep = r.rep }
+      local item = bestItem or r.pat[1]
+      local ok, faction, rank = Planner.RepOK(ctx, r, item)
+      list[#list + 1] = { spell = spell, name = r.n, item = item, price = bestP, to = r.g,
+                          from = r.from, repFaction = not ok and faction or nil, repRank = rank }
     end
   end
   table.sort(list, function(a, b)

@@ -221,6 +221,35 @@ function Core.HasTool(key)
   return false
 end
 
+-- Your reputation with a faction as a rank 0-7 (4 Friendly ... 7 Exalted), or nil.
+function Core.Standing(faction)
+  if C_Reputation and C_Reputation.GetFactionDataByID then
+    local d = C_Reputation.GetFactionDataByID(faction)
+    if d and d.reaction then return d.reaction - 1 end
+  end
+  if GetFactionInfoByID then
+    local _, _, standingID = GetFactionInfoByID(faction)
+    if standingID then return standingID - 1 end
+  end
+  return nil
+end
+
+local factionsFor = {}
+function Core.FactionsFor(line) -- factions any pattern of this profession needs
+  if not factionsFor[line] then
+    local set = {}
+    for _, r in pairs(Data.professions[line].recipes) do
+      local rep = r.rep
+      if rep then for i = 2, #rep, 3 do set[rep[i]] = true end end
+    end
+    local list = {}
+    for f in pairs(set) do list[#list + 1] = f end
+    table.sort(list)
+    factionsFor[line] = list
+  end
+  return factionsFor[line]
+end
+
 local toolsFor = {}
 function Core.ToolsFor(line) -- tool keys any recipe of this profession needs
   if not toolsFor[line] then
@@ -261,12 +290,14 @@ function Core.Plan(line, target)
   for key in pairs(Core.ToolsFor(line)) do if Core.HasTool(key) then owned[#owned + 1] = key end end
   table.sort(owned)
   key = key .. ":" .. table.concat(owned, ",")
+  for _, f in ipairs(Core.FactionsFor(line)) do key = key .. ":" .. f .. "=" .. tostring(Core.Standing(f)) end
   local cached = patternCache[line]
   local plan = Planner.Plan({
     recipes = recipes, items = Data.items, tools = Data.tools,
     skill = s.rank, target = target,
     known = known, trainer = db().trainer[line] or {},
-    price = Core.Price, have = Core.Have, hasTool = Core.HasTool, bonus = settings.bonus or 0,
+    price = Core.Price, have = Core.Have, hasTool = Core.HasTool, standing = Core.Standing,
+    bonus = settings.bonus or 0,
     fixedUnlocks = cached and cached.key == key and cached.set or nil,
   })
   if not (cached and cached.key == key) then
@@ -310,6 +341,6 @@ f:SetScript("OnEvent", function(_, ev, arg1)
 end)
 for _, ev in ipairs({ "ADDON_LOADED", "PLAYER_LOGIN", "TRADE_SKILL_SHOW", "TRADE_SKILL_LIST_UPDATE",
                       "NEW_RECIPE_LEARNED", "TRAINER_SHOW", "TRAINER_UPDATE", "SKILL_LINES_CHANGED",
-                      "BAG_UPDATE_DELAYED" }) do
+                      "BAG_UPDATE_DELAYED", "UPDATE_FACTION" }) do
   pcall(f.RegisterEvent, f, ev) -- an event this client lacks must not break the addon
 end

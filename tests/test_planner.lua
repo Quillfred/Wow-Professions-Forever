@@ -45,7 +45,8 @@ for _, st in ipairs(plan.steps) do
     check(st.to <= rr.g, st.name .. " used while grey")
     check(not rr.cd, st.name .. " has a cooldown and can't be ground")
     if st.learn == "pattern" then -- vendor pattern bought to fill a gap
-      check(rr.from and rr.from:find("Vendor") and not rr.rep and st.learnCost, st.name .. ": only plain vendor patterns are bought")
+      check(rr.from and rr.from:find("Vendor") and P.RepOK({}, rr, st.unlock.item) and st.learnCost,
+        st.name .. ": only vendor patterns whose reputation you have are bought")
       check((rr.learn or rr.y) <= st.from, st.name .. " pattern used before its learn level")
     else
       check(learnAt and learnAt <= st.from, st.name .. " used before it can be learned")
@@ -183,7 +184,7 @@ for key, b in pairs(withP.unlocks) do
   local onList = false
   for _, it in ipairs(withP.shopping.buy) do if it.pattern and it.item == b.item then onList = true end end
   check(onList, T[spell].n .. " pattern missing from shopping list")
-  check(T[spell].from:find("Vendor") and not T[spell].rep and not T[spell].cd, T[spell].n .. " not a plain vendor pattern")
+  check(T[spell].from:find("Vendor") and P.RepOK({}, T[spell], b.item) and not T[spell].cd, T[spell].n .. " not a plain vendor pattern")
 end
 check(total(withP) <= total(base) + 1e-6, "patterns never make the route dearer")
 print(("110->250: %d patterns bought, %.0fc -> %.0fc (%.1f%% cheaper), search %.0f ms"):format(
@@ -231,6 +232,34 @@ local onList = false
 for _, b in ipairs(bs.shopping.buy) do if b.tool and b.item == 5956 then onList = true end end
 check(onList, "hammer on the shopping list")
 check(plan(164, 1, 100, nil, { [162] = true }).unlocks["t:162"] == nil, "owned hammer is not bought again")
+
+-- 11. reputation patterns: only with the standing they need
+local function repPlan(standing)
+  return P.Plan({ recipes = T, items = items, tools = D.tools, hasTool = function() return false end,
+    skill = 250, target = 300, known = {}, trainer = {}, price = price, standing = standing })
+end
+local function repUsed(pl)
+  local used = {}
+  for _, u in pairs(pl.unlocks) do
+    if u.kind == "pattern" then
+      local f, rank = P.RepNeed(T[u.spell], u.item)
+      if f then used[#used + 1] = { f = f, rank = rank, total = pl.total } end
+    end
+  end
+  return used
+end
+local none = repPlan(nil)
+check(#repUsed(none) == 0, "no reputation known -> no reputation patterns")
+local exalted = repPlan(function() return 7 end)
+check(#repUsed(exalted) > 0, "exalted everywhere -> reputation patterns used")
+check(exalted.total < none.total, "reputation patterns make the route cheaper")
+-- Cenarion Circle Friendly only: Honored/Revered patterns stay out
+local friendly = repPlan(function(f) return f == 609 and 4 or 3 end)
+for _, u in ipairs(repUsed(friendly)) do
+  check(u.f == 609 and u.rank <= 4, "pattern used without the reputation it needs")
+end
+print(("rep check 250->300: none %.0fg, Cenarion Friendly %.0fg, exalted everywhere %.0fg"):format(
+  none.total / 1e4, friendly.total / 1e4, exalted.total / 1e4))
 
 print("\n110->300 route (mock prices):")
 for _, st in ipairs(sticky.steps) do

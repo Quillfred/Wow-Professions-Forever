@@ -16,7 +16,7 @@ PROFESSIONS = {171: "Alchemy", 164: "Blacksmithing", 333: "Enchanting", 202: "En
                165: "Leatherworking", 197: "Tailoring", 185: "Cooking", 129: "First Aid"}
 TABLES = ["SkillLineAbility", "SpellReagents", "SpellName", "SpellEffect",
           "ItemSparse", "ItemEffect", "ItemXItemEffect", "SpellCooldowns",
-          "SpellTotems", "TotemCategory"]
+          "SpellTotems", "TotemCategory", "Faction"]
 # Not trainer recipes even though no item teaches them (quest rewards etc.). Only
 # used when the player knows them.
 NOT_TRAINER = {22813, 19435}
@@ -144,7 +144,7 @@ def main():
         return sorted(out)
     tool_items = {}
 
-    used_items, vendor_patterns = set(), set()
+    used_items, vendor_patterns, used_factions = set(), set(), set()
     out = {sl: [] for sl in PROFESSIONS}
     for s, a in sorted(abil.items()):
         if s not in reagents or s not in names:
@@ -193,8 +193,16 @@ def main():
         fields.append("r={" + ",".join(f"{i},{c}" for i, c in reagents[s]) + "}")
         if pats:
             fields.append("pat={" + ",".join(map(str, pats)) + "}")
-            if all(int(items.get(i, {}).get("MinFactionID", 0) or 0) > 0 for i in pats):
-                fields.append("rep=true")  # every pattern for it needs faction reputation
+            # Pattern items that need faction reputation: {item, factionID, rank 0-7,...}
+            # (rank: 4 Friendly, 5 Honored, 6 Revered, 7 Exalted)
+            reps = []
+            for i in pats:
+                f = int(items.get(i, {}).get("MinFactionID", 0) or 0)
+                if f:
+                    reps += [i, f, int(items[i]["MinReputation"] or 0)]
+                    used_factions.add(f)
+            if reps:
+                fields.append("rep={" + ",".join(map(str, reps)) + "}")
         if s in cooldown:
             fields.append(f"cd={cooldown[s]}")
         if s in needs_tool:
@@ -221,9 +229,14 @@ def main():
         lines.append(f"    [{i}]={{{lua_str(r['Display_lang'])},{r['SellPrice']},{buy}}},")
     lines += ["  },", "  -- [toolKey] = {name, itemIDs that satisfy it}; negative key = that exact item",
               "  tools = {"]
+    tools_start = len(lines)
     for c in sorted(tool_items):
         name = cats[c][2] if c > 0 else items.get(-c, {}).get("Display_lang", str(-c))
         lines.append(f"    [{c}]={{{lua_str(name)},{{{','.join(map(str, tool_items[c]))}}}}},")
+    factions = {int(r["ID"]): r["Name_lang"] for r in rows(p["Faction"])}
+    lines += ["  },", "  factions = {"]
+    for f in sorted(used_factions):
+        lines.append(f"    [{f}]={lua_str(factions.get(f, str(f)))},")
     lines += ["  },", "}", ""]
     dst = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "SkillRoute", "Data.lua")
     with open(dst, "w", encoding="utf-8") as f:

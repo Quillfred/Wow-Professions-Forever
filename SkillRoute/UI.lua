@@ -7,6 +7,7 @@ ns.UI = UI
 local Data, Core = SkillRouteData, ns.Core
 local ROW_H, ROWS_PAD = 36, 4
 local RANKS = { [75] = "Journeyman", [150] = "Expert", [225] = "Artisan" }
+local RANK_NAMES = { [3] = "Neutral", [4] = "Friendly", [5] = "Honored", [6] = "Revered", [7] = "Exalted" }
 local COLORS = { orange = "ff8040", yellow = "ffff00", green = "40bf40", grey = "808080" }
 
 local function money(c)
@@ -127,7 +128,8 @@ local function routeRows(plan)
             local pt = g.patterns[k]
             add({ item = pt.item, text = "   " .. pt.name,
                   sub = "   Good until " .. pt.to .. (pt.from and ("  -  " .. pt.from) or "")
-                        .. (pt.rep and "  -  |cffff8040needs faction reputation|r" or "")
+                        .. (pt.repFaction and ("  -  |cffff8040needs %s with %s|r"):format(
+                              RANK_NAMES[pt.repRank] or "?", Data.factions[pt.repFaction] or "?") or "")
                         .. (pt.price and "  -  AH" or "  -  not on the AH in your last scan"),
                   right = pt.price and money(pt.price) or "" })
           end
