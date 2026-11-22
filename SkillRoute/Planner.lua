@@ -282,6 +282,7 @@ end
   price   = function(itemID) -> copper|nil, isEstimate
   have    = function(itemID) -> count       (optional)
   hasTool = function(toolKey) -> bool       (optional)
+  maxSkill = current cap (e.g. 225)         (optional; steps split only at caps not yet trained)
   bonus   = 0..1                            (optional)
   fixedUnlocks = {[key]=true}  reuse an earlier choice instead of searching
 } ]]
@@ -447,10 +448,10 @@ function Planner.PlanOnce(ctx, credit)
     else
       local c = cands[k]
       local e, crafts = s, 0
-      repeat -- stop at rank caps so "train the next rank" falls between steps
+      repeat -- stop at rank caps still to train, so "train the next rank" falls between steps
         crafts = crafts + 1 / Planner.Chance(c.r, e, ctx.bonus)
         e = e + 1
-      until e >= to or pick[e] ~= k or e % CAP_STEP == 0
+      until e >= to or pick[e] ~= k or (e % CAP_STEP == 0 and e >= (ctx.maxSkill or 0))
       local a = alt[s]
       local pkey = "p:" .. c.spell
       if c.how == "pattern" then usedUnlocks[pkey] = true end

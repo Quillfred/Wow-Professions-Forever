@@ -294,7 +294,7 @@ function Core.Plan(line, target)
   local cached = patternCache[line]
   local plan = Planner.Plan({
     recipes = recipes, items = Data.items, tools = Data.tools,
-    skill = s.rank, target = target,
+    skill = s.rank, target = target, maxSkill = s.max,
     known = known, trainer = db().trainer[line] or {},
     price = Core.Price, have = Core.Have, hasTool = Core.HasTool, standing = Core.Standing,
     bonus = settings.bonus or 0,

@@ -256,6 +256,13 @@ local dearRod = function(id) if id == 16207 then return 1e9, false end return ch
 check(not plan(333, 290, 300, dearRod, owned4, friendlyTB).unlocks["t:377"], "an expensive rod is not bought")
 check(not plan(333, 290, 300, cheapCombo, owned4).unlocks["p:" .. ws], "no reputation -> formula not bought")
 
+-- 10d. rank caps already trained don't split steps (Expert trained: cap 225)
+local splitAt150 = false
+local ex = P.Plan({ recipes = D.professions[333].recipes, items = items, tools = D.tools, hasTool = function() return true end,
+  skill = 130, target = 225, maxSkill = 225, known = {}, trainer = {}, price = price })
+for _, st in ipairs(ex.steps) do if st.to == 150 and ex.steps[_ + 1] and ex.steps[_ + 1].spell == st.spell then splitAt150 = true end end
+check(not splitAt150, "no split at 150 when Expert is already trained")
+
 -- 10c. First Aid: the probable trainer bandages close the old 270-290 gap, marked unconfirmed
 local fa = plan(129, 1, 300)
 check(fa.gapPoints == 0, "First Aid plans all the way to 300")
