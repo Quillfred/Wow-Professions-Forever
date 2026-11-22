@@ -170,7 +170,7 @@ function Core.ScanTrainer()
       end
     end
   end
-  if found > 0 then Core.Changed() end
+  if found > 0 then Core.dataVersion = Core.dataVersion + 1; Core.Changed() end
 end
 
 -- Prices -----------------------------------------------------------------------
@@ -212,6 +212,14 @@ function Core.Have(item)
 end
 
 -- Planning ---------------------------------------------------------------------
+-- The vendor-pattern search (tens of ms) only depends on skill, target, known
+-- recipes, trainer data, prices and settings, not on bags. Bag changes re-plan
+-- with the cached pattern choice (a few ms). Any input change, an Auctionator
+-- scan, or reopening the window starts a fresh search.
+Core.dataVersion = 0
+local patternCache = {}
+function Core.InvalidatePatterns() patternCache = {} end
+
 function Core.Plan(line, target)
   local s = Core.Skills()[line]
   if not s then -- fall back to the open profession window, if it is this profession
@@ -221,12 +229,24 @@ function Core.Plan(line, target)
   if not s then return nil, "This character doesn't have " .. Data.professions[line].name .. "." end
   target = math.max(s.rank + 1, math.min(target or 300, 300))
   local t0 = debugprofilestop and debugprofilestop()
+  local known, settings = knownSet(line), db().settings
+  local nKnown = 0
+  for _ in pairs(known) do nKnown = nKnown + 1 end
+  local key = table.concat({ s.rank, target, nKnown, Core.dataVersion, settings.bonus or 0,
+                             tostring(settings.estimate) }, ":")
+  local cached = patternCache[line]
   local plan = Planner.Plan({
     recipes = Data.professions[line].recipes, items = Data.items,
     skill = s.rank, target = target,
-    known = knownSet(line), trainer = db().trainer[line] or {},
-    price = Core.Price, have = Core.Have, bonus = db().settings.bonus or 0,
+    known = known, trainer = db().trainer[line] or {},
+    price = Core.Price, have = Core.Have, bonus = settings.bonus or 0,
+    fixedPatterns = cached and cached.key == key and cached.set or nil,
   })
+  if not (cached and cached.key == key) then
+    local set = {}
+    for spell in pairs(plan.patterns or {}) do set[spell] = true end
+    patternCache[line] = { key = key, set = set }
+  end
   plan.ms = t0 and (debugprofilestop() - t0)
   plan.skill, plan.max, plan.target, plan.line = s.rank, s.max, target, line
   plan.mismatch = Core.mismatch[line]
@@ -249,9 +269,10 @@ f:SetScript("OnEvent", function(_, ev, arg1)
   elseif ev == "PLAYER_LOGIN" then
     local api = Auctionator and Auctionator.API and Auctionator.API.v1
     if api and api.RegisterForDBUpdate then
-      pcall(api.RegisterForDBUpdate, CALLER, Core.Changed)
+      pcall(api.RegisterForDBUpdate, CALLER, function() Core.InvalidatePatterns(); Core.Changed() end)
     end
   elseif ev == "TRADE_SKILL_SHOW" or ev == "TRADE_SKILL_LIST_UPDATE" or ev == "NEW_RECIPE_LEARNED" then
+    if ev == "NEW_RECIPE_LEARNED" then Core.dataVersion = Core.dataVersion + 1 end
     Core.ScanRecipes()
     if ns.UI then ns.UI.AttachButton() end
   elseif ev == "TRAINER_SHOW" or ev == "TRAINER_UPDATE" then

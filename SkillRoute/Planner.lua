@@ -124,17 +124,32 @@ end
 } ]]
 local CAP_STEP = 75 -- Apprentice/Journeyman/Expert/Artisan caps: 75, 150, 225
 
-function Planner.Plan(ctx)
-  -- Intermediates: items some obtainable recipe of this profession uses as reagent.
-  local credit = {}
-  if ctx.noCredit then return Planner.PlanOnce(ctx, credit) end -- tests
+local GAP_COST = 1e9 -- per skill point with no usable recipe: filling a gap always wins
+
+-- Vendor patterns this character could buy: not known, no reputation needed, no
+-- cooldown, and a price we know (vendor price from the client, or AH if cheaper).
+local function vendorPatterns(ctx)
+  local all = {}
   for spell, r in pairs(ctx.recipes) do
-    if Planner.LearnAt(spell, r, ctx) then
-      for i = 1, #r.r, 2 do credit[r.r[i]] = 1 end
+    if r.pat and not ctx.known[spell] and not r.rep and not r.cd and r.from and r.from:find("Vendor") then
+      local best, bestItem
+      for _, it in ipairs(r.pat) do
+        local v = ctx.items[it] and ctx.items[it][3]
+        local ah = ctx.price(it)
+        local p = (v and ah) and math.min(v, ah) or v or ah
+        if p and (not best or p < best) then best, bestItem = p, it end
+      end
+      if best then all[spell] = { price = best, item = bestItem } end
     end
   end
-  -- Plan, then lower the credit of any intermediate the route over-produces, and
-  -- plan again. Credits only go down, so this settles in a few passes.
+  return all
+end
+
+local function copy(t) local c = {} for k, v in pairs(t) do c[k] = v end return c end
+
+-- Plan, then lower the credit of any intermediate the route over-produces, and
+-- plan again. Credits only go down, so this settles in a few passes.
+local function creditPlan(ctx, credit)
   local plan
   for _ = 1, 4 do
     plan = Planner.PlanOnce(ctx, credit)
@@ -146,38 +161,89 @@ function Planner.Plan(ctx)
     end
     if not changed then break end
   end
-  if #plan.gaps > 0 and not ctx.noPatterns then plan = Planner.FillGaps(ctx, credit, plan) end
   return plan
 end
 
--- Where no known or trainer recipe exists, allow buying vendor-sold patterns. The
--- pattern's price is a one-time cost, spread over the points it can cover inside
--- the gap. Patterns are only allowed inside gaps, never to replace a trainer recipe.
-function Planner.FillGaps(ctx, credit, plan)
-  local inGap = {}
-  for _, g in ipairs(plan.gaps) do for s = g.from, g.to - 1 do inGap[s] = true end end
-  local buyable = {}
+local function routeTotal(plan, chosen)
+  local t = plan.expected + plan.gapPoints * GAP_COST
+  for _, b in pairs(chosen) do t = t + b.price end
+  return t
+end
+
+-- ctx.fixedPatterns = {[spell]=true}: reuse an earlier pattern choice (no search).
+function Planner.Plan(ctx)
+  local all = ctx.noPatterns and {} or vendorPatterns(ctx)
+  -- Intermediates: items some obtainable or buyable recipe uses as reagent.
+  local credit = {}
+  if ctx.noCredit then -- tests
+    return Planner.PlanOnce(setmetatable({ buyable = {} }, { __index = ctx }), credit)
+  end
   for spell, r in pairs(ctx.recipes) do
-    if r.pat and not ctx.known[spell] and not r.rep and not r.cd and r.from and r.from:find("Vendor") then
-      local best
-      for _, it in ipairs(r.pat) do
-        local v = ctx.items[it] and ctx.items[it][3]
-        local ah = ctx.price(it)
-        local p = (v and ah) and math.min(v, ah) or v or ah
-        if p and (not best or p < best) then best = p end
-      end
-      if best then
-        local span = 0
-        for s = (r.learn or r.y), r.g - 1 do if inGap[s] then span = span + 1 end end
-        if span > 0 then buyable[spell] = { price = best, perPoint = best / span } end
-      end
+    if all[spell] or Planner.LearnAt(spell, r, ctx) then
+      for i = 1, #r.r, 2 do credit[r.r[i]] = 1 end
     end
   end
-  if next(buyable) == nil then return plan end
-  local ctx2 = setmetatable({ buyable = buyable, onlyGaps = inGap }, { __index = ctx })
-  local filled = Planner.PlanOnce(ctx2, credit)
-  filled.patternsBought = buyable
-  return filled
+  local function run(set, cr)
+    return creditPlan(setmetatable({ buyable = set, probe = all }, { __index = ctx }), cr)
+  end
+
+  local chosen, plan = {}, nil
+  if ctx.fixedPatterns then
+    for spell in pairs(ctx.fixedPatterns) do chosen[spell] = all[spell] end
+    plan = run(chosen, credit)
+  else
+    -- Greedy: buy the pattern whose estimated saving minus price is largest, keep it
+    -- only if a full re-plan confirms the total (pattern prices included) drops.
+    plan = run(chosen, credit)
+    local rejected, tries = {}, 0
+    while tries < 12 do
+      local bestSpell, bestGain
+      for spell, sav in pairs(plan.savings) do
+        local gain = sav - all[spell].price
+        if gain > 0 and not chosen[spell] and not rejected[spell] and (not bestGain or gain > bestGain) then
+          bestSpell, bestGain = spell, gain
+        end
+      end
+      if not bestSpell then break end
+      tries = tries + 1
+      local trial = copy(chosen)
+      trial[bestSpell] = all[bestSpell]
+      local cr = copy(credit)
+      local tp = run(trial, cr)
+      local before, after = routeTotal(plan, chosen), routeTotal(tp, trial)
+      if after < before - 1 then
+        all[bestSpell].saves = before - after
+        chosen, plan, credit = trial, tp, cr
+      else
+        rejected[bestSpell] = true
+      end
+    end
+    -- Drop patterns a later purchase made unnecessary.
+    local used = {}
+    for _, st in ipairs(plan.steps) do if st.learn == "pattern" then used[st.spell] = true end end
+    local pruned, dropped = {}, false
+    for spell, b in pairs(chosen) do
+      if used[spell] then pruned[spell] = b else dropped = true end
+    end
+    if dropped then chosen, plan = pruned, run(pruned, copy(credit)) end
+    plan.patternTries = tries
+  end
+
+  -- Patterns go on the shopping list and into the total.
+  plan.patterns = chosen
+  for spell, b in pairs(chosen) do
+    local it = ctx.items[b.item]
+    table.insert(plan.shopping.buy, 1, { item = b.item, name = it and it[1] or ctx.recipes[spell].n,
+      need = 1, have = 0, buy = 1, price = b.price, vendor = true, pattern = true })
+    plan.total = plan.total + b.price
+  end
+  for _, st in ipairs(plan.steps) do
+    if st.learn == "pattern" and chosen[st.spell] then
+      local sv = chosen[st.spell].saves
+      st.saves = (sv and sv < GAP_COST / 2) and sv or nil -- nil: it fills a gap
+    end
+  end
+  return plan
 end
 
 function Planner.PlanOnce(ctx, credit)
@@ -199,6 +265,16 @@ function Planner.PlanOnce(ctx, credit)
       end
     end
   end
+  -- Probes: buyable vendor patterns not in this plan. Never chosen here; we only
+  -- measure what each would save (see Planner.Plan).
+  local probes = {}
+  for spell in pairs(ctx.probe or {}) do
+    local r = recipes[spell]
+    if not ctx.buyable[spell] and r.g > from and (r.learn or r.y) < to then
+      local c = costOf(spell)
+      if c then probes[#probes + 1] = { spell = spell, r = r, learnAt = r.learn or r.y, cost = c } end
+    end
+  end
 
   -- Backward DP over skill points: best[s] = expected cost from s to target.
   -- Each point is independent, so the cheapest expected cost per point is optimal.
@@ -210,10 +286,10 @@ function Planner.PlanOnce(ctx, credit)
     local stickyC
     for k = 1, #cands do
       local c = cands[k]
-      if c.learnAt <= s and (not c.buy or ctx.onlyGaps[s]) then
+      if c.learnAt <= s then
         local p = Planner.Chance(c.r, s, ctx.bonus)
         if p > 0 then
-          local v = c.cost / p + (c.buy and c.buy.perPoint or 0)
+          local v = c.cost / p
           if k == nextK then stickyC = v end
           if v < bestC then
             secondC, secondK = bestC, bestK
@@ -234,10 +310,20 @@ function Planner.PlanOnce(ctx, credit)
     else
       best[s] = best[s + 1] -- gap: no usable recipe at this skill
     end
+    -- What each probe pattern would save at this point (exact for this DP).
+    local cur = bestK and bestC or GAP_COST
+    for _, pr in ipairs(probes) do
+      if pr.learnAt <= s then
+        local p = Planner.Chance(pr.r, s, ctx.bonus)
+        if p > 0 and pr.cost / p < cur then pr.save = (pr.save or 0) + cur - pr.cost / p end
+      end
+    end
   end
+  local savings = {}
+  for _, pr in ipairs(probes) do if pr.save then savings[pr.spell] = pr.save end end
 
   -- Group consecutive points into steps.
-  local steps, gaps = {}, {}
+  local steps, gaps, gapPoints = {}, {}, 0
   local s = from
   while s < to do
     local k = pick[s]
@@ -245,6 +331,7 @@ function Planner.PlanOnce(ctx, credit)
       local e = s
       while e < to and not pick[e] do e = e + 1 end
       gaps[#gaps + 1] = { from = s, to = e, patterns = Planner.PatternsFor(ctx, s, unit) }
+      gapPoints = gapPoints + (e - s)
       steps[#steps + 1] = { gap = true, from = s, to = e }
       s = e
     else
@@ -271,7 +358,8 @@ function Planner.PlanOnce(ctx, credit)
 
   local shopping, total, anyEst, made, leftover = Planner.Shopping(ctx, steps, unit)
   return { steps = steps, gaps = gaps, shopping = shopping, total = total, estimated = anyEst,
-           expected = best[from], unpriced = unpriced, made = made, leftover = leftover }
+           expected = best[from], unpriced = unpriced, made = made, leftover = leftover,
+           gapPoints = gapPoints, savings = savings }
 end
 
 -- Patterns that would cover a gap at skill s (not known yet), cheapest first.

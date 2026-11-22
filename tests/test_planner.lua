@@ -159,9 +159,41 @@ check(#p8.gaps > 0, "no trainer recipes 255+ -> gap expected without buying patt
 if p8.gaps[1] then check(#p8.gaps[1].patterns > 0, "gap has pattern suggestions") end
 local p8b = P.Plan(ctxFor(250, 300))
 check(#p8b.gaps == 0, "vendor patterns fill the 255+ gap")
-for _, st in ipairs(p8b.steps) do
-  if st.spell and st.from < 255 then check(st.learn ~= "pattern", "pattern bought outside the gap") end
+
+-- 9. vendor patterns bought only when they pay for themselves
+local function total(plan)
+  local t = plan.expected
+  for _, b in pairs(plan.patterns or {}) do t = t + b.price end
+  return t
 end
+local base = P.Plan(ctxFor(110, 250, nil, { noPatterns = true }))
+check(#base.gaps == 0, "110-250 has trainer recipes everywhere")
+local t0p = os.clock()
+local withP = P.Plan(ctxFor(110, 250))
+local searchMs = (os.clock() - t0p) * 1000
+local bought = 0
+for spell, b in pairs(withP.patterns) do
+  bought = bought + 1
+  -- leave this one pattern out: the route must get more expensive
+  local fixed = {}
+  for sp in pairs(withP.patterns) do if sp ~= spell then fixed[sp] = true end end
+  local without = P.Plan(ctxFor(110, 250, nil, { fixedPatterns = fixed }))
+  check(total(without) > total(withP), T[spell].n .. " pattern doesn't pay for itself")
+  local onList = false
+  for _, it in ipairs(withP.shopping.buy) do if it.pattern and it.item == b.item then onList = true end end
+  check(onList, T[spell].n .. " pattern missing from shopping list")
+  check(T[spell].from:find("Vendor") and not T[spell].rep and not T[spell].cd, T[spell].n .. " not a plain vendor pattern")
+end
+check(total(withP) <= total(base) + 1e-6, "patterns never make the route dearer")
+print(("110->250: %d patterns bought, %.0fc -> %.0fc (%.1f%% cheaper), search %.0f ms"):format(
+  bought, total(base), total(withP), 100 * (1 - total(withP) / total(base)), searchMs))
+-- reusing the choice (bag change) skips the search
+local fixedAll = {}
+for sp in pairs(withP.patterns) do fixedAll[sp] = true end
+local t1 = os.clock()
+local again = P.Plan(ctxFor(110, 250, nil, { fixedPatterns = fixedAll }))
+check(math.abs(total(again) - total(withP)) < 1, "fixed pattern choice reproduces the plan")
+print(("re-plan with cached pattern choice: %.1f ms"):format((os.clock() - t1) * 1000))
 
 print("\n110->300 route (mock prices):")
 for _, st in ipairs(sticky.steps) do

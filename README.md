@@ -16,9 +16,10 @@ A WoW Forever addon that plans the cheapest way to level a crafting profession.
   each recipe is learned at (so cheap orange windows are used), trainer costs, and
   where patterns come from. The trainer window in game still overrides this if it
   disagrees.
-- **Vendor patterns fill gaps:** where no trainer recipe exists (Tailoring 255-300),
-  the route buys plain vendor patterns (price counted once). Patterns that need
-  reputation, and recipes with cooldowns (Mooncloth), are never planned.
+- **Buys vendor patterns when they pay off:** a vendor pattern is bought when it
+  makes the whole route cheaper, its price included (each one is checked with a full
+  re-plan), or when no trainer recipe covers a range (Tailoring 255-300). Patterns
+  that need reputation, and recipes with cooldowns (Mooncloth), are never planned.
 
 ## Install
 Copy the `SkillRoute` folder into `World of Warcraft/_forever_/Interface/AddOns/`

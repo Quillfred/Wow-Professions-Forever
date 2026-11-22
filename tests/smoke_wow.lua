@@ -75,6 +75,10 @@ local usedTrainer
 for _, st in ipairs(plan.steps) do if st.spell == 8764 then usedTrainer = st end end
 assert(not usedTrainer or (usedTrainer.from >= 145 and usedTrainer.learn == "trainer"), "scanned trainer level used")
 print(("plan 110->300: %d steps, buy %d items, %.1f ms"):format(#plan.steps, #plan.shopping.buy, plan.ms))
+local again = Core.Plan(197, 300) -- same inputs: cached pattern choice
+assert(math.abs(again.total - plan.total) < 1, "cached pattern choice reproduces the plan")
+print(("re-plan with cached patterns: %.1f ms"):format(again.ms))
+Core.InvalidatePatterns()
 
 -- UI: open, both modes, cycle, slash commands
 SlashCmdList.SKILLROUTE("")

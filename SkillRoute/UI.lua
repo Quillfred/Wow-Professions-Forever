@@ -152,6 +152,10 @@ local function routeRows(plan)
       elseif st.vendorBack > 0 then
         tip[#tip + 1] = ("Vendoring the results gives back about %s (not counted)."):format(money(st.vendorBack))
       end
+      if st.learn == "pattern" then
+        tip[#tip + 1] = st.saves and ("Buying the pattern saves about %s over the whole route, its price included."):format(money(st.saves))
+                        or "No trainer recipe covers this range; this is the cheapest way through."
+      end
       if st.alt then
         tip[#tip + 1] = ("Next best here: %s, %s per point vs %s for this one.")
           :format(st.alt.name, money(st.alt.perPoint), money(st.alt.ours))
@@ -178,7 +182,8 @@ local function shoppingRows(plan)
   end
   for _, b in ipairs(plan.shopping.buy) do
     local tags = {}
-    if b.vendor then tags[#tags + 1] = "vendor" end
+    if b.pattern then tags[#tags + 1] = "|cffffd100pattern, from a vendor|r"
+    elseif b.vendor then tags[#tags + 1] = "vendor" end
     if b.est then tags[#tags + 1] = "|cffff8040estimated price|r" end
     add({ item = b.item,
           text = b.buy > 0 and ("Buy %d x %s"):format(b.buy, b.name) or ("|cff40bf40Have all %s|r"):format(b.name),
@@ -245,7 +250,7 @@ local function build()
   frame:SetScript("OnDragStart", frame.StartMoving)
   frame:SetScript("OnDragStop", frame.StopMovingOrSizing)
   frame:SetClampedToScreen(true)
-  frame:SetScript("OnShow", UI.Refresh)
+  frame:SetScript("OnShow", function() Core.InvalidatePatterns(); UI.Refresh() end)
   tinsert(UISpecialFrames, "SkillRouteFrame") -- Escape closes it
   local title = frame:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
   title:SetPoint("TOP", 0, -5)
@@ -346,6 +351,7 @@ SlashCmdList.SKILLROUTE = function(msg)
     end
   elseif cmd == "estimate" and settings then
     settings.estimate = (arg == "on")
+    Core.InvalidatePatterns()
     print("SkillRoute: price estimates for items with no AH price are " .. (settings.estimate and "ON (marked in orange)" or "OFF (those recipes are skipped)"))
   elseif cmd == "help" then
     print("SkillRoute: /sr - open/close   /sr overtime <pct>   /sr estimate on|off")
