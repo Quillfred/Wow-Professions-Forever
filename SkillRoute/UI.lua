@@ -12,6 +12,7 @@ local COST_W, RANGE_W, COL_GAP, EDGE = 100, 62, 10, 6
 local RANGE_X = EDGE + COST_W + COL_GAP            -- range column's right edge, from row's right
 local RANGE_COLOR = { 0.55, 0.80, 1.00 }
 local RANKS = { [75] = "Journeyman", [150] = "Expert", [225] = "Artisan" }
+local RANK_STEP = { Journeyman = 2, Expert = 3, Artisan = 4 }
 local RANK_NAMES = { [3] = "Neutral", [4] = "Friendly", [5] = "Honored", [6] = "Revered", [7] = "Exalted" }
 local COLORS = { orange = "ff8040", yellow = "ffff00", green = "40bf40", grey = "808080" }
 
@@ -109,8 +110,12 @@ local function row(i)
     GameTooltip:Show()
   end)
   r:SetScript("OnLeave", function() GameTooltip:Hide() end)
-  r:RegisterForClicks("RightButtonUp")
-  r:SetScript("OnClick", function(self)
+  r:RegisterForClicks("LeftButtonUp", "RightButtonUp")
+  r:SetScript("OnClick", function(self, button)
+    if button == "LeftButton" then -- waypoint to this row's trainer / vendor
+      if self.waypoint then Core.Waypoint(self.waypoint) end
+      return
+    end
     if not (self.skipSpell and state.line) then return end
     local skipped = Core.ToggleSkip(state.line, self.skipSpell)
     print(("SkillRoute: %s %s. /sr unskip brings back everything you skipped."):format(
@@ -129,7 +134,7 @@ local function setRow(i, opts)
   r.right:SetText(opts.right or "")
   r.range:SetText(opts.range or "")
   r.item, r.spell, r.tip, r.tipTitle = opts.item, opts.spell, opts.tip, opts.tipTitle or opts.title
-  r.skipSpell, r.skipName = opts.skipSpell, opts.skipName
+  r.skipSpell, r.skipName, r.waypoint = opts.skipSpell, opts.skipName, opts.waypoint
   r:Show()
 end
 
@@ -150,16 +155,24 @@ local function routeRows(plan)
     -- rank training needed before this step?
     while RANKS[trained] and st.from >= trained do
       local rank = RANKS[trained]
-      local p, n = Core.Place("trainer", plan.line, rank)
+      local p, n = Core.Place("trainer", plan.line, rank)       -- one you visited
+      local loc = p or Core.NearestTrainer(plan.line, RANK_STEP[rank]) -- else nearest in the data
       local where = p and (p.zone .. (p.sub and (", " .. p.sub) or "") .. (p.x and (" (%.1f, %.1f)"):format(p.x, p.y) or ""))
+                    or Core.Where(loc)
+      local tip = {}
+      if p then
+        tip[1] = ("You talked to %s here.%s"):format(p.npc, n > 1 and (" %d trainers known."):format(n) or "")
+      elseif loc then
+        tip[1] = ("Nearest %s %s trainer for your faction (Classic NPC data; Forever may differ)."):format(rank, Data.professions[plan.line].name)
+      else
+        tip[1] = "No trainer known. Talk to one once and SkillRoute will remember where they are."
+      end
+      if loc then tip[#tip + 1] = "|cff808080Click: set a waypoint (TomTom).|r" end
       add({ icon = "Interface\\Icons\\INV_Misc_Book_09",
-            text = ("|cffffd100Train %s|r"):format(rank) .. (p and (" at " .. p.npc) or " at your trainer"),
+            text = ("|cffffd100Train %s|r"):format(rank) .. (loc and (" at " .. loc.npc) or " at your trainer"),
             sub = ("Needed to go past %d"):format(trained)
-                  .. (where and ("  -  " .. where) or ("  -  |cff808080no %s trainer seen yet|r"):format(rank)),
-            range = tostring(trained),
-            tipTitle = ("Train %s"):format(rank),
-            tip = { p and (("Seen at %s."):format(Core.FormatPlace(p, true)) .. (n > 1 and (" %d trainers known."):format(n) or ""))
-                      or "Talk to a trainer who teaches it once and SkillRoute will remember where they are." } })
+                  .. (where and ("  -  " .. where) or ("  -  |cff808080no %s trainer known|r"):format(rank)),
+            range = tostring(trained), tipTitle = ("Train %s"):format(rank), tip = tip, waypoint = loc })
       trained = trained + 75
     end
     -- get each tool (rod, hammer...) right before the first step that needs it
@@ -218,7 +231,7 @@ local function routeRows(plan)
         if st.unlock and st.unlock.via == "ah" then
           learn = "  |cffffd100Buy pattern on the AH (last seen " .. money(st.learnCost, YELLOW) .. ")|r"
         else
-          local p = st.unlock and Core.Place("vendor", st.unlock.item)
+          local p = st.unlock and (Core.Place("vendor", st.unlock.item) or Core.NearestVendor(st.unlock.item))
           local who = (p and p.npc) or (st.unlock and st.unlock.vendorNames and st.unlock.vendorNames:match("^[^,]+")) or "a vendor"
           learn = "  |cffffd100Buy pattern from " .. who .. " (" .. money(st.learnCost, YELLOW) .. ")|r"
                   .. ((not p and st.unlock and st.unlock.unverified) and " |cff808080(vendor faction unverified)|r" or "")
@@ -241,11 +254,16 @@ local function routeRows(plan)
         tip[#tip + 1] = sv and ("Buying the pattern saves about %s over the whole route, its price included."):format(money(sv))
                         or "No trainer recipe covers this range; this is the cheapest way through."
       end
+      local waypoint
       if st.learn == "pattern" and st.unlock then
         local p, n = Core.Place("vendor", st.unlock.item)
+        local near = not p and st.unlock.via ~= "ah" and Core.NearestVendor(st.unlock.item)
+        waypoint = st.unlock.via ~= "ah" and (p or near) or nil
         if p then
           tip[#tip + 1] = ("Sold by %s%s.%s"):format(Core.FormatPlace(p, true), p.limited and " (limited stock)" or "",
             n > 1 and (" %d vendors known."):format(n) or "")
+        elseif near then
+          tip[#tip + 1] = ("Nearest vendor for your faction: %s, %s (Classic NPC data)."):format(near.npc, Core.Where(near) or "?")
         elseif st.unlock.vendorNames then
           tip[#tip + 1] = "Sold to your faction by: " .. st.unlock.vendorNames .. " (Classic vendor data)."
         elseif r.where then
@@ -271,8 +289,9 @@ local function routeRows(plan)
         for _, u in ipairs(st.tools) do names[#names + 1] = u.name end
         learn = learn .. "  |cffff8040needs " .. table.concat(names, ", ") .. "|r"
       end
+      if waypoint then tip[#tip + 1] = "|cff808080Click: set a waypoint to the vendor (TomTom).|r" end
       tip[#tip + 1] = "|cff808080Right-click: skip this recipe (e.g. pattern not for sale) and plan without it.|r"
-      add({ item = r.out, spell = st.spell, tip = tip, skipSpell = st.spell, skipName = st.name,
+      add({ item = r.out, spell = st.spell, tip = tip, skipSpell = st.spell, skipName = st.name, waypoint = waypoint,
             text = ("|cff%s~%d|r x %s"):format(COLORS[st.color] or "ffffff", math.ceil(st.crafts - 1e-9), st.name),
             sub = mats(st.spell, plan.line) .. learn,
             range = ("%d-%d"):format(st.from, st.to),

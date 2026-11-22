@@ -222,4 +222,45 @@ do
   Auctionator.API.v1.GetAuctionAgeByItemID = nil
   assert(Core.AHFresh(2), "no age API: don't block")
 end
+-- trainers / vendors from the data: zone asked from the game, nearest, TomTom waypoint
+do
+  local D = SkillRouteData
+  local wantSwap = false -- which axis order the fake game expects
+  _G.CreateVector2D = function(x, y) return { x = x, y = y } end
+  C_Map.GetMapInfo = function(m)
+    if m == 1442 then return { mapType = 3, parentMapID = 1414, name = "Stonetalon Mountains" } end
+    if m == 1414 or m == 1415 then return { mapType = 2, parentMapID = 946, name = m == 1414 and "Kalimdor" or "Eastern Kingdoms" } end
+  end
+  C_Map.GetMapPosFromWorldPos = function(map, vec, ui)
+    for id, n in pairs(D.npcs) do
+      local ok = wantSwap and (vec.x == n[5] and vec.y == n[4]) or (not wantSwap and vec.x == n[4] and vec.y == n[5])
+      if ok and n[3] == map then
+        if ui == n[6] then return ui, { x = n[7] / 100, y = n[8] / 100 } end
+        return ui, { x = 0.708, y = 0.307 }
+      end
+    end
+    return ui, { x = 0.99, y = 0.99 } -- wrong axis order: lands somewhere else
+  end
+  C_Map.GetMapInfoAtPosition = function() return { mapID = 1458, name = "Undercity" } end
+
+  local loc = Core.NearestTrainer(197, 3) -- Expert Tailoring, Horde
+  assert(loc and loc.side:find("H") and loc.zone == "Undercity" and loc.ui == 1458 and loc.x == 70.8,
+    "nearest Horde Expert trainer, zone from the game: " .. tostring(loc and loc.npc))
+  print("nearest Expert Tailoring trainer (Horde): " .. loc.npc .. ", " .. Core.Where(loc))
+  -- the game wants the axes the other way round: detected via the continent check
+  wantSwap = true
+  for k in pairs(D.npcs) do end
+  local fresh = Core.NPCLocation(2668) -- not resolved before
+  assert(fresh and fresh.zone == "Undercity", "axis order detected")
+  -- Alliance-only vendor never offered to Horde
+  local v = Core.NearestVendor(SkillRouteData.professions[197].recipes[select(1, (function()
+    for sp, r in pairs(SkillRouteData.professions[197].recipes) do if r.n == "Bright Yellow Shirt" then return sp end end end)())].pat[1])
+  assert(v == nil, "Bright Yellow Shirt: no Horde vendor")
+  -- TomTom waypoint
+  local got
+  _G.TomTom = { AddWaypoint = function(self, ui, x, y, opts) got = { ui, x, y, opts.title } end }
+  Core.Waypoint(loc)
+  assert(got and got[1] == 1458 and math.abs(got[2] - 0.708) < 1e-9 and got[4] == loc.npc, "TomTom waypoint")
+  _G.TomTom = nil
+end
 print("SMOKE TEST PASSED")

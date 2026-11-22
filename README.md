@@ -52,6 +52,12 @@ Copy the `SkillRoute` folder into `World of Warcraft/_forever_/Interface/AddOns/
   re-plan without it; `/sr unskip` brings skipped recipes back. Patterns are only
   "on the AH" if Auctionator saw one today or yesterday.
 
+**Where to go:** "Train Expert" rows and "Buy pattern from ..." steps name the nearest
+trainer / vendor for your faction, with zone and map coordinates (Classic NPC data;
+the zone is resolved by the game's own map, so it matches your map). **Click** the
+row to set a waypoint: TomTom if installed, else the game's map pin, else the
+coordinates in chat.
+
 **Faction:** a pattern is only "bought from a vendor" if a vendor of your faction sells
 it (vendor lists from the cMaNGOS Classic database, factions from Forever's own
 tables; a vendor you visit overrides this). Patterns new in Forever are flagged
@@ -71,6 +77,7 @@ and visit your trainer once.
 python3 -I tools/import_wowhead.py wow-forever-recipes.json   # optional: new Wowhead export
 python3 -I tools/import_sources.py blank-source-recipes.csv   # optional: sources Wowhead left blank
 python3 -I tools/import_vendors.py ClassicDB_*.sql.gz FactionTemplate.csv   # optional: vendor factions
+(cd tools && python3 import_npcs.py ClassicDB_*.sql.gz WAGO_CACHE BUILD)     # optional: trainer/vendor locations
 python3 -I tools/gen_data.py            # newest Forever build on wago.tools
 python3 -I tools/gen_data.py 1.60.1.71037
 ```
@@ -85,5 +92,5 @@ lua5.1 tests/smoke_wow.lua      # whole addon against a fake WoW API
 - Recipes, reagents, skill thresholds, tools, cooldowns, factions: WoW Forever client
   tables via wago.tools.
 - Learn levels, sources and trainer costs: Wowhead (exported by hand).
-- Which vendors sell which patterns: derived from the cMaNGOS Classic database
+- Which vendors sell which patterns, trainers, NPC positions: derived from the cMaNGOS Classic database
   (github.com/cmangos/classic-db, GPL v3) — Classic data, so Forever may differ.

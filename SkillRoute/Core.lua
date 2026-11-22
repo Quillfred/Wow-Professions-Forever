@@ -197,6 +197,7 @@ local function here()
   if sub and sub ~= "" and sub ~= p.zone then p.sub = sub end
   if C_Map and C_Map.GetBestMapForUnit and C_Map.GetPlayerMapPosition then
     local map = C_Map.GetBestMapForUnit("player")
+    p.ui = map
     local pos = map and C_Map.GetPlayerMapPosition(map, "player")
     if pos then
       local x, y = pos:GetXY()
@@ -258,6 +259,117 @@ recordTrainer = function()
     e.ranks = e.ranks or {}
     for r in pairs(ranks) do e.ranks[r] = true end
     t[line][npc] = e
+  end
+end
+
+-- NPCs from the data (Classic spawns) -------------------------------------------
+-- Zones overlap as rectangles, so the zone is asked from the game itself: world
+-- position -> continent map -> zone at that spot -> zone coordinates. The continent
+-- coordinates computed offline double-check the game's answer (and which way round
+-- it wants the world axes) before it is used.
+local function round1(v) return math.floor(v * 10 + 0.5) / 10 end
+local resolved = {}
+
+function Core.NPCLocation(id)
+  local n = Data.npcs and Data.npcs[id]
+  if not n then return nil end
+  if resolved[id] then return resolved[id] end
+  local loc = { npc = n[1], side = n[2], cui = n[6], cx = n[7], cy = n[8], zone = n[9], x = n[10], y = n[11] }
+  if n[6] and C_Map and C_Map.GetMapPosFromWorldPos and C_Map.GetMapInfoAtPosition and CreateVector2D then
+    for _, swap in ipairs({ false, true }) do
+      local vec = swap and CreateVector2D(n[5], n[4]) or CreateVector2D(n[4], n[5])
+      local ok, _, cpos = pcall(C_Map.GetMapPosFromWorldPos, n[3], vec, n[6])
+      if ok and cpos and math.abs(cpos.x * 100 - n[7]) < 0.5 and math.abs(cpos.y * 100 - n[8]) < 0.5 then
+        local info = C_Map.GetMapInfoAtPosition(n[6], cpos.x, cpos.y)
+        if info and info.mapID then
+          local ok2, _, zpos = pcall(C_Map.GetMapPosFromWorldPos, n[3], vec, info.mapID)
+          if ok2 and zpos then
+            loc.ui, loc.zone, loc.x, loc.y = info.mapID, info.name, round1(zpos.x * 100), round1(zpos.y * 100)
+          end
+        end
+        break
+      end
+    end
+  end
+  if loc.ui then resolved[id] = loc end -- don't keep a failed lookup: try again next time
+  return loc
+end
+
+-- your position on the continent map (uiMapID, x, y in 0-100), or nil
+local function playerContinent()
+  if not (C_Map and C_Map.GetBestMapForUnit and C_Map.GetMapInfo and C_Map.GetPlayerMapPosition) then return end
+  local m = C_Map.GetBestMapForUnit("player")
+  for _ = 1, 8 do
+    local info = m and C_Map.GetMapInfo(m)
+    if not info then return end
+    if info.mapType == 2 then -- continent
+      local pos = C_Map.GetPlayerMapPosition(m, "player")
+      if pos then local x, y = pos:GetXY(); return m, x * 100, y * 100 end
+      return
+    end
+    m = info.parentMapID
+  end
+end
+
+-- The nearest of these NPCs that deals with your faction: same continent first.
+function Core.NearestNPC(ids)
+  local mine = UnitFactionGroup and UnitFactionGroup("player")
+  local letter = mine == "Alliance" and "A" or mine == "Horde" and "H" or nil
+  local cui, px, py = playerContinent()
+  local best, bestD
+  for _, id in ipairs(ids or {}) do
+    local n = Data.npcs and Data.npcs[id]
+    if n and (not letter or n[2]:find(letter, 1, true)) then
+      local d = 1e9
+      if cui and n[6] == cui then d = (n[7] - px) ^ 2 + (n[8] - py) ^ 2 end
+      if not bestD or d < bestD then best, bestD = id, d end
+    end
+  end
+  return best and Core.NPCLocation(best)
+end
+
+function Core.NearestTrainer(line, rankStep) -- rankStep: 2 Journeyman, 3 Expert, 4 Artisan
+  local ids = {}
+  for id, top in pairs(Data.trainers and Data.trainers[line] or {}) do
+    if top >= rankStep then ids[#ids + 1] = id end
+  end
+  table.sort(ids)
+  return Core.NearestNPC(ids)
+end
+
+function Core.NearestVendor(item)
+  return Core.NearestNPC(Data.vendorNpcs and Data.vendorNpcs[item])
+end
+
+-- "Zone (x, y)"; for an NPC the game couldn't place, its spot on the continent map.
+function Core.Where(loc)
+  if not loc then return nil end
+  if loc.zone and loc.x then return ("%s (%.1f, %.1f)"):format(loc.zone, loc.x, loc.y) end
+  local cont = loc.cui and C_Map and C_Map.GetMapInfo and C_Map.GetMapInfo(loc.cui)
+  if loc.cx then return ("%s map (%.1f, %.1f)"):format(cont and cont.name or "continent", loc.cx, loc.cy) end
+  return loc.zone
+end
+
+-- Waypoint to an NPC (TomTom, else the game's own map pin, else chat).
+function Core.Waypoint(loc, title)
+  if not loc then return end
+  local ui, x, y = loc.ui, loc.x, loc.y
+  if not (ui and x) then ui, x, y = loc.cui, loc.cx, loc.cy end
+  title = title or loc.npc
+  if not (ui and x) then
+    print(("SkillRoute: no coordinates known for %s."):format(title or "?"))
+    return
+  end
+  if TomTom and TomTom.AddWaypoint then
+    TomTom:AddWaypoint(ui, x / 100, y / 100, { title = title, persistent = false, minimap = true, world = true })
+    print(("SkillRoute: TomTom waypoint set to %s, %s."):format(title, Core.Where(loc) or ""))
+  elseif C_Map and C_Map.SetUserWaypoint and UiMapPoint and UiMapPoint.CreateFromCoordinates
+      and (not C_Map.CanSetUserWaypointOnMap or C_Map.CanSetUserWaypointOnMap(ui)) then
+    C_Map.SetUserWaypoint(UiMapPoint.CreateFromCoordinates(ui, x / 100, y / 100))
+    if C_SuperTrack and C_SuperTrack.SetSuperTrackedUserWaypoint then C_SuperTrack.SetSuperTrackedUserWaypoint(true) end
+    print(("SkillRoute: map pin set on %s, %s."):format(title, Core.Where(loc) or ""))
+  else
+    print(("SkillRoute: %s is at %s (install TomTom for waypoints)."):format(title, Core.Where(loc) or "?"))
   end
 end
 

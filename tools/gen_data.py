@@ -96,6 +96,13 @@ def main():
         with open(vpath, encoding="utf-8") as f:
             vendor_sides = {int(k): v for k, v in json.load(f).items()}
 
+    # Optional: trainers / pattern vendors with zone + coordinates (tools/import_npcs.py).
+    npcdata = {"npcs": {}, "trainers": {}, "vendors": {}}
+    npath = os.path.join(os.path.dirname(os.path.abspath(__file__)), "npcs.json")
+    if os.path.exists(npath):
+        with open(npath, encoding="utf-8") as f:
+            npcdata = json.load(f)
+
     abil = {}  # spell -> SkillLineAbility row (crafting recipes only)
     for r in rows(p["SkillLineAbility"]):
         sl = int(r["SkillLine"])
@@ -278,6 +285,32 @@ def main():
         names_a = ", ".join(n for n, s in e["v"] if "A" in s)
         names_h = ", ".join(n for n, s in e["v"] if "H" in s)
         lines.append(f"    [{i}]={{\"{side}\",{lua_str(names_a)},{lua_str(names_h)}}},")
+    # NPCs: [id] = {name, "A"|"H"|"AH", continent map, worldX, worldY, zone, zoneX, zoneY}
+    used_npcs = set()
+    tr_lines, vend_lines = [], []
+    for line in sorted(PROFESSIONS):
+        d = npcdata["trainers"].get(str(line), {})
+        if d:
+            tr_lines.append(f"    [{line}]={{" + ",".join(f"[{e}]={max(st)}" for e, st in sorted(d.items(), key=lambda kv: int(kv[0]))) + "},")
+            used_npcs.update(int(e) for e in d)
+    for i in sorted(vendor_patterns):
+        es = npcdata["vendors"].get(str(i))
+        if es:
+            vend_lines.append(f"    [{i}]={{{','.join(map(str, es))}}},")
+            used_npcs.update(es)
+    lines += ["  },", "  -- profession trainers: [skillLine] = {[npcID] = highest rank taught (2 Journeyman, 3 Expert, 4 Artisan)}",
+              "  trainers = {"] + tr_lines
+    lines += ["  },", "  -- [patternItem] = {npcIDs of vendors selling it}", "  vendorNpcs = {"] + vend_lines
+    lines += ["  },", "  -- [npcID] = {name, faction \"A\"|\"H\"|\"AH\", map, worldX, worldY, continentUiMap, contX, contY, zone, zoneX, zoneY}",
+              "  -- (Classic spawns; zone only when unambiguous, the game resolves the rest)",
+              "  npcs = {"]
+    for e in sorted(used_npcs):
+        n = npcdata["npcs"].get(str(e))
+        if n:
+            zone = lua_str(n["zone"]) if n["zone"] else "nil"
+            v = lambda k: "nil" if n.get(k) is None else str(n[k])
+            lines.append(f"    [{e}]={{{lua_str(n['n'])},\"{n['side']}\",{n['map']},{n['x']},{n['y']},"
+                         f"{v('cui')},{v('cx')},{v('cy')},{zone},{v('zx')},{v('zy')}}},")
     factions = {int(r["ID"]): r["Name_lang"] for r in rows(p["Faction"])}
     lines += ["  },", "  factions = {"]
     for f in sorted(used_factions):
