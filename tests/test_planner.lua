@@ -42,9 +42,15 @@ for _, st in ipairs(plan.steps) do
   if st.spell then
     local rr = T[st.spell]
     local learnAt = P.LearnAt(st.spell, rr, ctxFor(1, 300))
-    check(learnAt and learnAt <= st.from, st.name .. " used before it can be learned")
     check(st.to <= rr.g, st.name .. " used while grey")
-    check(rr.src ~= "p" and rr.src ~= "x", st.name .. " is not obtainable without a pattern")
+    check(not rr.cd, st.name .. " has a cooldown and can't be ground")
+    if st.learn == "pattern" then -- vendor pattern bought to fill a gap
+      check(rr.from and rr.from:find("Vendor") and not rr.rep and st.learnCost, st.name .. ": only plain vendor patterns are bought")
+      check((rr.learn or rr.y) <= st.from, st.name .. " pattern used before its learn level")
+    else
+      check(learnAt and learnAt <= st.from, st.name .. " used before it can be learned")
+      check(rr.src ~= "p" and rr.src ~= "x", st.name .. " is not obtainable without a pattern")
+    end
   end
 end
 check(s == 300, "plan reaches target")
@@ -117,10 +123,17 @@ for _, st in ipairs(P.Plan(ctxFor(150, 220)).steps) do if st.spell == pat then u
 check(not usedUnknown, "unknown pattern never used")
 
 -- 5. confirmed trainer level overrides the 'yellow' assumption
-local ds = 3848 -- Double-stitched Woolen Shoulders (y=110)
-local c5 = ctxFor(100, 110); c5.trainer = { [ds] = { req = 100, cost = 500 } }
-check(P.LearnAt(ds, T[ds], c5) == 100, "trainer req used")
-check(P.LearnAt(ds, T[ds], ctxFor(100, 110)) == 110, "unconfirmed trainer recipe waits for yellow")
+local ds = 3848 -- Double-stitched Woolen Shoulders: Wowhead learn 85, yellow 110
+check(T[ds].src == "T" and P.LearnAt(ds, T[ds], ctxFor(80, 110)) == 85, "Wowhead learn level used")
+local c5 = ctxFor(80, 110); c5.trainer = { [ds] = { req = 90, cost = 500 } }
+check(P.LearnAt(ds, T[ds], c5) == 90, "in-game trainer scan wins over data file")
+check(P.LearnAt(1, { y = 120, g = 150, src = "t" }, ctxFor(100, 110)) == 120, "unconfirmed trainer recipe waits for yellow")
+check(P.LearnAt(1, { y = 120, g = 150, src = "x" }, ctxFor(100, 110)) == nil, "quest/special recipe never assumed")
+-- an orange window is used: White Woolen Dress learnable at 85, guaranteed skill-ups until 110
+local ow = P.Plan(ctxFor(85, 110))
+local guaranteed = 0
+for _, st in ipairs(ow.steps) do if st.spell and st.color == "orange" then guaranteed = guaranteed + 1 end end
+check(guaranteed > 0, "orange (100%) window used between 85 and 110")
 
 -- 6. unpriced reagents exclude a recipe instead of guessing
 missing[2321] = true -- Fine Thread
@@ -141,9 +154,14 @@ for _, b in ipairs(p7.shopping.buy) do
 end
 
 -- 8. gaps list pattern suggestions
-local p8 = P.Plan(ctxFor(250, 300))
-check(#p8.gaps > 0, "no trainer recipes 250+ -> gap expected (Forever: patterns only)")
+local p8 = P.Plan(ctxFor(250, 300, nil, { noPatterns = true }))
+check(#p8.gaps > 0, "no trainer recipes 255+ -> gap expected without buying patterns")
 if p8.gaps[1] then check(#p8.gaps[1].patterns > 0, "gap has pattern suggestions") end
+local p8b = P.Plan(ctxFor(250, 300))
+check(#p8b.gaps == 0, "vendor patterns fill the 255+ gap")
+for _, st in ipairs(p8b.steps) do
+  if st.spell and st.from < 255 then check(st.learn ~= "pattern", "pattern bought outside the gap") end
+end
 
 print("\n110->300 route (mock prices):")
 for _, st in ipairs(sticky.steps) do

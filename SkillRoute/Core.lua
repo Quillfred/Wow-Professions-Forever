@@ -158,7 +158,7 @@ function Core.ScanTrainer()
       local match, matchScore = nil, -1
       for _, spell in ipairs(spells) do -- same name can exist twice (e.g. Earthen Vest)
         local r = recipes[spell]
-        local score = (out and r.out == out and 2 or 0) + (r.src == "t" and 1 or 0)
+        local score = (out and r.out == out and 2 or 0) + ((r.src == "T" or r.src == "t") and 1 or 0)
         if score > matchScore then match, matchScore = spell, score end
       end
       local cost = GetTrainerServiceCost and GetTrainerServiceCost(i) or nil

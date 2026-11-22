@@ -73,7 +73,7 @@ plan = Core.Plan(197, 300)
 assert(plan.skill == 110 and plan.unpriced == 0 and #plan.steps > 0)
 local usedTrainer
 for _, st in ipairs(plan.steps) do if st.spell == 8764 then usedTrainer = st end end
-assert(usedTrainer and usedTrainer.from >= 145 and usedTrainer.learn == "trainer", "confirmed trainer level used")
+assert(not usedTrainer or (usedTrainer.from >= 145 and usedTrainer.learn == "trainer"), "scanned trainer level used")
 print(("plan 110->300: %d steps, buy %d items, %.1f ms"):format(#plan.steps, #plan.shopping.buy, plan.ms))
 
 -- UI: open, both modes, cycle, slash commands

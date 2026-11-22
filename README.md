@@ -12,9 +12,13 @@ A WoW Forever addon that plans the cheapest way to level a crafting profession.
   chance (orange 100%, falling linearly from yellow to grey).
 - **Uses what you own:** the shopping list subtracts bags and bank, and reuses
   products of earlier steps (for example bolts) in later ones.
-- **Learns from your trainer:** when you open a profession trainer it records what is
-  really taught and at which skill. Until then, a trainer recipe counts as usable
-  only from yellow, and the route marks it "not confirmed".
+- **Learn levels and sources from Wowhead** (`tools/wowhead_forever.json`): the skill
+  each recipe is learned at (so cheap orange windows are used), trainer costs, and
+  where patterns come from. The trainer window in game still overrides this if it
+  disagrees.
+- **Vendor patterns fill gaps:** where no trainer recipe exists (Tailoring 255-300),
+  the route buys plain vendor patterns (price counted once). Patterns that need
+  reputation, and recipes with cooldowns (Mooncloth), are never planned.
 
 ## Install
 Copy the `SkillRoute` folder into `World of Warcraft/_forever_/Interface/AddOns/`
@@ -33,6 +37,7 @@ and visit your trainer once.
 
 ## Updating the data after a patch
 ```
+python3 -I tools/import_wowhead.py wow-forever-recipes.json   # optional: new Wowhead export
 python3 -I tools/gen_data.py            # newest Forever build on wago.tools
 python3 -I tools/gen_data.py 1.60.1.71037
 ```

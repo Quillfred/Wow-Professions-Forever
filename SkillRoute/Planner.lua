@@ -29,12 +29,15 @@ function Planner.Color(r, s)
 end
 
 -- Skill at which the recipe can first be used, or nil if not obtainable through
--- this plan. ctx.known: learned; ctx.trainer: confirmed at a trainer.
+-- this plan. ctx.known: learned; ctx.trainer: seen in this client's trainer window
+-- (wins over the data file); src "T": trainer recipe per Wowhead, with learn level.
 function Planner.LearnAt(spell, r, ctx)
   if ctx.known[spell] or r.src == "a" then return 0, "known" end
   local t = ctx.trainer[spell]
   if t then return t.req or 0, "trainer" end
+  if r.src == "T" then return r.learn or r.y, "trainer" end
   if r.src == "t" then return r.y, "trainer?" end -- unconfirmed: never earlier than yellow
+  if ctx.buyable and ctx.buyable[spell] then return r.learn or r.y, "pattern" end
   return nil
 end
 
@@ -143,7 +146,38 @@ function Planner.Plan(ctx)
     end
     if not changed then break end
   end
+  if #plan.gaps > 0 and not ctx.noPatterns then plan = Planner.FillGaps(ctx, credit, plan) end
   return plan
+end
+
+-- Where no known or trainer recipe exists, allow buying vendor-sold patterns. The
+-- pattern's price is a one-time cost, spread over the points it can cover inside
+-- the gap. Patterns are only allowed inside gaps, never to replace a trainer recipe.
+function Planner.FillGaps(ctx, credit, plan)
+  local inGap = {}
+  for _, g in ipairs(plan.gaps) do for s = g.from, g.to - 1 do inGap[s] = true end end
+  local buyable = {}
+  for spell, r in pairs(ctx.recipes) do
+    if r.pat and not ctx.known[spell] and not r.rep and not r.cd and r.from and r.from:find("Vendor") then
+      local best
+      for _, it in ipairs(r.pat) do
+        local v = ctx.items[it] and ctx.items[it][3]
+        local ah = ctx.price(it)
+        local p = (v and ah) and math.min(v, ah) or v or ah
+        if p and (not best or p < best) then best = p end
+      end
+      if best then
+        local span = 0
+        for s = (r.learn or r.y), r.g - 1 do if inGap[s] then span = span + 1 end end
+        if span > 0 then buyable[spell] = { price = best, perPoint = best / span } end
+      end
+    end
+  end
+  if next(buyable) == nil then return plan end
+  local ctx2 = setmetatable({ buyable = buyable, onlyGaps = inGap }, { __index = ctx })
+  local filled = Planner.PlanOnce(ctx2, credit)
+  filled.patternsBought = buyable
+  return filled
 end
 
 function Planner.PlanOnce(ctx, credit)
@@ -155,10 +189,11 @@ function Planner.PlanOnce(ctx, credit)
   local cands, unpriced = {}, 0
   for spell, r in pairs(recipes) do
     local learnAt, how = Planner.LearnAt(spell, r, ctx)
-    if learnAt and r.g > from and learnAt < to then
+    if learnAt and r.g > from and learnAt < to and not r.cd then -- cooldown recipes can't be ground
       local c, est = costOf(spell)
       if c then
-        cands[#cands + 1] = { spell = spell, r = r, learnAt = learnAt, how = how, cost = c, est = est }
+        cands[#cands + 1] = { spell = spell, r = r, learnAt = learnAt, how = how, cost = c, est = est,
+                              buy = how == "pattern" and ctx.buyable[spell] or nil }
       else
         unpriced = unpriced + 1 -- skipped, not guessed: a reagent has no price
       end
@@ -175,10 +210,10 @@ function Planner.PlanOnce(ctx, credit)
     local stickyC
     for k = 1, #cands do
       local c = cands[k]
-      if c.learnAt <= s then
+      if c.learnAt <= s and (not c.buy or ctx.onlyGaps[s]) then
         local p = Planner.Chance(c.r, s, ctx.bonus)
         if p > 0 then
-          local v = c.cost / p
+          local v = c.cost / p + (c.buy and c.buy.perPoint or 0)
           if k == nextK then stickyC = v end
           if v < bestC then
             secondC, secondK = bestC, bestK
@@ -224,7 +259,7 @@ function Planner.PlanOnce(ctx, credit)
         spell = c.spell, name = c.r.n, from = s, to = e, crafts = crafts,
         cost = c.cost * crafts, perCraft = c.cost, est = c.est,
         learn = (c.how ~= "known") and c.how or nil,
-        learnCost = ctx.trainer[c.spell] and ctx.trainer[c.spell].cost,
+        learnCost = (c.buy and c.buy.price) or (ctx.trainer[c.spell] and ctx.trainer[c.spell].cost) or c.r.tc,
         color = Planner.Color(c.r, s),
         vendorBack = c.r.out and ctx.items[c.r.out] and ctx.items[c.r.out][2] * (c.r.outN or 1) * crafts or 0,
         credited = c.r.out and (credit[c.r.out] or 0) > 0 or false,
@@ -243,13 +278,14 @@ end
 function Planner.PatternsFor(ctx, s, unit)
   local list = {}
   for spell, r in pairs(ctx.recipes) do
-    if r.pat and not ctx.known[spell] and (r.learn or r.y) <= s and s < r.g then
+    if r.pat and not ctx.known[spell] and not r.cd and (r.learn or r.y) <= s and s < r.g then
       local bestP, bestItem
       for _, it in ipairs(r.pat) do
         local p = ctx.price(it)
         if p and (not bestP or p < bestP) then bestP, bestItem = p, it end
       end
-      list[#list + 1] = { spell = spell, name = r.n, item = bestItem or r.pat[1], price = bestP, to = r.g }
+      list[#list + 1] = { spell = spell, name = r.n, item = bestItem or r.pat[1], price = bestP, to = r.g,
+                          from = r.from, rep = r.rep }
     end
   end
   table.sort(list, function(a, b)

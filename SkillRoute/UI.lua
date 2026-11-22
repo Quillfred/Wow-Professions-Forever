@@ -126,7 +126,9 @@ local function routeRows(plan)
           for k = 1, math.min(5, #g.patterns) do
             local pt = g.patterns[k]
             add({ item = pt.item, text = "   " .. pt.name,
-                  sub = "   Pattern, good until " .. pt.to .. (pt.price and "" or " - not on the AH in your last scan"),
+                  sub = "   Good until " .. pt.to .. (pt.from and ("  -  " .. pt.from) or "")
+                        .. (pt.rep and "  -  |cffff8040needs faction reputation|r" or "")
+                        .. (pt.price and "  -  AH" or "  -  not on the AH in your last scan"),
                   right = pt.price and money(pt.price) or "" })
           end
         end
@@ -136,6 +138,8 @@ local function routeRows(plan)
       local learn = ""
       if st.learn == "trainer" then
         learn = "  |cffffd100Learn at trainer" .. (st.learnCost and (" (" .. money(st.learnCost) .. ")") or "") .. "|r"
+      elseif st.learn == "pattern" then
+        learn = "  |cffffd100Buy pattern from a vendor (" .. money(st.learnCost) .. ")|r"
       elseif st.learn == "trainer?" then
         learn = "  |cffffd100Learn at trainer (not confirmed yet)|r"
       end
