@@ -284,7 +284,7 @@ function Core.Plan(line, target)
   local nKnown = 0
   for _ in pairs(known) do nKnown = nKnown + 1 end
   local key = table.concat({ s.rank, target, nKnown, Core.dataVersion, settings.bonus or 0,
-                             tostring(settings.estimate) }, ":")
+                             tostring(settings.estimate), tostring(settings.cdmats) }, ":")
   local recipes = Data.professions[line].recipes
   local owned = {}
   for key in pairs(Core.ToolsFor(line)) do if Core.HasTool(key) then owned[#owned + 1] = key end end
@@ -297,6 +297,7 @@ function Core.Plan(line, target)
     skill = s.rank, target = target, maxSkill = s.max,
     known = known, trainer = db().trainer[line] or {},
     price = Core.Price, have = Core.Have, hasTool = Core.HasTool, standing = Core.Standing,
+    avoidMats = not settings.cdmats and Data.cooldownMats or nil,
     bonus = settings.bonus or 0,
     fixedUnlocks = cached and cached.key == key and cached.set or nil,
   })

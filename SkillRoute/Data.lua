@@ -5542,6 +5542,12 @@ SkillRouteData = {
     [376]={"Runed Truesilver Rod",{11145,16207}},
     [377]={"Runed Arcanite Rod",{16207}},
   },
+  -- reagents only made by cooldown crafts (Mooncloth...): avoided unless /sr cdmats on
+  cooldownMats = {
+    [12360]=true,
+    [14342]=true,
+    [251290]=true,
+  },
   factions = {
     [59]="Thorium Brotherhood",
     [270]="Zandalar Tribe",

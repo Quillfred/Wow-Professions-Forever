@@ -22,7 +22,12 @@ TABLES = ["SkillLineAbility", "SpellReagents", "SpellName", "SpellEffect",
 NOT_TRAINER = {22813, 22815, 19435,  # Gordok Ogre Suits (quest), Mooncloth Boots (quest)
                11452,                # Restorative Potion (quest)
                23486, 23489, 13240}  # Goblin/Gnomish specialization only
-SOD_SPELLS = range(400000, 500000)   # Season of Discovery recipes: never assumed trainer
+SOD_SPELLS = range(400000, 500000)
+# Materials whose only source is a cooldown craft (scarce, priced accordingly).
+# Checked against the client: these are made only by spells with a cooldown and not
+# smelted or otherwise crafted. Elemental essences are left out: transmutes make
+# them too, but they mostly drop from mobs.
+COOLDOWN_MATS = {"Mooncloth", "Arcanite Bar", "Legionite Bar"}   # Season of Discovery recipes: never assumed trainer
 # Reagents sold by trade-supply vendors. Used only as a price fallback; Auctionator's
 # own vendor price wins when it has one. Matched by name, prices from the client.
 VENDOR = {"Coarse Thread", "Fine Thread", "Silken Thread", "Heavy Silken Thread", "Rune Thread",
@@ -250,6 +255,11 @@ def main():
     for c in sorted(tool_items):
         name = cats[c][2] if c > 0 else items.get(-c, {}).get("Display_lang", str(-c))
         lines.append(f"    [{c}]={{{lua_str(name)},{{{','.join(map(str, tool_items[c]))}}}}},")
+    lines += ["  },", "  -- reagents only made by cooldown crafts (Mooncloth...): avoided unless /sr cdmats on",
+              "  cooldownMats = {"]
+    for i in sorted(used_items):
+        if items.get(i, {}).get("Display_lang") in COOLDOWN_MATS:
+            lines.append(f"    [{i}]=true,")
     factions = {int(r["ID"]): r["Name_lang"] for r in rows(p["Faction"])}
     lines += ["  },", "  factions = {"]
     for f in sorted(used_factions):

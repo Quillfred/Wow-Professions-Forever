@@ -25,8 +25,12 @@ A WoW Forever addon that plans the cheapest way to level a crafting profession.
   is cheaper. A tool in the bank doesn't count; keep it in your bags.
 - **Buys vendor patterns when they pay off:** a vendor pattern is bought when it
   makes the whole route cheaper, its price included (each one is checked with a full
-  re-plan), or when no trainer recipe covers a range (Tailoring 255-300). Recipes
-  with cooldowns (Mooncloth) are never planned.
+  re-plan), or when no trainer recipe covers a range (Tailoring 255-300). Drop
+  patterns count too when Auctionator has seen them on the AH (never on an estimated
+  price). Recipes with cooldowns (crafting Mooncloth) are never planned.
+- **Cooldown materials:** recipes that use materials only made by cooldown crafts
+  (Mooncloth, Arcanite Bar, Legionite Bar) are left out, since those are scarce and
+  expensive. `/sr cdmats on` includes them.
 - **Reputation:** patterns that need faction reputation (e.g. Cenarion Circle
   Honored) are only planned once your character has it, read live in game. Until
   then, gap suggestions say which standing they need.
@@ -43,6 +47,7 @@ Copy the `SkillRoute` folder into `World of Warcraft/_forever_/Interface/AddOns/
 - Hover a step to see why it was picked and what the next-best option costs.
 - `/sr overtime <pct>` sets your Working Overtime talent bonus.
 - `/sr estimate on|off` turns price estimates for unpriced items on or off.
+- `/sr cdmats on|off` includes recipes using Mooncloth / Arcanite Bar (default off).
 
 For the best plan: scan the AH with Auctionator, open your profession window once,
 and visit your trainer once.

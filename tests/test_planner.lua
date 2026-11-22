@@ -45,8 +45,8 @@ for _, st in ipairs(plan.steps) do
     check(st.to <= rr.g, st.name .. " used while grey")
     check(not rr.cd, st.name .. " has a cooldown and can't be ground")
     if st.learn == "pattern" then -- vendor pattern bought to fill a gap
-      check(rr.from and rr.from:find("Vendor") and P.RepOK({}, rr, st.unlock.item) and st.learnCost,
-        st.name .. ": only vendor patterns whose reputation you have are bought")
+      check(((rr.from and rr.from:find("Vendor")) or st.unlock.via == "ah") and P.RepOK({}, rr, st.unlock.item) and st.learnCost,
+        st.name .. ": only vendor/AH patterns whose reputation you have are bought")
       check((rr.learn or rr.y) <= st.from, st.name .. " pattern used before its learn level")
     else
       check(learnAt and learnAt <= st.from, st.name .. " used before it can be learned")
@@ -184,7 +184,8 @@ for key, b in pairs(withP.unlocks) do
   local onList = false
   for _, it in ipairs(withP.shopping.buy) do if it.pattern and it.item == b.item then onList = true end end
   check(onList, T[spell].n .. " pattern missing from shopping list")
-  check(T[spell].from:find("Vendor") and P.RepOK({}, T[spell], b.item) and not T[spell].cd, T[spell].n .. " not a plain vendor pattern")
+  check((b.via == "ah" or (T[spell].from or ""):find("Vendor")) and P.RepOK({}, T[spell], b.item) and not T[spell].cd,
+    T[spell].n .. " not a buyable pattern")
 end
 check(total(withP) <= total(base) + 1e-6, "patterns never make the route dearer")
 print(("110->250: %d patterns bought, %.0fc -> %.0fc (%.1f%% cheaper), search %.0f ms"):format(
@@ -269,6 +270,50 @@ check(fa.gapPoints == 0, "First Aid plans all the way to 300")
 for _, st in ipairs(fa.steps) do
   if st.spell == 18630 or st.spell == 18629 then check(st.learn == "trainer?", st.name .. " marked not confirmed") end
 end
+
+-- 10e. drop patterns: bought only on a real AH price, never on an estimate
+local dropPat = 18444 -- Runecloth Headband: a drop pattern, 250-295
+check(T[dropPat] and T[dropPat].from == "Drop", "Runecloth Headband is a drop pattern")
+local anyPattern = {}
+for _, r in pairs(T) do for _, it in ipairs(r.pat or {}) do anyPattern[it] = true end end
+local patItem = T[dropPat].pat[1]
+local function only(id, est)  -- everything unpriced except this pattern's reagents and the pattern
+  local r = T[dropPat]
+  if id == patItem then return 1, est end
+  if anyPattern[id] then return nil end -- no other pattern on the AH
+  for i = 1, #r.r, 2 do if id == r.r[i] then return 1, false end end
+  return price(id)
+end
+local function pp(est) return P.Plan({ recipes = T, items = items, tools = D.tools, hasTool = function() return true end,
+  skill = 250, target = 280, known = {}, trainer = {}, price = function(id) return only(id, est) end }) end
+local seen = pp(false)
+check(seen.unlocks["p:" .. dropPat] and seen.unlocks["p:" .. dropPat].via == "ah", "drop pattern bought on its AH price")
+check(not pp(true).unlocks["p:" .. dropPat], "never bought on an estimated price")
+
+-- 10f. cooldown-only materials (Mooncloth) avoided when asked
+check(D.cooldownMats and next(D.cooldownMats), "cooldown materials in the data")
+local function usesCd(pl)
+  for _, st in ipairs(pl.steps) do
+    if st.spell then local r = T[st.spell]; for i = 1, #r.r, 2 do if D.cooldownMats[r.r[i]] then return st.name end end end
+  end
+end
+local allowCd = P.Plan(ctxFor(250, 300))
+local avoidCd = P.Plan(ctxFor(250, 300, nil, { avoidMats = D.cooldownMats }))
+check(not usesCd(avoidCd), "avoidMats: no step uses Mooncloth/Arcanite (" .. (usesCd(avoidCd) or "none") .. ")")
+-- forced case: only Mooncloth Robe (and its mats) is priced
+local robe = 22902
+local function robeOnly(id)
+  local r = T[robe]
+  for _, it in ipairs(r.pat) do if id == it then return 1, false end end
+  for i = 1, #r.r, 2 do if id == r.r[i] then return 1, false end end
+  return nil
+end
+local withRobe = P.Plan(ctxFor(290, 300, nil, { price = robeOnly }))
+local noRobe = P.Plan(ctxFor(290, 300, nil, { price = robeOnly, avoidMats = D.cooldownMats }))
+check(usesCd(withRobe) == "Mooncloth Robe", "Mooncloth Robe used when cooldown mats are allowed")
+check(not usesCd(noRobe) and noRobe.gapPoints > 0, "left out (gap shown) when they are avoided")
+print(("250->300 with cooldown mats: %s; without: %s, %d gap points"):format(
+  usesCd(allowCd) or "none used", "none used", avoidCd.gapPoints))
 
 -- 11. reputation patterns: only with the standing they need
 local function repPlan(standing)

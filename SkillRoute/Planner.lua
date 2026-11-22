@@ -153,19 +153,25 @@ local function findUnlocks(ctx, unit)
   local all = {}
   if not ctx.noPatterns then
     for spell, r in pairs(ctx.recipes) do
-      if r.pat and not ctx.known[spell] and not r.cd and r.from and r.from:find("Vendor") then
-        local best, bestItem
+      -- Vendor patterns at their vendor price, and any pattern (drops too) that
+      -- Auctionator has seen on the auction house. Never on an estimated price:
+      -- untradeable patterns have no AH price, so they never show up here.
+      if r.pat and not ctx.known[spell] and not r.cd then
+        local isVendor = r.from and r.from:find("Vendor")
+        local best, bestItem, bestVia
         for _, it in ipairs(r.pat) do
           if Planner.RepOK(ctx, r, it) then
-            local v = ctx.items[it] and ctx.items[it][3]
-            local ah = ctx.price(it)
-            local p = (v and ah) and math.min(v, ah) or v or ah
-            if p and (not best or p < best) then best, bestItem = p, it end
+            local v = isVendor and ctx.items[it] and ctx.items[it][3] or nil
+            local ah, est = ctx.price(it)
+            if est or ah == v then ah = nil end -- estimate, or just the vendor price echoed back
+            local p, via
+            if v and (not ah or v <= ah) then p, via = v, "vendor" elseif ah then p, via = ah, "ah" end
+            if p and (not best or p < best) then best, bestItem, bestVia = p, it, via end
           end
         end
         if best then
           all["p:" .. spell] = { kind = "pattern", spell = spell, price = best, item = bestItem, from = 0,
-                                 name = r.n }
+                                 name = r.n, via = bestVia }
         end
       end
     end
@@ -284,6 +290,7 @@ end
   price   = function(itemID) -> copper|nil, isEstimate
   have    = function(itemID) -> count       (optional)
   hasTool = function(toolKey) -> bool       (optional)
+  avoidMats = {[itemID]=true}               (optional; recipes using these are left out)
   maxSkill = current cap (e.g. 225)         (optional; steps split only at caps not yet trained)
   bonus   = 0..1                            (optional)
   fixedUnlocks = {[key]=true}  reuse an earlier choice instead of searching
@@ -352,7 +359,8 @@ function Planner.Plan(ctx)
     if not u.craftSpell then
       local it = ctx.items[u.item]
       table.insert(plan.shopping.buy, 1, { item = u.item, name = it and it[1] or u.name, need = 1, have = 0,
-        buy = 1, price = u.price, vendor = it and it[3] ~= nil, pattern = u.kind == "pattern",
+        buy = 1, price = u.price, vendor = u.via ~= "ah" and it and it[3] ~= nil, pattern = u.kind == "pattern",
+        ah = u.via == "ah",
         tool = u.kind == "tool" })
       plan.total = plan.total + u.price
     end
@@ -369,8 +377,14 @@ function Planner.PlanOnce(ctx, credit)
   -- Candidates: usable recipes not grey at our skill. Probes: recipes one unlock
   -- away; never chosen here, we only measure what that unlock would save.
   local cands, probes, unpriced = {}, {}, 0
+  local avoid = ctx.avoidMats
+  local function usesAvoided(r)
+    if not avoid then return false end
+    for i = 1, #r.r, 2 do if avoid[r.r[i]] then return true end end
+    return false
+  end
   for spell, r in pairs(recipes) do
-    if r.g > from and not r.cd then -- cooldown recipes can't be ground
+    if r.g > from and not r.cd and not usesAvoided(r) then -- cooldown recipes can't be ground
       local learnAt, how, missing = requirements(spell, r, ctx, all)
       if learnAt and learnAt < to then
         local c, est = costOf(spell)

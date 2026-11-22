@@ -196,7 +196,11 @@ local function routeRows(plan)
       if st.learn == "trainer" then
         learn = "  |cffffd100Learn at trainer" .. (st.learnCost and (" (" .. money(st.learnCost, YELLOW) .. ")") or "") .. "|r"
       elseif st.learn == "pattern" then
-        learn = "  |cffffd100Buy pattern from a vendor (" .. money(st.learnCost, YELLOW) .. ")|r"
+        if st.unlock and st.unlock.via == "ah" then
+          learn = "  |cffffd100Buy pattern on the AH (last seen " .. money(st.learnCost, YELLOW) .. ")|r"
+        else
+          learn = "  |cffffd100Buy pattern from a vendor (" .. money(st.learnCost, YELLOW) .. ")|r"
+        end
       elseif st.learn == "trainer?" then
         learn = "  |cffffd100Learn at trainer (not confirmed yet)|r"
       end
@@ -251,7 +255,8 @@ local function shoppingRows(plan)
   end
   for _, b in ipairs(plan.shopping.buy) do
     local tags = {}
-    if b.pattern then tags[#tags + 1] = "|cffffd100pattern, from a vendor|r"
+    if b.pattern then tags[#tags + 1] = b.ah and "|cffffd100pattern, on the AH (last seen price)|r"
+                                         or "|cffffd100pattern, from a vendor|r"
     elseif b.tool then tags[#tags + 1] = "|cffff8040tool: keep it in your bags|r" .. (b.vendor and ", vendor" or "")
     elseif b.vendor then tags[#tags + 1] = "vendor" end
     if b.est then tags[#tags + 1] = "|cffff8040estimated price|r" end
@@ -458,12 +463,16 @@ SlashCmdList.SKILLROUTE = function(msg)
     settings.estimate = (arg == "on")
     Core.InvalidatePatterns()
     print("SkillRoute: price estimates for items with no AH price are " .. (settings.estimate and "ON (marked in orange)" or "OFF (those recipes are skipped)"))
+  elseif cmd == "cdmats" and settings then
+    settings.cdmats = (arg == "on")
+    print("SkillRoute: recipes using cooldown-only materials (Mooncloth, Arcanite Bar) are "
+          .. (settings.cdmats and "INCLUDED" or "LEFT OUT"))
   elseif cmd == "auto" and settings then
     settings.auto = (arg ~= "off")
     print("SkillRoute: open with the profession window is " .. (settings.auto and "ON" or "OFF"))
     return
   elseif cmd == "help" then
-    print("SkillRoute: /sr - open/close   /sr auto on|off   /sr overtime <pct>   /sr estimate on|off")
+    print("SkillRoute: /sr - open/close   /sr auto on|off   /sr overtime <pct>   /sr estimate on|off   /sr cdmats on|off")
     return
   else
     UI.Toggle()

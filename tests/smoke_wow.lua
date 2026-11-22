@@ -91,6 +91,8 @@ assert(UI.IsShown())
 SlashCmdList.SKILLROUTE("overtime 10"); assert(SkillRouteDB.settings.bonus == 0.1)
 SlashCmdList.SKILLROUTE("estimate on"); assert(SkillRouteDB.settings.estimate == true)
 SlashCmdList.SKILLROUTE("help")
+SlashCmdList.SKILLROUTE("cdmats on"); assert(SkillRouteDB.settings.cdmats == true)
+SlashCmdList.SKILLROUTE("cdmats off"); assert(SkillRouteDB.settings.cdmats == false)
 UI.Refresh()
 UI._state.mode = "shopping"; UI.Refresh(); UI._state.mode = "route"
 UI.AttachButton()
