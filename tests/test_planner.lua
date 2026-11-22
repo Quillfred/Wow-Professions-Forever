@@ -199,9 +199,9 @@ print(("re-plan with cached pattern choice: %.1f ms"):format((os.clock() - t1) *
 
 -- 10. tools (rods, hammers, spanners)
 local D = SkillRouteData
-local function plan(line, from, to, priceFn, owned)
+local function plan(line, from, to, priceFn, owned, standing)
   return P.Plan({ recipes = D.professions[line].recipes, items = items, tools = D.tools,
-    skill = from, target = to, known = {}, trainer = {}, price = priceFn or price,
+    skill = from, target = to, known = {}, trainer = {}, price = priceFn or price, standing = standing,
     hasTool = function(k) return owned and owned[k] or false end })
 end
 -- every step in every profession: its tools are owned or acquired by the plan, in time
@@ -232,6 +232,29 @@ local onList = false
 for _, b in ipairs(bs.shopping.buy) do if b.tool and b.item == 5956 then onList = true end end
 check(onList, "hammer on the shopping list")
 check(plan(164, 1, 100, nil, { [162] = true }).unlocks["t:162"] == nil, "owned hammer is not bought again")
+
+-- 10b. a recipe needing two purchases (formula + rod) is considered: Enchant Weapon -
+-- Strength needs its formula (Thorium Brotherhood Friendly) AND a Runed Arcanite Rod.
+-- Make both cheap and give the reputation: both bought.
+local ws = 23799
+local cheapCombo = function(id)
+  if id == 16207 then return 1, false end -- Runed Arcanite Rod
+  local wr = D.professions[333].recipes[ws]
+  for _, it in ipairs(wr.pat) do if id == it then return 1, false end end
+  for i = 1, #wr.r, 2 do if id == wr.r[i] then return 1, false end end -- its reagents
+  return price(id)
+end
+local owned4 = { [373] = true, [374] = true, [375] = true, [376] = true }
+local friendlyTB = function(f) return f == 59 and 4 or nil end
+local combo = plan(333, 290, 300, cheapCombo, owned4, friendlyTB)
+check(combo.unlocks["p:" .. ws] and combo.unlocks["t:377"], "formula + rod bought together when they pay off")
+local usedCombo = false
+for _, st in ipairs(combo.steps) do if st.spell == ws then usedCombo = true end end
+check(usedCombo, "Enchant Weapon - Strength used once both are bought")
+-- and not when the rod is too expensive to pay off
+local dearRod = function(id) if id == 16207 then return 1e9, false end return cheapCombo(id) end
+check(not plan(333, 290, 300, dearRod, owned4, friendlyTB).unlocks["t:377"], "an expensive rod is not bought")
+check(not plan(333, 290, 300, cheapCombo, owned4).unlocks["p:" .. ws], "no reputation -> formula not bought")
 
 -- 11. reputation patterns: only with the standing they need
 local function repPlan(standing)

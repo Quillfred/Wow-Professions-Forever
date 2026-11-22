@@ -207,15 +207,16 @@ local function findUnlocks(ctx, unit)
 end
 
 -- Can this recipe be used under ctx.unlocked? Returns learnAt, how, missingKey:
--- missingKey set = usable once that one unlock is bought (more than one missing,
--- or no way to get a requirement -> nil).
+-- missingKey = the unlock(s) still to buy, joined with "+" (e.g. a formula AND the
+-- rod it needs: "p:20015+t:377"); nil = usable now. Returns nil if a requirement
+-- can't be obtained at all.
 local function requirements(spell, r, ctx, all)
   local learnAt, how = Planner.LearnAt(spell, r, ctx)
   local missing
   if not learnAt then
     local key = "p:" .. spell
     if not all[key] then return nil end
-    learnAt, how, missing = r.learn or r.y, "pattern", key
+    learnAt, how, missing = r.learn or r.y, "pattern", { key }
   end
   for _, t in ipairs(r.tool or {}) do
     if not hasTool(ctx, t) then
@@ -224,12 +225,28 @@ local function requirements(spell, r, ctx, all)
       if not u then return nil end
       if u.from > learnAt then learnAt = u.from end
       if not ctx.unlocked[key] then
-        if missing and missing ~= key then return nil end
-        missing = key
+        missing = missing or {}
+        missing[#missing + 1] = key
       end
     end
   end
+  if missing then
+    table.sort(missing)
+    missing = table.concat(missing, "+")
+  end
   return learnAt, how, missing
+end
+
+-- Parts and total price of a (possibly combined) unlock key.
+local function keyParts(key)
+  local parts = {}
+  for part in key:gmatch("[^+]+") do parts[#parts + 1] = part end
+  return parts
+end
+local function keyPrice(all, key)
+  local p = 0
+  for _, part in ipairs(keyParts(key)) do p = p + all[part].price end
+  return p
 end
 
 local function copy(t) local c = {} for k, v in pairs(t) do c[k] = v end return c end
@@ -296,7 +313,7 @@ function Planner.Plan(ctx)
     while tries < 16 do
       local bestKey, bestGain
       for key, sav in pairs(plan.savings) do
-        local gain = sav - all[key].price
+        local gain = sav - keyPrice(all, key)
         if gain > 0 and not chosen[key] and not rejected[key] and (not bestGain or gain > bestGain) then
           bestKey, bestGain = key, gain
         end
@@ -304,12 +321,13 @@ function Planner.Plan(ctx)
       if not bestKey then break end
       tries = tries + 1
       local trial = copy(chosen)
-      trial[bestKey] = all[bestKey]
+      local parts = keyParts(bestKey)
+      for _, part in ipairs(parts) do trial[part] = all[part] end
       local cr = copy(credit)
       local tp = run(trial, cr)
       local before, after = routeTotal(plan, chosen), routeTotal(tp, trial)
       if after < before - 1 then
-        all[bestKey].saves = before - after
+        for _, part in ipairs(parts) do all[part].saves = before - after end
         chosen, plan, credit = trial, tp, cr
       else
         rejected[bestKey] = true

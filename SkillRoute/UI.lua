@@ -18,9 +18,13 @@ local function money(c)
   return (g > 0 and (g .. "g ") or "") .. ((g > 0 or s > 0) and (s .. "s ") or "") .. cp .. "c"
 end
 
-local function icon(item)
+local function icon(item, spell)
   local tex = item and ((C_Item and C_Item.GetItemIconByID and C_Item.GetItemIconByID(item))
                         or (GetItemIcon and GetItemIcon(item)))
+  if not tex and spell then -- enchants make no item: use the spell's icon
+    tex = (C_Spell and C_Spell.GetSpellTexture and C_Spell.GetSpellTexture(spell))
+          or (GetSpellTexture and GetSpellTexture(spell))
+  end
   return tex or "Interface\\Icons\\INV_Misc_QuestionMark"
 end
 
@@ -77,7 +81,9 @@ local function row(i)
   r:SetScript("OnEnter", function(self)
     if not self.tip then return end
     GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
-    if self.item and GameTooltip.SetItemByID then GameTooltip:SetItemByID(self.item) else GameTooltip:SetText(self.tipTitle or "") end
+    if self.item and GameTooltip.SetItemByID then GameTooltip:SetItemByID(self.item)
+    elseif self.spell and GameTooltip.SetSpellByID then GameTooltip:SetSpellByID(self.spell)
+    else GameTooltip:SetText(self.tipTitle or "") end
     for _, l in ipairs(self.tip) do GameTooltip:AddLine(l, 1, 1, 1, true) end
     GameTooltip:Show()
   end)
@@ -88,11 +94,11 @@ end
 
 local function setRow(i, opts)
   local r = row(i)
-  r.icon:SetTexture(opts.icon or icon(opts.item))
+  r.icon:SetTexture(opts.icon or icon(opts.item, opts.spell))
   r.text:SetText(opts.text or "")
   r.sub:SetText(opts.sub or "")
   r.right:SetText(opts.right or "")
-  r.item, r.tip, r.tipTitle = opts.item, opts.tip, opts.tipTitle
+  r.item, r.spell, r.tip, r.tipTitle = opts.item, opts.spell, opts.tip, opts.tipTitle or opts.title
   r:Show()
 end
 
@@ -175,7 +181,7 @@ local function routeRows(plan)
         for _, u in ipairs(st.tools) do names[#names + 1] = u.name end
         learn = learn .. "  |cffff8040needs " .. table.concat(names, ", ") .. "|r"
       end
-      add({ item = r.out, tip = tip,
+      add({ item = r.out, spell = st.spell, tip = tip,
             text = ("|cff%s~%d|r x %s"):format(COLORS[st.color] or "ffffff", math.ceil(st.crafts - 1e-9), st.name),
             sub = mats(st.spell, plan.line) .. learn,
             right = ("%d-%d  %s"):format(st.from, st.to, money(st.cost)) })
