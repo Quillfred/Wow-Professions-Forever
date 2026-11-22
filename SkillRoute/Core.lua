@@ -333,6 +333,19 @@ f:SetScript("OnEvent", function(_, ev, arg1)
     if ev == "NEW_RECIPE_LEARNED" then Core.dataVersion = Core.dataVersion + 1 end
     Core.ScanRecipes()
     if ns.UI then ns.UI.AttachButton() end
+    if ev == "TRADE_SKILL_SHOW" and db().settings.auto ~= false and ns.UI then
+      -- next frame: the window's profession info is filled in after the event
+      C_Timer.After(0, function()
+        local T = C_TradeSkillUI
+        local other = T and ((T.IsTradeSkillLinked and T.IsTradeSkillLinked())
+                             or (T.IsTradeSkillGuild and T.IsTradeSkillGuild())
+                             or (T.IsNPCCrafting and T.IsNPCCrafting()))
+        local line = openLine()
+        if line and not other then ns.UI.AutoOpen(line) end -- crafting professions only
+      end)
+    end
+  elseif ev == "TRADE_SKILL_CLOSE" then
+    if ns.UI then ns.UI.AutoClose() end
   elseif ev == "TRAINER_SHOW" or ev == "TRAINER_UPDATE" then
     Core.ScanTrainer()
   else -- skill or bag change
@@ -341,6 +354,6 @@ f:SetScript("OnEvent", function(_, ev, arg1)
 end)
 for _, ev in ipairs({ "ADDON_LOADED", "PLAYER_LOGIN", "TRADE_SKILL_SHOW", "TRADE_SKILL_LIST_UPDATE",
                       "NEW_RECIPE_LEARNED", "TRAINER_SHOW", "TRAINER_UPDATE", "SKILL_LINES_CHANGED",
-                      "BAG_UPDATE_DELAYED", "UPDATE_FACTION" }) do
+                      "BAG_UPDATE_DELAYED", "UPDATE_FACTION", "TRADE_SKILL_CLOSE" }) do
   pcall(f.RegisterEvent, f, ev) -- an event this client lacks must not break the addon
 end

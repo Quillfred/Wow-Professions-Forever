@@ -273,6 +273,7 @@ local function build()
   frame:SetScript("OnDragStop", frame.StopMovingOrSizing)
   frame:SetClampedToScreen(true)
   frame:SetScript("OnShow", function() Core.InvalidatePatterns(); UI.Refresh() end)
+  frame:SetScript("OnHide", function() autoOpened = false end)
   tinsert(UISpecialFrames, "SkillRouteFrame") -- Escape closes it
   local title = frame:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
   title:SetPoint("TOP", 0, -5)
@@ -333,10 +334,35 @@ local function build()
   footer:SetPoint("BOTTOMLEFT", 14, 12); footer:SetPoint("RIGHT", -14, 0); footer:SetJustifyH("LEFT")
 end
 
+-- autoOpened: the window was opened by opening a profession window, so it closes
+-- with it. Opened by hand (/sr, Route button) it stays until you close it.
+local autoOpened = false
+
 function UI.Toggle(line)
   if not frame then build() end
   if line then state.line = line end
-  if frame:IsShown() and not line then frame:Hide() else frame:Show(); UI.Refresh() end
+  if frame:IsShown() and not line then
+    frame:Hide()
+  else
+    autoOpened = false
+    if frame:IsShown() then UI.Refresh() else frame:Show() end -- OnShow refreshes
+  end
+end
+
+function UI.AutoOpen(line)
+  if not frame then build() end
+  state.line = line
+  if frame:IsShown() then
+    UI.Refresh() -- already open: just follow the profession
+  else
+    autoOpened = true
+    frame:Show()
+  end
+end
+
+function UI.AutoClose()
+  if autoOpened and frame and frame:IsShown() then frame:Hide() end
+  autoOpened = false
 end
 
 -- "Route" button on whichever profession window this client uses.
@@ -375,8 +401,12 @@ SlashCmdList.SKILLROUTE = function(msg)
     settings.estimate = (arg == "on")
     Core.InvalidatePatterns()
     print("SkillRoute: price estimates for items with no AH price are " .. (settings.estimate and "ON (marked in orange)" or "OFF (those recipes are skipped)"))
+  elseif cmd == "auto" and settings then
+    settings.auto = (arg ~= "off")
+    print("SkillRoute: open with the profession window is " .. (settings.auto and "ON" or "OFF"))
+    return
   elseif cmd == "help" then
-    print("SkillRoute: /sr - open/close   /sr overtime <pct>   /sr estimate on|off")
+    print("SkillRoute: /sr - open/close   /sr auto on|off   /sr overtime <pct>   /sr estimate on|off")
     return
   else
     UI.Toggle()

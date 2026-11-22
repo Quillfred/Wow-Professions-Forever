@@ -5,15 +5,17 @@ local function stubObj()
   return setmetatable(o, { __index = function(t, k)
     if k == "IsShown" then return function(self) return self.shown end end
     if k == "Show" then return function(self) self.shown = true; if self.onShow then self.onShow(self) end end end
-    if k == "Hide" then return function(self) self.shown = false end end
+    if k == "Hide" then return function(self) self.shown = false; if self.OnHide then self.OnHide(self) end end end
     if k == "SetText" then return function(self, v) self.text = v end end
     if k == "GetText" then return function(self) return self.text end end
     if k == "SetScript" then return function(self, n, f) if n == "OnShow" then self.onShow = f end; self[n] = f end end
+    if k == "RegisterEvent" then return function(self, ev) local e = rawget(self, "events") or {}; rawset(self, "events", e); e[ev] = true end end
     if k == "CreateTexture" or k == "CreateFontString" then return function() return stubObj() end end
     return function() end
   end })
 end
-_G.CreateFrame = function() return stubObj() end
+local frames = {}
+_G.CreateFrame = function() local f = stubObj(); frames[#frames + 1] = f; return f end
 _G.UIParent, _G.UISpecialFrames, _G.SlashCmdList = stubObj(), {}, {}
 _G.tinsert = table.insert
 _G.GameTooltip = stubObj()
@@ -93,4 +95,22 @@ UI.AttachButton()
 SlashCmdList.SKILLROUTE("") -- close
 assert(not UI.IsShown())
 assert(Core.Standing(609) == 4 and Core.Standing(576) == nil, "standing from GetFactionInfoByID (standingID - 1)")
+-- auto open/close with the profession window
+local evf
+for _, f in ipairs(frames) do local e = rawget(f, "events"); if e and e.TRADE_SKILL_SHOW then evf = f end end
+assert(evf and evf.events.TRADE_SKILL_CLOSE, "events registered")
+local function fire(ev, ...) evf.OnEvent(evf, ev, ...) end
+assert(not UI.IsShown())
+fire("TRADE_SKILL_SHOW"); assert(UI.IsShown(), "opens with the profession window")
+fire("TRADE_SKILL_CLOSE"); assert(not UI.IsShown(), "closes with it when it opened itself")
+SlashCmdList.SKILLROUTE("")            -- opened by hand
+fire("TRADE_SKILL_SHOW"); fire("TRADE_SKILL_CLOSE")
+assert(UI.IsShown(), "a window opened by hand stays open")
+SlashCmdList.SKILLROUTE("")            -- close
+C_TradeSkillUI.IsTradeSkillLinked = function() return true end
+fire("TRADE_SKILL_SHOW"); assert(not UI.IsShown(), "another player's linked profession: no auto-open")
+C_TradeSkillUI.IsTradeSkillLinked = nil
+SlashCmdList.SKILLROUTE("auto off")
+fire("TRADE_SKILL_SHOW"); assert(not UI.IsShown(), "auto off respected")
+SlashCmdList.SKILLROUTE("auto on")
 print("SMOKE TEST PASSED")

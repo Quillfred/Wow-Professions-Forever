@@ -36,8 +36,9 @@ Copy the `SkillRoute` folder into `World of Warcraft/_forever_/Interface/AddOns/
 (the folder next to your other addons).
 
 ## Use
-- `/sr` opens or closes the window. The **Route** button on the profession window
-  does the same.
+- The window opens by itself when you open a crafting profession window, and
+  closes with it. Opened with `/sr` or the **Route** button, it stays open until you
+  close it. `/sr auto off` turns the automatic opening off.
 - Set **Target**, then switch between **Route** and **Shopping list**.
 - Hover a step to see why it was picked and what the next-best option costs.
 - `/sr overtime <pct>` sets your Working Overtime talent bonus.
