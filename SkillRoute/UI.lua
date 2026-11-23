@@ -447,11 +447,11 @@ local function routeRows(plan)
         local greenFrom = math.floor((r.y + r.g) / 2)
         local learnAt = math.min(r.learn or r.y, r.y)
         local bands = {}
-        if r.y - 1 >= learnAt then bands[#bands + 1] = ("|cff%sorange to %d|r"):format(COLORS.orange, r.y - 1) end
-        if greenFrom - 1 >= r.y then bands[#bands + 1] = ("|cff%syellow to %d|r"):format(COLORS.yellow, greenFrom - 1) end
-        if r.g - 1 >= greenFrom then bands[#bands + 1] = ("|cff%sgreen to %d|r"):format(COLORS.green, r.g - 1) end
+        if r.y - 1 >= learnAt then bands[#bands + 1] = ("|cff%s%d|r"):format(COLORS.orange, r.y - 1) end
+        if greenFrom - 1 >= r.y then bands[#bands + 1] = ("|cff%s%d|r"):format(COLORS.yellow, greenFrom - 1) end
+        if r.g - 1 >= greenFrom then bands[#bands + 1] = ("|cff%s%d|r"):format(COLORS.green, r.g - 1) end
         row("Skill-ups", table.concat(bands, " · "))
-        sub("", ("grey from %d (no more skill-ups)"):format(r.g))
+        sub("", ("last skill-up at each colour; no more from %d"):format(r.g))
       end
       local sv = st.learn == "pattern" and st.unlock and st.unlock.savesShown
       if sv then

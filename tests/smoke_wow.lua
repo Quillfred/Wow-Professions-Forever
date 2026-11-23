@@ -876,7 +876,7 @@ do
   end
   assert(hasHeader and out[#out] ~= " ", "header, and no blank line at the end")
   local bands = false
-  for _, t in ipairs(out) do if strip(t):find("^Skill%-ups  |  .*yellow to %d+") and strip(t):find("green to %d+") then bands = true end end
+  for _, t in ipairs(out) do if strip(t):find("^Skill%-ups  |  %d+ · %d+ · %d+") and t:find("|cffffff00%d+|r") then bands = true end end
   assert(bands, "Skill-ups shows the last level of each colour")
   print("step tooltip:\n    " .. table.concat((function() local t = {} for _, x in ipairs(out) do t[#t + 1] = strip(x) end return t end)(), "\n    "))
   GetProfessions, GetProfessionInfo = saved[1], saved[2]
