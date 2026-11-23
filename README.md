@@ -52,6 +52,14 @@ Copy the `SkillRoute` folder into `World of Warcraft/_forever_/Interface/AddOns/
 - `/sr overtime <pct>` sets your Working Overtime talent bonus.
 - `/sr estimate on|off` turns price estimates for unpriced items on or off.
 - `/sr cdmats on|off` includes recipes using Mooncloth / Arcanite Bar (default off).
+- `/sr check` lists what your client offers SkillRoute and runs a self-test.
+- `/sr margin <50-99>` how often the shopping list should be enough to finish
+  (default 90; 50 = the expected amount).
+- `/sr ah` (or the button in the shopping list) sends the list to Auctionator.
+- `/sr craftcost <copper>` what a craft's time is worth to you (route choice only).
+- `/sr resale <0-100>` count crafted items as sold on the AH at that share of their price.
+- `/sr alts on|off` count materials on your other characters (Syndicator / DataStore).
+- Click a step whose recipe you know to open it in your profession window.
 - **Right-click a step** to skip that recipe (e.g. its pattern isn't for sale) and
   re-plan without it; `/sr unskip` brings skipped recipes back. Patterns are only
   "on the AH" if Auctionator saw one today or yesterday.
