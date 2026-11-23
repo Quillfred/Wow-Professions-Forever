@@ -54,8 +54,9 @@ Copy the `SkillRoute` folder into `World of Warcraft/_forever_/Interface/AddOns/
 
 **Where to go:** "Train Expert" rows and "Buy pattern from ..." steps name the trainer /
 vendor for your faction that is quickest to reach (running, the boats and zeppelins your
-faction can use, and the flight paths you know — open any flight master's map once so
-SkillRoute can see which ones), with zone and map coordinates (Classic NPC data;
+faction can use, the flight paths you know — open any flight master's map once so
+SkillRoute can see which ones — your hearthstone, counting its cooldown, and a mage's
+teleports when you carry a Rune of Teleportation), with zone and map coordinates (Classic NPC data;
 the zone is resolved by the game's own map, so it matches your map). **Click** the
 row to set a waypoint: TomTom if installed, else the game's map pin, else the
 coordinates in chat.

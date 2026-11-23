@@ -317,6 +317,55 @@ do
   assert(got and got[1] == 1458 and math.abs(got[2] - 0.708) < 1e-9 and got[4] == loc.npc, "TomTom waypoint")
   _G.TomTom = nil
 end
+-- hearthstone (with its cooldown) and mage teleports
+do
+  local savedBest, savedInfo, savedPos, savedCount = C_Map.GetBestMapForUnit, C_Map.GetMapInfo, C_Map.GetPlayerMapPosition, GetItemCount
+  -- stand in Undercity (Eastern Kingdoms), hearthstone bound to Orgrimmar
+  C_Map.GetBestMapForUnit = function() return 1458 end
+  C_Map.GetMapInfo = function(m)
+    if m == 1458 then return { mapType = 3, parentMapID = 1415, name = "Undercity" } end
+    return savedInfo(m)
+  end
+  C_Map.GetPlayerMapPosition = function(m)
+    if m == 1415 then return { GetXY = function() return 0.449, 0.2465 end } end
+    return { GetXY = function() return 0.5, 0.5 end }
+  end
+  _G.GetBindLocation = function() return "Orgrimmar" end
+  _G.GetTime = function() return 10000 end
+  local cdStart = 0
+  _G.GetItemCooldown = function(item) if item == 6948 then return cdStart, 3600 end return 0, 0 end
+  _G.GetItemCount = function(id) if id == 6948 then return 1 end return savedCount(id) end
+  -- Journeyman (Magar, Orgrimmar): hearthstone ready -> hearth
+  -- route to Magar (Orgrimmar) specifically; the nearest Journeyman trainer from Undercity
+  -- is Rhiannon Davis right there, which needs no travel
+  local magar
+  for id, n in pairs(SkillRouteData.npcs) do if n[1] == "Magar" then magar = id end end
+  local function toMagar() return Core.NearestNPC({ magar }) end
+  local j = toMagar()
+  assert(j and j.npc == "Magar" and j.via and j.via[1]:find("^hearthstone to Orgrimmar"), "ready hearthstone used: " .. tostring(j and j.via and j.via[1]))
+  print("Journeyman from Undercity, hearth ready: " .. j.npc .. ", " .. Core.TravelText(j))
+  -- hearthstone with 55 min left: the zeppelin is faster, so it's not used
+  cdStart = 10000 - 300
+  local j2 = toMagar()
+  assert(j2 and j2.npc == "Magar" and not (j2.via[1]:find("^hearthstone")), "hearthstone on long cooldown not used")
+  print("hearth 55 min left: " .. Core.TravelText(j2))
+  -- 2 min left: waiting for it still beats the zeppelin
+  cdStart = 10000 - 3600 + 120
+  local j3 = toMagar()
+  assert(j3.via[1]:find("^hearthstone to Orgrimmar %(ready in 2 min%)"), "short cooldown: wait for the hearth: " .. tostring(j3.via[1]))
+  print("hearth 2 min left: " .. Core.TravelText(j3))
+  -- mage with Teleport: Orgrimmar and a rune
+  _G.UnitClass = function() return "Mage", "MAGE" end
+  _G.IsPlayerSpell = function(id) return id == 3567 or id == 3848 end
+  _G.GetItemCount = function(id) if id == 17031 then return 5 end if id == 6948 then return 0 end return savedCount(id) end
+  local m = toMagar()
+  assert(m.via[1] == "teleport to Orgrimmar", "mage teleport used: " .. tostring(m.via[1]))
+  print("mage: " .. Core.TravelText(m))
+  _G.UnitClass = nil
+  _G.IsPlayerSpell = function(id) return id == 3848 end
+  C_Map.GetBestMapForUnit, C_Map.GetMapInfo, C_Map.GetPlayerMapPosition, _G.GetItemCount = savedBest, savedInfo, savedPos, savedCount
+end
+
 -- worst case timing: every flight point known, empty travel cache
 do
   local known = Core.KnownTaxi()

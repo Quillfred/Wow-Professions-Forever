@@ -375,6 +375,70 @@ function Core.RecordTaxi()
   if added > 0 then taxiVersion = taxiVersion + 1; Core.Changed() end
 end
 
+-- Hearthstone and mage teleports -------------------------------------------------
+-- Used as a first leg from where you stand. The hearthstone counts with its cooldown:
+-- ready = the 10 s cast; on cooldown = the time left + the cast, so it only wins
+-- when nothing else is faster. Its destination: where you were standing when you
+-- last bound it (recorded), else the flight master of the town GetBindLocation()
+-- names. Teleports: only for a mage who knows the spell and carries a Rune of
+-- Teleportation (another player's portal can't be planned).
+local HEARTHSTONE, RUNE_OF_TELEPORTATION, CAST = 6948, 17031, 10
+local function itemCount(item) -- bags only
+  local f = (C_Item and C_Item.GetItemCount) or GetItemCount
+  return f and f(item) or 0
+end
+local TELEPORTS = { [3561] = "Stormwind", [3562] = "Ironforge", [3563] = "Undercity",
+                    [3565] = "Darnassus", [3566] = "Thunder Bluff", [3567] = "Orgrimmar" }
+
+local function townNode(town) -- the flight master of a town, by name ("Orgrimmar, Durotar")
+  if not town then return nil end
+  local want = town:lower():gsub("^the ", "")
+  local letter = myLetter()
+  for _, n in pairs(Data.taxi and Data.taxi.nodes or {}) do
+    local first = (n[5]:match("^([^,]+)") or n[5]):lower():gsub("^the ", "")
+    if first == want and (not letter or n[4]:find(letter, 1, true)) then return n end
+  end
+end
+
+function Core.RecordBind()
+  local pm, px, py = playerWorld()
+  if pm then Core.Char().bind = { map = pm, x = px, y = py, name = GetBindLocation and GetBindLocation() } end
+end
+
+local function cooldownLeft(item)
+  local start, duration
+  if C_Container and C_Container.GetItemCooldown then start, duration = C_Container.GetItemCooldown(item)
+  elseif GetItemCooldown then start, duration = GetItemCooldown(item) end
+  if not (start and duration and start > 0 and GetTime) then return 0 end
+  return math.max(0, start + duration - GetTime())
+end
+
+-- first legs from your position: { map, x, y, seconds, label }
+function Core.Shortcuts()
+  local out = {}
+  if itemCount(HEARTHSTONE) > 0 then
+    local bindName = GetBindLocation and GetBindLocation()
+    local b = Core.Char().bind
+    local dest
+    if b and b.name == bindName then dest = { b.map, b.x, b.y }
+    else local n = townNode(bindName); if n then dest = { n[1], n[2], n[3] } end end
+    if dest then
+      local left = cooldownLeft(HEARTHSTONE)
+      out[#out + 1] = { dest[1], dest[2], dest[3], left + CAST,
+        ("hearthstone to %s%s"):format(bindName or "?", left > 0 and (" (ready in %d min)"):format(math.ceil(left / 60)) or "") }
+    end
+  end
+  local class = UnitClass and select(2, UnitClass("player"))
+  if class == "MAGE" and itemCount(RUNE_OF_TELEPORTATION) > 0 then
+    local known = IsPlayerSpell or IsSpellKnown
+    for spell, town in pairs(TELEPORTS) do
+      local n = known and known(spell) and townNode(town)
+      if n then out[#out + 1] = { n[1], n[2], n[3], CAST, "teleport to " .. town } end
+    end
+  end
+  return out
+end
+
 -- Travel graph: boat/zeppelin stops and your known flight points (your faction's).
 -- Legs: run between any two points on the same continent; ride a boat/zeppelin
 -- (one full trip); fly a known flight path. Dijkstra from your position.
@@ -382,7 +446,11 @@ local travelCache
 local function travelTable(pm, px, py)
   local letter = myLetter()
   local known = Core.KnownTaxi()
-  local key = table.concat({ pm, math.floor(px / 100), math.floor(py / 100), taxiVersion, tostring(letter) }, ":")
+  local shortcuts = Core.Shortcuts()
+  local sk = {}
+  for _, sc in ipairs(shortcuts) do sk[#sk + 1] = sc[5]:gsub("%(ready in %d+ min%)", "") .. math.floor(sc[4] / 60) end
+  local key = table.concat({ pm, math.floor(px / 100), math.floor(py / 100), taxiVersion, tostring(letter),
+                             table.concat(sk, "|") }, ":")
   if travelCache and travelCache.key == key then return travelCache[1], travelCache[2], travelCache[3] end
   local pts, adj = {}, {}
   local function add(map, x, y) pts[#pts + 1] = { map, x, y }; adj[#pts] = {}; return #pts end
@@ -408,10 +476,14 @@ local function travelTable(pm, px, py)
     local a, b = taxiIdx[f[1]], taxiIdx[f[2]]
     if a and b then table.insert(adj[a], { b, f[3], "flight" }) end
   end
+  local first = {}
+  for _, sc in ipairs(shortcuts) do first[add(sc[1], sc[2], sc[3])] = sc end
   local N = #pts
   local dist, via, done = {}, {}, {}
   for i = 1, N do
     dist[i] = pts[i][1] == pm and walk(px, py, pts[i][2], pts[i][3]) or math.huge
+    local sc = first[i]
+    if sc and sc[4] < dist[i] then dist[i] = sc[4]; via[i] = { sc[5] } end
   end
   for _ = 1, N do
     local u, best = nil, math.huge
@@ -796,6 +868,8 @@ f:SetScript("OnEvent", function(_, ev, arg1)
     end
   elseif ev == "TRADE_SKILL_CLOSE" then
     if ns.UI then ns.UI.AutoClose() end
+  elseif ev == "HEARTHSTONE_BOUND" then
+    Core.RecordBind()
   elseif ev == "TAXIMAP_OPENED" then
     Core.RecordTaxi()
   elseif ev == "MERCHANT_SHOW" then
@@ -808,6 +882,7 @@ f:SetScript("OnEvent", function(_, ev, arg1)
 end)
 for _, ev in ipairs({ "ADDON_LOADED", "PLAYER_LOGIN", "TRADE_SKILL_SHOW", "TRADE_SKILL_LIST_UPDATE",
                       "NEW_RECIPE_LEARNED", "TRAINER_SHOW", "TRAINER_UPDATE", "SKILL_LINES_CHANGED", "MERCHANT_SHOW",
-                      "BAG_UPDATE_DELAYED", "UPDATE_FACTION", "TRADE_SKILL_CLOSE", "TAXIMAP_OPENED" }) do
+                      "BAG_UPDATE_DELAYED", "UPDATE_FACTION", "TRADE_SKILL_CLOSE", "TAXIMAP_OPENED",
+                      "HEARTHSTONE_BOUND" }) do
   pcall(f.RegisterEvent, f, ev) -- an event this client lacks must not break the addon
 end
