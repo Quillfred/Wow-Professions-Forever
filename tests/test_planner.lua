@@ -348,6 +348,29 @@ local skipped = P.Plan({ recipes = T, items = items, tools = D.tools, hasTool = 
   skip = { [dropPat] = true } })
 for _, st in ipairs(skipped.steps) do check(st.spell ~= dropPat, "skipped recipe not planned") end
 
+-- 10i. safety margin: orange-only steps need no extra; yellow/green steps do
+local noMargin = P.Plan(ctxFor(110, 160))
+local withMargin = P.Plan(ctxFor(110, 160, nil, { z = 1.2816 }))
+local extra, anyOver = 0, false
+for _, b in ipairs(withMargin.shopping.buy) do
+  check(b.need >= b.expected, b.name .. ": margin never lowers the amount")
+  if b.need > b.expected then anyOver = true; extra = extra + b.need - b.expected end
+end
+check(anyOver, "yellow/green steps get a margin")
+check(withMargin.total >= noMargin.total, "margin costs more, never less")
+for _, st in ipairs(withMargin.steps) do
+  if st.spell and st.color == "orange" and st.to <= T[st.spell].y then check(st.var == 0, st.name .. ": orange step has no variance") end
+end
+-- a route that is all orange (only White Woolen Dress allowed, 85-100) gets no margin
+local wwd
+for sp, r in pairs(T) do if r.n == "White Woolen Dress" then wwd = sp end end
+local skipAll = {}
+for sp in pairs(T) do if sp ~= wwd then skipAll[sp] = true end end
+local orangeOnly = P.Plan(ctxFor(85, 100, nil, { z = 1.2816, skip = skipAll, noPatterns = true }))
+check(#orangeOnly.steps >= 1 and orangeOnly.steps[1].spell == wwd, "only White Woolen Dress planned")
+for _, b in ipairs(orangeOnly.shopping.buy) do check(b.need == b.expected, "orange-only: no margin for " .. b.name) end
+print(("margin 90%%: %d extra items, %.0fc -> %.0fc"):format(extra, noMargin.total, withMargin.total))
+
 -- 11. reputation patterns: only with the standing they need
 local function repPlan(standing)
   return P.Plan({ recipes = T, items = items, tools = D.tools, hasTool = function() return false end,

@@ -334,7 +334,9 @@ local function shoppingRows(plan)
     if b.est then tags[#tags + 1] = "|cffff8040estimated price|r" end
     add({ item = b.item,
           text = b.buy > 0 and ("Buy %d x %s"):format(b.buy, b.name) or ("|cff40bf40Have all %s|r"):format(b.name),
-          sub = ("need %d, have %d%s"):format(b.need, b.have, #tags > 0 and ("  -  " .. table.concat(tags, ", ")) or ""),
+          sub = ("need %d%s, have %d%s"):format(b.need,
+                  (b.expected and b.expected < b.need) and (" (~%d expected)"):format(b.expected) or "",
+                  b.have, #tags > 0 and ("  -  " .. table.concat(tags, ", ")) or ""),
           right = b.price and money(b.price * b.buy) or money(nil) })
   end
   return n
@@ -551,6 +553,15 @@ SlashCmdList.SKILLROUTE = function(msg)
     settings.estimate = (arg == "on")
     Core.InvalidatePatterns()
     print("SkillRoute: price estimates for items with no AH price are " .. (settings.estimate and "ON (marked in orange)" or "OFF (those recipes are skipped)"))
+  elseif cmd == "margin" and settings then
+    local v = tonumber(arg)
+    if v and v >= 50 and v <= 99 then
+      settings.margin = v
+      print(("SkillRoute: shopping list covers the route %d times in 100%s."):format(v,
+        v == 50 and " (just the expected amount)" or ""))
+    else
+      print(("SkillRoute: /sr margin <50-99>  (now %d: buy enough to finish the route that many times in 100)"):format(settings.margin or 90))
+    end
   elseif cmd == "check" then
     Core.Check()
     return
@@ -566,7 +577,7 @@ SlashCmdList.SKILLROUTE = function(msg)
     print("SkillRoute: open with the profession window is " .. (settings.auto and "ON" or "OFF"))
     return
   elseif cmd == "help" then
-    print("SkillRoute: /sr - open/close   /sr check   /sr auto on|off   /sr overtime <pct>   /sr estimate on|off   /sr cdmats on|off   /sr unskip   (right-click a step to skip it)")
+    print("SkillRoute: /sr - open/close   /sr check   /sr auto on|off   /sr overtime <pct>   /sr estimate on|off   /sr cdmats on|off   /sr margin <50-99>   /sr unskip   (right-click a step to skip it)")
     return
   else
     UI.Toggle()

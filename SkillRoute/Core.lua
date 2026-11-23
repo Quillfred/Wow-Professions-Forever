@@ -828,6 +828,7 @@ function Core.Plan(line, target)
     known = known, trainer = db().trainer[line] or {},
     price = Core.Price, have = Core.Have, hasTool = Core.HasTool, standing = Core.Standing,
     avoidMats = not settings.cdmats and Data.cooldownMats or nil,
+    z = Core.MarginZ(settings.margin),
     faction = (UnitFactionGroup and UnitFactionGroup("player") == "Alliance") and "A"
               or (UnitFactionGroup and UnitFactionGroup("player") == "Horde") and "H" or nil,
     patternVendors = Data.patternVendors,
@@ -845,6 +846,16 @@ function Core.Plan(line, target)
   plan.skill, plan.max, plan.target, plan.line = s.rank, s.max, target, line
   plan.mismatch = Core.mismatch[line]
   return plan
+end
+
+-- Safety margin: confidence (%) that the shopping list covers the whole route ->
+-- standard deviations (Abramowitz & Stegun 26.2.23, error < 0.0005).
+function Core.MarginZ(conf)
+  conf = conf or 90
+  if conf <= 50 then return 0 end
+  local p = 1 - math.min(conf, 99.9) / 100
+  local t = math.sqrt(-2 * math.log(p))
+  return t - (2.515517 + 0.802853 * t + 0.010328 * t * t) / (1 + 1.432788 * t + 0.189269 * t * t + 0.001308 * t ^ 3)
 end
 
 -- Change notification: coalesce bursts of events into one re-plan.

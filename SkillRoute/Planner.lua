@@ -309,6 +309,7 @@ end
   price   = function(itemID) -> copper|nil, isEstimate
   have    = function(itemID) -> count       (optional)
   hasTool = function(toolKey) -> bool       (optional)
+  z = safety margin in standard deviations for the shopping list (optional, 0 = expected)
   avoidMats = {[itemID]=true}               (optional; recipes using these are left out)
   skip = {[spell]=true}                     (optional; recipes you marked unavailable)
   ahFresh = function(item) -> bool          (optional; pattern seen on the AH recently?)
@@ -381,7 +382,7 @@ function Planner.Plan(ctx)
   for key, u in pairs(chosen) do
     if not u.craftSpell then
       local it = ctx.items[u.item]
-      table.insert(plan.shopping.buy, 1, { item = u.item, name = it and it[1] or u.name, need = 1, have = 0,
+      table.insert(plan.shopping.buy, 1, { item = u.item, name = it and it[1] or u.name, need = 1, expected = 1, have = 0,
         buy = 1, price = u.price, vendor = u.via ~= "ah" and it and it[3] ~= nil, pattern = u.kind == "pattern",
         ah = u.via == "ah",
         tool = u.kind == "tool" })
@@ -487,9 +488,11 @@ function Planner.PlanOnce(ctx, credit)
       s = e
     else
       local c = cands[k]
-      local e, crafts = s, 0
+      local e, crafts, var = s, 0, 0
       repeat -- stop at rank caps still to train, so "train the next rank" falls between steps
-        crafts = crafts + 1 / Planner.Chance(c.r, e, ctx.bonus)
+        local p = Planner.Chance(c.r, e, ctx.bonus)
+        crafts = crafts + 1 / p
+        var = var + (1 - p) / (p * p) -- crafts for one point: geometric, variance (1-p)/p^2
         e = e + 1
       until e >= to or pick[e] ~= k or (e % CAP_STEP == 0 and e >= (ctx.maxSkill or 0))
       local a = alt[s]
@@ -508,7 +511,7 @@ function Planner.PlanOnce(ctx, credit)
       if c.how == "pattern" then learnCost = ctx.unlocked[pkey].price
       else learnCost = (ctx.trainer[c.spell] and ctx.trainer[c.spell].cost) or c.r.tc end
       steps[#steps + 1] = {
-        spell = c.spell, name = c.r.n, from = s, to = e, crafts = crafts,
+        spell = c.spell, name = c.r.n, from = s, to = e, crafts = crafts, var = var,
         cost = c.cost * crafts, perCraft = c.cost, est = c.est,
         learn = (c.how ~= "known") and c.how or nil, learnCost = learnCost,
         unlock = c.how == "pattern" and ctx.unlocked[pkey] or nil, tools = tools,
@@ -569,17 +572,22 @@ end
 -- buying (bolts) are expanded into their reagents; products of earlier steps
 -- cover later needs; then what you own is subtracted. Rounded up once, at the end.
 -- extra = recipes crafted once up front (tools such as enchanting rods).
+-- ctx.z: safety margin. Skill-ups are random, so the crafts a step takes vary (orange
+-- steps don't); buying the expected amount runs short about half the time. Each
+-- reagent's need is mean + z * standard deviation (z = 1.28: enough 9 times in 10).
 function Planner.Shopping(ctx, steps, unit, extra)
-  local need, pool, crafts, made = {}, {}, {}, {}
-  local function add(item, n, depth)
+  local need, needVar, pool, crafts, made = {}, {}, {}, {}, {}
+  local function add(item, n, depth, v)
     local _, _, via = unit(item)
     if via and depth < 4 then
       local r = ctx.recipes[via]
-      local times = n / (r.outN or 1)
+      local out = r.outN or 1
+      local times, tv = n / out, (v or 0) / (out * out)
       crafts[via] = (crafts[via] or 0) + times
-      for i = 1, #r.r, 2 do add(r.r[i], r.r[i + 1] * times, depth + 1) end
+      for i = 1, #r.r, 2 do add(r.r[i], r.r[i + 1] * times, depth + 1, r.r[i + 1] ^ 2 * tv) end
     else
       need[item] = (need[item] or 0) + n
+      needVar[item] = (needVar[item] or 0) + (v or 0)
     end
   end
   local toolCraft = {}
@@ -596,7 +604,7 @@ function Planner.Shopping(ctx, steps, unit, extra)
         local item, n = r.r[i], r.r[i + 1] * st.crafts
         local fromPool = math.min(pool[item] or 0, n)
         pool[item] = (pool[item] or 0) - fromPool
-        if n - fromPool > 0 then add(item, n - fromPool, 0) end
+        if n - fromPool > 0 then add(item, n - fromPool, 0, r.r[i + 1] ^ 2 * (st.var or 0)) end
       end
       if r.out then
         local n = st.crafts * (r.outN or 1)
@@ -606,8 +614,10 @@ function Planner.Shopping(ctx, steps, unit, extra)
     end
   end
   local list, total, anyEst = {}, 0, false
+  local z = ctx.z or 0
   for item, n in pairs(need) do
-    local want = ceil(n - 1e-9)
+    local expected = ceil(n - 1e-9)
+    local want = ceil(n + z * math.sqrt(needVar[item] or 0) - 1e-9)
     local have = ctx.have and ctx.have(item) or 0
     local buy = want - have
     if buy < 0 then buy = 0 end
@@ -615,7 +625,7 @@ function Planner.Shopping(ctx, steps, unit, extra)
     if p then total = total + p * buy end
     anyEst = anyEst or (est and buy > 0) or false
     local it = ctx.items[item]
-    list[#list + 1] = { item = item, name = it and it[1] or ("item " .. item), need = want,
+    list[#list + 1] = { item = item, name = it and it[1] or ("item " .. item), need = want, expected = expected,
                         have = have, buy = buy, price = p, est = est,
                         vendor = it and it[3] ~= nil }
   end
