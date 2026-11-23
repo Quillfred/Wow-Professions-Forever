@@ -31,6 +31,10 @@ A WoW Forever addon that plans the cheapest way to level a crafting profession.
   has the item (whose zone it is comes from Forever's own zone table). Mining,
   Herbalism, Skinning and Fishing zones are ordered the same way, and node/fishing choices
   count the other faction's zones only when nothing else fits.
+- **Recipes taught by quests** ("Camping 101", Blacksmithing's Ornate Mithril quests):
+  learnable when AllTheThings names a giver of your faction; the step names the quest
+  and giver, with a waypoint. A quest counts as 1g of effort when choosing (time, and
+  materials the data doesn't list), never in what you spend.
 - **All crafting professions:** Alchemy, Blacksmithing, Cooking, Enchanting,
   Engineering, First Aid, Leatherworking and Tailoring. The window shows the ones
   your character has; switch with the arrows.

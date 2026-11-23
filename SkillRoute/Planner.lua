@@ -11,6 +11,7 @@ local floor, ceil, huge = math.floor, math.ceil, math.huge
 local STICKY_DEFAULT = 0.03
 local CAP_STEP = 75   -- Apprentice/Journeyman/Expert/Artisan caps: 75, 150, 225
 local PER_CRAFT = 1   -- copper; all else equal, fewer crafts win
+local QUEST_COST = 10000 -- copper (1g): what learning a recipe from a quest counts as
 local GAP_COST = 1e9  -- per skill point with no usable recipe: filling a gap always wins
 
 -- Classic skill-up chance: orange always, then falls linearly from yellow to grey.
@@ -41,6 +42,8 @@ function Planner.LearnAt(spell, r, ctx)
   if t then return t.req or 0, "trainer" end
   if r.src == "T" then return r.learn or r.y, "trainer" end
   if r.src == "t" then return r.y, "trainer?" end -- unconfirmed: never earlier than yellow
+  -- taught by a quest whose giver serves your faction (ctx.questOK; all when not given)
+  if r.src == "q" and (not ctx.questOK or ctx.questOK[spell]) then return r.learn or r.y, "quest" end
   if ctx.unlocked and ctx.unlocked["p:" .. spell] then return r.learn or r.y, "pattern" end
   return nil
 end
@@ -340,18 +343,24 @@ function Planner.Plan(ctx)
   end
   -- Intermediates: items some usable or unlockable recipe uses as reagent.
   for spell, r in pairs(ctx.recipes) do
-    if all["p:" .. spell] or Planner.LearnAt(spell, r, ctx) then
+    local _, how = Planner.LearnAt(spell, r, ctx)
+    -- quest recipes are a last resort (QUEST_COST): seeding their reagents would only
+    -- steer the starting guess (Mooncloth Boots made Tailoring's route worse)
+    if all["p:" .. spell] or (how and how ~= "quest") then
       for i = 1, #r.r, 2 do credit[r.r[i]] = 1 end
     end
   end
   -- Trainer fees of recipes you don't know yet are one-time costs. Spread each fee
   -- over the points the recipe can cover (first guess), then over the points the route
   -- really uses it for, re-planning twice: a 40s recipe isn't learned for 1 point.
-  local surcharge, fees = {}, {}
+  local surcharge, fees, questFee = {}, {}, {}
   if not ctx.ignoreFees then
     for spell, r in pairs(ctx.recipes) do
       local learnAt, how = Planner.LearnAt(spell, r, ctx)
       local fee = (ctx.trainer[spell] and ctx.trainer[spell].cost) or r.tc
+      -- a quest isn't free: time, and sometimes materials the data doesn't list. It
+      -- counts as QUEST_COST when choosing, never in what you spend.
+      if how == "quest" then fee, questFee[spell] = QUEST_COST, true end
       if learnAt and how ~= "known" and how ~= "pattern" and fee and fee > 0 then
         fees[spell] = fee
         local span = math.min(r.g, ctx.target) - math.max(learnAt, ctx.skill)
@@ -401,6 +410,26 @@ function Planner.Plan(ctx)
       if plan.usedUnlocks[key] then pruned[key] = u else dropped = true end
     end
     if dropped then chosen, plan = pruned, run(pruned, copy(credit)) end
+    -- Greedy order can lock in an unlock that a cheaper route makes worse (a pattern
+    -- bought early pushed out a cheaper recipe). Try dropping each one; keep a drop
+    -- when the full route (unlock prices included) gets cheaper. Bounded passes.
+    for _ = 1, 3 do
+      local improved = false
+      local keys = {}
+      for key in pairs(chosen) do keys[#keys + 1] = key end
+      table.sort(keys) -- fixed order: same result every time
+      for _, key in ipairs(keys) do
+        local trial = copy(chosen)
+        trial[key] = nil
+        local cr = copy(credit)
+        local tp = run(trial, cr)
+        if routeTotal(tp, trial) < routeTotal(plan, chosen) - 1 then
+          chosen, plan, credit, improved = trial, tp, cr, true
+          tries = tries + 1
+        end
+      end
+      if not improved then break end
+    end
     plan.unlockTries = tries
   end
 
@@ -423,7 +452,7 @@ function Planner.Plan(ctx)
   plan.fees = 0
   local seen = {}
   for _, st in ipairs(plan.steps) do
-    if st.spell and fees[st.spell] and not seen[st.spell] then
+    if st.spell and fees[st.spell] and not seen[st.spell] and not questFee[st.spell] then
       seen[st.spell] = true
       plan.fees = plan.fees + fees[st.spell]
     end

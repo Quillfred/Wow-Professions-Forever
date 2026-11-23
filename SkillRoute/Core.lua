@@ -695,6 +695,36 @@ function Core.RankHow(line, rankStep)
   return { place = p, nPlaces = n, loc = loc, book = book, quest = quest }
 end
 
+-- A recipe taught by a quest: the nearest giver of your faction, or nil.
+function Core.RecipeQuest(spell)
+  local quests = Data.recipeQuests and Data.recipeQuests[spell]
+  local ids, byGiver = {}, {}
+  for _, q in ipairs(quests or {}) do
+    for _, g in ipairs(q[4]) do ids[#ids + 1] = g; byGiver[g] = q end
+  end
+  local loc = Core.NearestNPC(ids)
+  local q = loc and byGiver[loc.id]
+  if q then return { quest = q[1], title = q[2], skill = q[3], loc = loc } end
+end
+
+-- quest recipes with a giver of your faction (no travel maths: for the planner)
+local function questsForFaction(recipes)
+  local me, ok = myLetter(), {}
+  for spell, r in pairs(recipes) do
+    if r.src == "q" then
+      for _, q in ipairs(Data.recipeQuests and Data.recipeQuests[spell] or {}) do
+        for _, g in ipairs(q[4]) do
+          local n = Data.npcs and Data.npcs[g]
+          if n and (not me or n[2]:find(me, 1, true)) then ok[spell] = true end
+        end
+      end
+    end
+  end
+  return ok
+end
+
+Core.QuestsForFaction = questsForFaction
+
 function Core.RankQuest(line, rankStep)
   local quests = Data.rankQuests and Data.rankQuests[line] and Data.rankQuests[line][rankStep]
   local ids, byGiver = {}, {}
@@ -1092,6 +1122,7 @@ function Core.Plan(line, target)
     bonus = settings.bonus or 0,
     fixedUnlocks = cached and cached.key == key and cached.set or nil,
     skip = Core.Skips(line), ahFresh = Core.AHFresh, ownedPatterns = ownedPatterns,
+    questOK = questsForFaction(recipes),
   })
   if not (cached and cached.key == key) then
     local set = {}

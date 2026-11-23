@@ -664,6 +664,45 @@ do
   print("ah why (Horde, Cooked Crab Claw):" .. why)
 end
 
+-- recipes taught by a quest (ATT): learnable when your faction has a giver; the row
+-- names the quest and giver; its 1g effort isn't added to training
+do
+  local P = ns.Planner
+  local tailoring, firstAid = SkillRouteData.professions[197].recipes, SkillRouteData.professions[129].recipes
+  local okH = Core.QuestsForFaction(firstAid)
+  assert(okH[1230117], "First Aid Kit: Horde givers (Brakk, Kaga Wildhoof...)")
+  assert(not Core.QuestsForFaction(tailoring)[1263425], "Faction Banner: Alliance givers only, not for Horde")
+  local at, how = P.LearnAt(1230117, firstAid[1230117], { known = {}, trainer = {}, questOK = okH })
+  assert(at == 20 and how == "quest", "quest recipe learnable at 20")
+  assert(P.LearnAt(1263425, tailoring[1263425], { known = {}, trainer = {}, questOK = {} }) == nil, "no giver: not learnable")
+  local q = Core.RecipeQuest(1230117)
+  assert(q and q.title == "Camping 101: First Aid" and q.loc.npc, "nearest Horde giver")
+  -- a plan using it (First Aid 1 -> 21): the quest's 1g never shows as training
+  local plan = P.Plan({ recipes = firstAid, items = SkillRouteData.items, skill = 19, target = 21, maxSkill = 75,
+    known = {}, trainer = {}, questOK = okH, price = function() return 100 end })
+  assert((plan.fees or 0) == 0 or not plan.steps[1] or plan.steps[1].learn ~= "quest", "quest effort not in training fees")
+  -- the row: stub one plan step through the window
+  local saved = { GetProfessions, GetProfessionInfo, Core.Plan }
+  GetProfessions = function() return 1 end
+  GetProfessionInfo = function() return "First Aid", 0, 20, 75, 0, 0, 129 end
+  Core.Plan = function(line, target)
+    local p = saved[3](line, target)
+    p.steps = { { spell = 1230117, name = "First Aid Kit", from = 20, to = 21, crafts = 1, cost = 100, perCraft = 100,
+                  color = "orange", learn = "quest", var = 0, vendorBack = 0 } }
+    return p
+  end
+  UI.Toggle(129)
+  local row, wp
+  for _, r in ipairs(UI.Rows()) do
+    local sub = r.sub and rawget(r.sub, "text")
+    if type(sub) == "string" and sub:find('Quest "Camping 101: First Aid" from', 1, true) then row, wp = sub, rawget(r, "waypoint") end
+  end
+  UI.Toggle()
+  GetProfessions, GetProfessionInfo, Core.Plan = saved[1], saved[2], saved[3]
+  assert(row and type(wp) == "table" and wp.npc == q.loc.npc, "quest row names the giver, with a waypoint")
+  print("quest recipe row: " .. row:gsub("|c%x%x%x%x%x%x%x%x", ""):gsub("|r", ""))
+end
+
 -- another language: German names still match (profession via its rank spell,
 -- recipes via the item they make, rank-ups via the skill they need)
 do

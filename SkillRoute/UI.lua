@@ -304,7 +304,7 @@ local function routeRows(plan)
     else
       local r = Data.professions[plan.line].recipes[st.spell]
       local learn = ""
-      local trainerLoc, exact
+      local trainerLoc, exact, questLoc
       if st.learn == "trainer" or st.learn == "trainer?" then
         trainerLoc, exact = Core.NearestRecipeTrainer(plan.line, st.spell, r.learn or r.y)
       end
@@ -325,6 +325,10 @@ local function routeRows(plan)
         end
       elseif st.learn == "trainer?" then
         learn = "  |cffffd100Learn at trainer (not confirmed yet)|r"
+      elseif st.learn == "quest" then
+        questLoc = Core.RecipeQuest(st.spell)
+        learn = questLoc and ("  |cffffd100Quest \"%s\" from %s|r"):format(questLoc.title, questLoc.loc.npc)
+                or "  |cffffd100Learn from a quest|r"
       end
       local tip = {
         ("Each craft: %s%s"):format(money(st.perCraft), st.est and " (estimated)" or ""),
@@ -345,6 +349,14 @@ local function routeRows(plan)
                         or "No trainer recipe covers this range; this is the cheapest way through."
       end
       local waypoint = trainerLoc
+      if questLoc then
+        local ql = questLoc.loc
+        waypoint = ql
+        tip[#tip + 1] = ("Learned from the quest \"%s\"%s, from %s, %s%s. Counted as 1g of effort when choosing recipes"
+          .. " (quests take time, some need materials); not added to what you spend."):format(questLoc.title,
+          questLoc.skill > 0 and (" (needs skill %d)"):format(questLoc.skill) or "", ql.npc, Core.Where(ql) or "?",
+          Core.TravelText(ql) and (", " .. Core.TravelText(ql)) or "")
+      end
       if trainerLoc then
         tip[#tip + 1] = ("Trainer: %s, %s%s"):format(trainerLoc.npc, Core.Where(trainerLoc) or "?",
           exact and "" or " (recipe tier estimated from its skill level)")

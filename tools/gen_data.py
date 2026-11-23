@@ -233,6 +233,7 @@ def main():
     out = {sl: [] for sl in PROFESSIONS}
     att_decided = {}
     supply_priced = 0
+    recipe_quests = {}  # recipe spell -> ATT quests that teach it
     # items that teach something (patterns, rank books): vendor handling of their own
     teaching_items = {it for its in taught_by.values() for it in its} | {it for its in rank_books.values() for it in its}
     # recipes where Wowhead's Forever page was checked and beats ATT on the source
@@ -297,7 +298,16 @@ def main():
                              if int(items[i]["RequiredSkill"]) == int(a["SkillLine"])]
                     learn = min(ranks) if ranks else None
             elif "Q" in how:
-                src, origin = "x", ["Quest"]
+                # taught by a quest: learnable when ATT names a giver (recipeQuests below)
+                givers = [g for q in att.get("quests", {}).get(str(s), []) for g in q["givers"] if g in att["npcs"]]
+                if givers:
+                    src, origin, cost = "q", None, None  # no trainer fee for a quest
+                    qskill = max([q["skill"] for q in att["quests"][str(s)]] or [0])
+                    learn = max(x for x in (w_learn, a_learn, qskill or None, y) if x is not None) \
+                        if (w_learn or a_learn or qskill) else y
+                    recipe_quests[s] = att["quests"][str(s)]
+                else:
+                    src, origin = "x", ["Quest"]
             elif "u" in how:
                 # ATT: not released yet. Wowhead lists sources for these (data-mined), so
                 # allow the pattern only when it's really on your AH: no vendor, no drop hint
@@ -524,6 +534,16 @@ def main():
     for line in sorted({l for l, _ in rq}):
         parts = [f"[{st}]={{{','.join(rows_)}}}" for (l, st), rows_ in sorted(rq.items()) if l == line]
         lines.append(f"    [{line}]={{{','.join(parts)}}},")
+    lines += ["  },", "  -- recipes taught by a quest (ATT): [spell] = {{questID, title, skill needed, {giver npcs}}}",
+              "  recipeQuests = {"]
+    for sp in sorted(recipe_quests):
+        qrows = []
+        for q in recipe_quests[sp]:
+            givers = [att_npc(k) for k in q["givers"] if k in att["npcs"]]
+            if givers:
+                qrows.append("{%d,%s,%d,{%s}}" % (q["q"], lua_str(q["t"]), q["skill"], ",".join(map(str, givers))))
+        if qrows:
+            lines.append(f"    [{sp}]={{{','.join(qrows)}}},")
     lines += ["  },", "  -- rank-ups no trainer teaches in Forever (ATT): [skillLine] = {[rank] = \"B\" book | \"Q\" quest}",
               "  rankSource = {"]
     for line in sorted({l for l, _ in rank_source}):

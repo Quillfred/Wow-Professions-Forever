@@ -205,6 +205,25 @@ local function plan(line, from, to, priceFn, owned, standing)
     skill = from, target = to, known = {}, trainer = {}, price = priceFn or price, standing = standing,
     hasTool = function(k) return owned and owned[k] or false end })
 end
+-- quest recipes: allowing them never makes a route cost more (they're a last resort
+-- at 1g of effort); the 1g never shows as a training fee
+for line, prof in pairs(D.professions) do
+  if not prof.gather then
+    local ok = {}
+    for s, r in pairs(prof.recipes) do if r.src == "q" then ok[s] = true end end
+    local function pl(q)
+      return P.Plan({ recipes = prof.recipes, items = items, tools = D.tools, skill = 1, target = 300, maxSkill = 300,
+        known = {}, trainer = {}, price = price, questOK = q, hasTool = function() return true end })
+    end
+    local without, with = pl({}), pl(ok)
+    check(with.total <= without.total + 1, ("%s: quest recipes allowed made the route dearer (%d -> %d)")
+      :format(prof.name, without.total, with.total))
+    local qfee = 0
+    for _, st in ipairs(with.steps) do if st.learn == "quest" then qfee = qfee + 1 end end
+    check(qfee == 0 or with.fees == without.fees, prof.name .. ": quest effort counted as a training fee")
+  end
+end
+
 -- every step in every profession: its tools are owned or acquired by the plan, in time
 for line, prof in pairs(D.professions) do
   local pl = plan(line, 1, 300)
