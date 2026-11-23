@@ -250,7 +250,9 @@ do
   -- the game wants the axes the other way round: detected via the continent check
   wantSwap = true
   for k in pairs(D.npcs) do end
-  local fresh = Core.NPCLocation(2668) -- not resolved before
+  local classicId
+  for id, n in pairs(D.npcs) do if id > 0 and not n[12] and n[6] then classicId = id; break end end
+  local fresh = Core.NPCLocation(classicId) -- a Classic NPC, not resolved before
   assert(fresh and fresh.zone == "Undercity", "axis order detected")
   -- Alliance-only vendor never offered to Horde
   local v = Core.NearestVendor(SkillRouteData.professions[197].recipes[select(1, (function()
@@ -260,8 +262,13 @@ do
   local t1 = Core.NearestRecipeTrainer(197, 8762, 125)
   assert(t1 and t1.side:find("H"), "Silk Headband: a Horde trainer")
   -- Forever: Magar <Expert Tailor> teaches Journeyman, not Expert; Expert comes from an Artisan/Master
-  assert(SkillRouteData.trainers[197][3363] == 3, "Magar is rank 3 (Expert)")
-  assert(SkillRouteData.trainers[197][2399] == 5 and SkillRouteData.trainers[197][4576] == 4, "Daryl Stack Master, Josef Gregorian Artisan")
+  -- AllTheThings (exact): Magar teaches the Journeyman tier, Josef Expert, Daryl Stack Artisan
+  local function maskOf(name)
+    for id, m in pairs(SkillRouteData.trainers[197]) do if SkillRouteData.npcs[id][1] == name then return m, id end end
+  end
+  assert(maskOf("Magar") == 2 and maskOf("Josef Gregorian") == 4 and maskOf("Daryl Stack") == 8, "tiers from ATT")
+  local _, jid = maskOf("Josef Gregorian")
+  assert(jid < 0 and SkillRouteData.npcs[jid][12] == 1458, "ATT NPC carries its exact zone map")
   local ex = Core.NearestTrainer(197, 3)
   assert(ex and (ex.npc == "Josef Gregorian" or ex.npc == "Daryl Stack"), "Horde Expert Tailoring from an Artisan/Master: " .. tostring(ex and ex.npc))
   local jm = Core.NearestTrainer(197, 2)

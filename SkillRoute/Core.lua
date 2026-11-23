@@ -275,6 +275,11 @@ function Core.NPCLocation(id)
   if not n then return nil end
   if resolved[id] then return resolved[id] end
   local loc = { npc = n[1], side = n[2], cui = n[6], cx = n[7], cy = n[8], zone = n[9], x = n[10], y = n[11] }
+  if n[12] then -- exact zone map + coordinates (AllTheThings): nothing to resolve
+    loc.ui = n[12]
+    resolved[id] = loc
+    return loc
+  end
   if n[6] and C_Map and C_Map.GetMapPosFromWorldPos and C_Map.GetMapInfoAtPosition and CreateVector2D then
     for _, swap in ipairs({ false, true }) do
       local vec = swap and CreateVector2D(n[5], n[4]) or CreateVector2D(n[4], n[5])
@@ -418,36 +423,32 @@ function Core.TravelText(loc)
   return ("about %d min away%s"):format(min, loc.via and (" (by boat/zeppelin: " .. loc.via .. ")") or "")
 end
 
--- Who can teach a rank-up (rankStep: 2 Journeyman, 3 Expert, 4 Artisan)? In Forever a
--- trainer teaches up to the rank below its own title: Expert from an Artisan or Master.
-function Core.NearestTrainer(line, rankStep)
-  local ids = {}
-  for id, rank in pairs(Data.trainers and Data.trainers[line] or {}) do
-    if rank - 1 >= rankStep then ids[#ids + 1] = id end
+-- Trainers teach recipe tiers (bits: 1 Apprentice, 2 Journeyman, 4 Expert, 8 Artisan);
+-- a tier holds its rank-up and its recipes. In Forever a trainer teaches the tier below
+-- its own title: Journeyman from an Expert, Expert from an Artisan, Artisan from a Master.
+local function trainersTeaching(line, tier)
+  local ids, bit = {}, 2 ^ (tier - 1)
+  for id, mask in pairs(Data.trainers and Data.trainers[line] or {}) do
+    if math.floor(mask / bit) % 2 == 1 then ids[#ids + 1] = id end
   end
   table.sort(ids)
-  return Core.NearestNPC(ids)
+  return ids
 end
 
--- Nearest trainer who teaches this recipe. Candidates: the Classic trainer lists
--- for the recipe, plus every trainer of the profession whose rank (list or title)
--- covers its learn level (Journeyman from 50, Expert from 125, Artisan from 225) -
--- the Classic lists are incomplete. Assumption: a trainer teaches recipes of its own
--- rank (only the rank-up rule is documented for Forever).
+function Core.NearestTrainer(line, rankStep) -- rankStep: 2 Journeyman, 3 Expert, 4 Artisan
+  return Core.NearestNPC(trainersTeaching(line, rankStep))
+end
+
+-- Nearest trainer who teaches this recipe: its tier from AllTheThings; for recipes it
+-- doesn't list, estimated from the learn level. Returns loc, tierKnown.
 function Core.NearestRecipeTrainer(line, spell, learnAt)
-  local L = learnAt or 0
-  local need = L >= 225 and 4 or L >= 125 and 3 or L >= 50 and 2 or 1
-  local ids, listed = {}, {}
-  local set = Data.recipeTrainers and Data.recipeTrainers[spell]
-  for _, id in ipairs(set and Data.trainerSets[set] or {}) do ids[#ids + 1] = id; listed[id] = true end
-  for id, top in pairs(Data.trainers and Data.trainers[line] or {}) do
-    if top >= need and not listed[id] then ids[#ids + 1] = id end
+  local tier = Data.recipeTier and Data.recipeTier[spell]
+  local known = tier ~= nil
+  if not tier then
+    local L = learnAt or 0
+    tier = L >= 225 and 4 or L >= 125 and 3 or L >= 50 and 2 or 1
   end
-  table.sort(ids)
-  local loc = Core.NearestNPC(ids)
-  local id
-  if loc then for _, i in ipairs(ids) do if Data.npcs[i] and Data.npcs[i][1] == loc.npc then id = i end end end
-  return loc, id and listed[id] or false
+  return Core.NearestNPC(trainersTeaching(line, tier)), known
 end
 
 function Core.NearestVendor(item)

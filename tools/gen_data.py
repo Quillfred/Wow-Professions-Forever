@@ -274,65 +274,98 @@ def main():
     for i in sorted(used_items):
         if items.get(i, {}).get("Display_lang") in COOLDOWN_MATS:
             lines.append(f"    [{i}]=true,")
-    lines += ["  },", "  -- [patternItem] = {\"A\"|\"H\"|\"AH\" (who vendors sell it to), \"Alliance vendors\", \"Horde vendors\"}",
-              "  -- (Classic vendor lists; a vendor you visit in game overrides this)",
-              "  patternVendors = {"]
-    for i in sorted(vendor_patterns):
-        e = vendor_sides.get(i)
-        if not e:
-            continue
-        side = ("A" if e["A"] else "") + ("H" if e["H"] else "")
-        names_a = ", ".join(n for n, s in e["v"] if "A" in s)
-        names_h = ", ".join(n for n, s in e["v"] if "H" in s)
-        lines.append(f"    [{i}]={{\"{side}\",{lua_str(names_a)},{lua_str(names_h)}}},")
-    # NPCs: [id] = {name, "A"|"H"|"AH", continent map, worldX, worldY, zone, zoneX, zoneY}
-    used_npcs = set()
-    tr_lines, vend_lines = [], []
-    for line in sorted(PROFESSIONS):
-        d = npcdata["trainers"].get(str(line), {})
-        if d:
-            tr_lines.append(f"    [{line}]={{" + ",".join(f"[{e}]={st}" for e, st in sorted(d.items(), key=lambda kv: int(kv[0]))) + "},")
-            used_npcs.update(int(e) for e in d)
-    for i in sorted(vendor_patterns):
-        es = npcdata["vendors"].get(str(i))
-        if es:
-            vend_lines.append(f"    [{i}]={{{','.join(map(str, es))}}},")
-            used_npcs.update(es)
-    lines += ["  },", "  -- profession trainers: [skillLine] = {[npcID] = trainer rank (2 Journeyman .. 5 Master);",
-              "  -- in Forever a trainer teaches rank-ups up to the rank below its own}",
-              "  trainers = {"] + tr_lines
-    lines += ["  },", "  -- [patternItem] = {npcIDs of vendors selling it}", "  vendorNpcs = {"] + vend_lines
-    # which trainers teach each trainer recipe; identical trainer lists stored once
-    sets, set_index, rec_lines = [], {}, []
-    for line in sorted(PROFESSIONS):
-        for row in out[line]:
-            sp = int(row.split("]")[0].strip()[1:])
-            if 'src="T"' not in row and 'src="t"' not in row:
-                continue
-            es = npcdata.get("recipes", {}).get(str(sp))
-            if not es:
-                continue
-            key = tuple(es)
-            if key not in set_index:
-                set_index[key] = len(sets) + 1
-                sets.append(key)
-                used_npcs.update(es)
-            rec_lines.append(f"[{sp}]={set_index[key]}")
-    lines += ["  },", "  -- trainer lists, and [recipe spell] = index of the list of trainers that teach it",
-              "  trainerSets = {"] + ["    {" + ",".join(map(str, k)) + "}," for k in sets]
-    lines += ["  },", "  recipeTrainers = {"]
-    for i in range(0, len(rec_lines), 12):
-        lines.append("    " + ",".join(rec_lines[i:i + 12]) + ",")
-    lines += ["  },", "  -- [npcID] = {name, faction \"A\"|\"H\"|\"AH\", map, worldX, worldY, continentUiMap, contX, contY, zone, zoneX, zoneY}",
-              "  -- (Classic spawns; zone only when unambiguous, the game resolves the rest)",
-              "  npcs = {"]
-    for e in sorted(used_npcs):
+    # Trainers, pattern vendors and their NPCs. AllTheThings' Forever data first
+    # (tools/import_att.py: exact zone coordinates, the recipe tier each trainer
+    # teaches, vendors' pattern lists); Classic data (tools/import_npcs.py) for NPCs
+    # and patterns ATT doesn't list yet.
+    att = {"npcs": {}, "trainers": {}, "vendors": {}, "recipeTier": {}}
+    apath = os.path.join(os.path.dirname(os.path.abspath(__file__)), "att_forever.json")
+    if os.path.exists(apath):
+        with open(apath, encoding="utf-8") as f:
+            att = json.load(f)
+    conts = npcdata.get("continents", {})
+
+    def continent(mapid, x, y):
+        c = conts.get(str(mapid))
+        if c is None or x is None:
+            return None
+        x0, y0, x1, y1 = c["r"]
+        u0, v0, u1, v1 = c["u"]
+        return c["ui"], round((u0 + (u1 - u0) * (y1 - y) / (y1 - y0)) * 100, 2), round((v0 + (v1 - v0) * (x1 - x) / (x1 - x0)) * 100, 2)
+
+    npc_rows = {}  # key -> (name, side, lua row)
+    SIDE_K = {"A": 1, "H": 2, "AH": 3}
+
+    def att_npc(k):
+        n = att["npcs"][k]
+        key = -(n["id"] * 10 + SIDE_K[n["side"]])  # negative: never collides with Classic IDs
+        if key not in npc_rows:
+            c = continent(n["map"], n["x"], n["y"])
+            v = lambda val: "nil" if val is None else str(val)
+            npc_rows[key] = (n["n"], n["side"],
+                             f"{{{lua_str(n['n'])},\"{n['side']}\",{v(n['map'])},{v(n['x'])},{v(n['y'])},"
+                             f"{v(c and c[0])},{v(c and c[1])},{v(c and c[2])},{lua_str(n['zone'] or '')},"
+                             f"{n['zx']},{n['zy']},{n['ui']}}}")
+        return key
+
+    def classic_npc(e):
         n = npcdata["npcs"].get(str(e))
-        if n:
+        if not n:
+            return None
+        if e not in npc_rows:
             zone = lua_str(n["zone"]) if n["zone"] else "nil"
             v = lambda k: "nil" if n.get(k) is None else str(n[k])
-            lines.append(f"    [{e}]={{{lua_str(n['n'])},\"{n['side']}\",{n['map']},{n['x']},{n['y']},"
-                         f"{v('cui')},{v('cx')},{v('cy')},{zone},{v('zx')},{v('zy')}}},")
+            npc_rows[e] = (n["n"], n["side"],
+                           f"{{{lua_str(n['n'])},\"{n['side']}\",{n['map']},{n['x']},{n['y']},"
+                           f"{v('cui')},{v('cx')},{v('cy')},{zone},{v('zx')},{v('zy')}}}")
+        return e
+
+    # trainers: [line] = {[npc] = bitmask of recipe tiers taught (1 Apprentice, 2 Journeyman,
+    # 4 Expert, 8 Artisan); a tier holds its rank-up spell and its recipes
+    tr_lines = []
+    for line in sorted(PROFESSIONS):
+        entries = {}
+        att_ids = set()
+        for k, tiers in att["trainers"].get(str(line), {}).items():
+            entries[att_npc(k)] = sum(1 << (t - 1) for t in tiers)
+            att_ids.add(att["npcs"][k]["id"])
+        for e, rank in npcdata["trainers"].get(str(line), {}).items():
+            # Classic fallback: a trainer titled rank R teaches tier R-1 (ATT confirms:
+            # Magar <Expert> teaches JOURNEYMAN, Josef <Artisan> EXPERT, Master ARTISAN)
+            if int(e) not in att_ids and rank >= 2 and classic_npc(int(e)) is not None:
+                entries[int(e)] = 1 << (min(rank, 5) - 2)
+        if entries:
+            tr_lines.append(f"    [{line}]={{" + ",".join(f"[{k}]={m}" for k, m in sorted(entries.items())) + "},")
+    lines += ["  },", "  -- trainers: [skillLine] = {[npc] = tiers taught, bits 1 Apprentice 2 Journeyman 4 Expert 8 Artisan}",
+              "  trainers = {"] + tr_lines
+    # recipe tier (ATT): which trainer tier teaches each recipe / rank-up spell
+    recipes_all = {int(r.split("]")[0].strip()[1:]) for l in out.values() for r in l}
+    tier_lines = [f"[{sp}]={t}" for sp, t in sorted((int(k), v) for k, v in att["recipeTier"].items()) if sp in recipes_all]
+    lines += ["  },", "  -- [recipe spell] = trainer tier that teaches it (1 Apprentice .. 4 Artisan), from ATT",
+              "  recipeTier = {"]
+    for i in range(0, len(tier_lines), 12):
+        lines.append("    " + ",".join(tier_lines[i:i + 12]) + ",")
+    # pattern vendors: ATT's where it lists the pattern, else Classic
+    vend_lines, pv_lines = [], []
+    for i in sorted(vendor_patterns):
+        keys = [att_npc(k) for k, _ in att["vendors"].get(str(i), []) if k in att["npcs"]]
+        if not keys:
+            keys = [k for k in (classic_npc(e) for e in npcdata["vendors"].get(str(i), [])) if k is not None]
+        if not keys:
+            continue
+        vend_lines.append(f"    [{i}]={{{','.join(map(str, keys))}}},")
+        sides = "".join(sorted({c for k in keys for c in npc_rows[k][1]}))
+        names_a = ", ".join(npc_rows[k][0] for k in keys if "A" in npc_rows[k][1])
+        names_h = ", ".join(npc_rows[k][0] for k in keys if "H" in npc_rows[k][1])
+        pv_lines.append(f"    [{i}]={{\"{sides}\",{lua_str(names_a)},{lua_str(names_h)}}},")
+    lines += ["  },", "  -- [patternItem] = {who vendors sell it to \"A\"|\"H\"|\"AH\", Alliance vendors, Horde vendors}",
+              "  patternVendors = {"] + pv_lines
+    lines += ["  },", "  -- [patternItem] = {npc keys of vendors selling it}", "  vendorNpcs = {"] + vend_lines
+    lines += ["  },", "  -- [npc] = {name, faction, map, worldX, worldY, continentUiMap, contX, contY, zone, zoneX, zoneY, zoneUiMap}",
+              "  -- (zoneUiMap set = exact, from ATT; else Classic spawn, zone resolved by the game)",
+              "  npcs = {"]
+    for k in sorted(npc_rows):
+        lines.append(f"    [{k}]={npc_rows[k][2]},")
     lines += ["  },", "  -- boats/zeppelins: {name, \"A\"|\"H\"|\"AH\", seconds per trip, {map, worldX, worldY}, ...}",
               "  transports = {"]
     for t in npcdata.get("transports", []):

@@ -79,6 +79,7 @@ python3 -I tools/import_wowhead.py wow-forever-recipes.json   # optional: new Wo
 python3 -I tools/import_sources.py blank-source-recipes.csv   # optional: sources Wowhead left blank
 python3 -I tools/import_vendors.py ClassicDB_*.sql.gz FactionTemplate.csv   # optional: vendor factions
 (cd tools && python3 import_npcs.py ClassicDB_*.sql.gz WAGO_CACHE BUILD)     # optional: trainer/vendor locations
+python3 -I tools/import_att.py ATT/.contrib/.db/forever WAGO_CACHE BUILD     # optional: AllTheThings Forever NPCs
 python3 -I tools/gen_data.py            # newest Forever build on wago.tools
 python3 -I tools/gen_data.py 1.60.1.71037
 ```
@@ -93,5 +94,8 @@ lua5.1 tests/smoke_wow.lua      # whole addon against a fake WoW API
 - Recipes, reagents, skill thresholds, tools, cooldowns, factions: WoW Forever client
   tables via wago.tools.
 - Learn levels, sources and trainer costs: Wowhead (exported by hand).
-- Which vendors sell which patterns, trainers, NPC positions: derived from the cMaNGOS Classic database
+- Trainers (and the recipe tier each teaches), pattern vendors and their exact Forever
+  coordinates: AllTheThings' Forever database (MIT, see THIRD_PARTY_NOTICES.md).
+- Fallback where AllTheThings has nothing yet — vendors, trainers, NPC positions,
+  boats/zeppelins: derived from the cMaNGOS Classic database
   (github.com/cmangos/classic-db, GPL v3) — Classic data, so Forever may differ.
