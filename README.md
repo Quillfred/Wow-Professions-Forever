@@ -35,6 +35,14 @@ A WoW Forever addon that plans the cheapest way to level a crafting profession.
   learnable when AllTheThings names a giver of your faction; the step names the quest
   and giver, with a waypoint. A quest counts as 1g of effort when choosing (time, and
   materials the data doesn't list), never in what you spend.
+- **At the auction house** (with Auctionator): each route step has a Buy button that
+  puts its reagents (crafts still needed x per craft, with your safety margin, minus
+  what you have; vendor items left out) into the Auctionator list "SkillRoute
+  <profession> (steps)". Clicking again updates the step; right-click removes it.
+- **Crafted items in your bags** (shopping list, fresh AH prices only): list on the AH,
+  disenchant (enchanters with the skill; results at AH prices) or sell to a vendor,
+  whichever brings most. Disenchant results: Forever's brackets (ItemDisenchantLoot)
+  with the Classic loot tables (cMaNGOS); the skill needed follows the Classic rule.
 - **All crafting professions:** Alchemy, Blacksmithing, Cooking, Enchanting,
   Engineering, First Aid, Leatherworking and Tailoring. The window shows the ones
   your character has; switch with the arrows.

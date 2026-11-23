@@ -1168,6 +1168,181 @@ end
 
 -- Send the shopping list to Auctionator as a shopping list (exact names, amounts).
 -- Vendor items (thread, dyes, vendor patterns/tools) are left out: not on the AH.
+-- One route step's reagents for the auction house: reagents per craft x the crafts the
+-- step needs (with your safety margin), intermediates the route crafts (bolts) opened
+-- up into what they're made of, minus what you have (bags, bank, alts). Vendor-only
+-- items left out, as in the full export. Returns { {item, name, qty}, ... }.
+function Core.StepShopping(plan, st)
+  local recipes = Data.professions[plan.line].recipes
+  local r = st.spell and recipes[st.spell]
+  if not (r and r.r) then return {} end
+  local z = Core.MarginZ(db().settings.margin)
+  local crafts = st.crafts + z * math.sqrt(st.var or 0)
+  local made = {} -- items this route crafts itself -> recipe
+  for _, c in ipairs(plan.shopping.craft or {}) do
+    local cr = recipes[c.spell]
+    if cr and cr.out then made[cr.out] = cr end
+  end
+  local want = {}
+  local function add(item, n, depth)
+    local mr = made[item]
+    if mr and depth < 2 then
+      local times = math.ceil(n / (mr.outN or 1) - 1e-9)
+      for i = 1, #mr.r, 2 do add(mr.r[i], mr.r[i + 1] * times, depth + 1) end
+    else
+      want[item] = (want[item] or 0) + n
+    end
+  end
+  for i = 1, #r.r, 2 do add(r.r[i], r.r[i + 1] * crafts, 0) end
+  local out = {}
+  for item, n in pairs(want) do
+    local it = Data.items[item]
+    local ah = Core.Price(item)
+    local vendorOnly = it and it[3] and (not ah or it[3] <= ah)
+    local qty = math.ceil(n - 1e-9) - (Core.Have(item) or 0) - (Core.HaveOnAlts(item) or 0)
+    if qty > 0 and not vendorOnly then
+      out[#out + 1] = { item = item, name = (GetItemInfo and GetItemInfo(item)) or (it and it[1]) or ("item " .. item), qty = qty }
+    end
+  end
+  table.sort(out, function(a, b) return a.name < b.name end)
+  return out
+end
+
+-- Add (or update) one step in the "SkillRoute <profession> (steps)" Auctionator list.
+-- The steps you added are remembered, and the list is rebuilt from them, so clicking a
+-- step twice updates it instead of doubling it. remove = take the step back out.
+function Core.AddStepToAuctionator(plan, st, remove)
+  local api = Auctionator and Auctionator.API and Auctionator.API.v1
+  if not (api and api.CreateShoppingList) then
+    print("SkillRoute: your Auctionator version can't create shopping lists.")
+    return false
+  end
+  local c = Core.Char()
+  c.ahSteps = c.ahSteps or {}
+  c.ahSteps[plan.line] = c.ahSteps[plan.line] or {}
+  local steps = c.ahSteps[plan.line]
+  local key = st.spell .. ":" .. st.from
+  if remove then
+    steps[key] = nil
+  else
+    local items = Core.StepShopping(plan, st)
+    if #items == 0 then
+      print(("SkillRoute: nothing to buy on the auction house for %s (you have it, or it's from a vendor)."):format(st.name))
+      steps[key] = nil
+    else
+      steps[key] = { name = st.name, items = items }
+    end
+  end
+  -- the list: every remembered step, quantities summed per item
+  local total, order = {}, {}
+  for _, s in pairs(steps) do
+    for _, x in ipairs(s.items) do
+      if not total[x.name] then order[#order + 1] = x.name end
+      total[x.name] = (total[x.name] or 0) + x.qty
+    end
+  end
+  table.sort(order)
+  local terms = {}
+  for _, name in ipairs(order) do
+    local term
+    if api.ConvertToSearchString then
+      local ok, s = pcall(api.ConvertToSearchString, addonName, { searchString = name, isExact = true, quantity = total[name] })
+      term = ok and s or nil
+    end
+    terms[#terms + 1] = term or ('"' .. name .. '"')
+  end
+  local listName = "SkillRoute " .. Data.professions[plan.line].name .. " (steps)"
+  if api.DeleteShoppingList then pcall(api.DeleteShoppingList, addonName, listName) end
+  if #terms == 0 then
+    print(("SkillRoute: Auctionator list \"%s\" is empty now."):format(listName))
+    return true
+  end
+  local ok, err = pcall(api.CreateShoppingList, addonName, listName, terms)
+  if not ok then Core.ReportError("Auctionator step list", err); return false end
+  local here = steps[key]
+  print(("SkillRoute: %s %s - Auctionator list \"%s\" now has %d item(s)%s."):format(
+    remove and "removed" or "added", st.name, listName, #terms,
+    here and (": " .. table.concat((function() local t = {} for _, x in ipairs(here.items) do t[#t + 1] = x.qty .. " " .. x.name end return t end)(), ", ")) or ""))
+  return true
+end
+
+-- What to do with a crafted item: list it on the AH (fresh price, minus the 5% cut),
+-- disenchant it (enchanters with the skill; results at fresh AH prices minus the cut)
+-- or sell it to a vendor. Only fresh AH prices count: no stale guesses. Returns
+-- { ah, de, vendor, best, deSkill, deLoot } (copper per item; nil = not known).
+local function freshAH(item)
+  local api = auctionator()
+  if not (api and api.GetAuctionPriceByItemID) then return nil end
+  local ok, v = pcall(api.GetAuctionPriceByItemID, CALLER, item)
+  if ok and v and v > 0 and Core.AHFresh(item) then return v end
+end
+function Core.ItemAdvice(item, enchantSkill)
+  local it = Data.items[item]
+  local a = { vendor = it and it[2] or 0 }
+  local p = freshAH(item)
+  if p then a.ah = math.floor(p * 0.95) end
+  local d = Data.disenchant and Data.disenchant.of and Data.disenchant.of[item]
+  if d then
+    a.deSkill = d[1] and d[2]
+    local loot = Data.disenchant.loot[d[1]]
+    if loot and enchantSkill and enchantSkill >= d[2] then
+      local ev, ok = 0, true
+      for i = 1, #loot, 4 do
+        local mp = freshAH(loot[i])
+        if not mp then ok = false; break end
+        ev = ev + loot[i + 1] / 100 * (loot[i + 2] + loot[i + 3]) / 2 * mp * 0.95
+      end
+      if ok then a.de, a.deLoot = math.floor(ev), loot end
+    end
+  end
+  local best, bestV = "vendor", a.vendor
+  if a.de and a.de > bestV then best, bestV = "de", a.de end
+  if a.ah and a.ah > bestV then best, bestV = "ah", a.ah end
+  a.best, a.bestValue = best, bestV
+  return a
+end
+
+-- Crafted items in your bags (anything a recipe makes), minus what the route still
+-- uses as reagents, with advice. Empty without fresh AH prices (vendor-only advice
+-- isn't worth a list). { {item, count, advice}, ... }, most valuable first.
+local craftedItems
+function Core.CraftedAdvice(plan)
+  if not auctionator() then return {} end
+  if not craftedItems then
+    craftedItems = {}
+    for _, prof in pairs(Data.professions) do
+      for _, r in pairs(prof.recipes) do if r.out then craftedItems[r.out] = true end end
+    end
+  end
+  local keep = {} -- reagents this route still needs
+  for _, b in ipairs(plan and plan.shopping and plan.shopping.buy or {}) do keep[b.item] = true end
+  for _, st in ipairs(plan and plan.steps or {}) do
+    local r = st.spell and Data.professions[plan.line].recipes[st.spell]
+    for i = 1, #(r and r.r or {}), 2 do keep[r.r[i]] = true end
+  end
+  local counts = {}
+  local numSlots = (C_Container and C_Container.GetContainerNumSlots) or GetContainerNumSlots
+  local itemID = (C_Container and C_Container.GetContainerItemID) or GetContainerItemID
+  if not (numSlots and itemID) then return {} end
+  for bag = 0, 4 do
+    for slot = 1, numSlots(bag) or 0 do
+      local id = itemID(bag, slot)
+      if id and craftedItems[id] and not keep[id] then counts[id] = true end
+    end
+  end
+  local ench = Core.Skills()[333]
+  local out = {}
+  for id in pairs(counts) do
+    local a = Core.ItemAdvice(id, ench and ench.rank)
+    if a.ah or a.de then out[#out + 1] = { item = id, count = itemCount(id), advice = a } end
+  end
+  table.sort(out, function(x, y) return x.advice.bestValue * x.count > y.advice.bestValue * y.count end)
+  return out
+end
+
+-- Auction house open? (AUCTION_HOUSE_SHOW / CLOSED): the step buttons show only then
+Core.ahOpen = false
+
 function Core.CanExportToAuctionator()
   local api = Auctionator and Auctionator.API and Auctionator.API.v1
   return api and api.CreateShoppingList and true or false
@@ -1255,6 +1430,9 @@ local function onEvent(_, ev, arg1)
     end
   elseif ev == "TRADE_SKILL_CLOSE" then
     if ns.UI then ns.UI.AutoClose() end
+  elseif ev == "AUCTION_HOUSE_SHOW" or ev == "AUCTION_HOUSE_CLOSED" then
+    Core.ahOpen = ev == "AUCTION_HOUSE_SHOW"
+    if ns.UI and ns.UI.IsShown() then ns.UI.Refresh() end
   elseif ev == "HEARTHSTONE_BOUND" then
     Core.RecordBind()
   elseif ev == "TAXIMAP_OPENED" then
@@ -1274,6 +1452,6 @@ end)
 for _, ev in ipairs({ "ADDON_LOADED", "PLAYER_LOGIN", "TRADE_SKILL_SHOW", "TRADE_SKILL_LIST_UPDATE",
                       "NEW_RECIPE_LEARNED", "TRAINER_SHOW", "TRAINER_UPDATE", "SKILL_LINES_CHANGED", "MERCHANT_SHOW",
                       "BAG_UPDATE_DELAYED", "UPDATE_FACTION", "TRADE_SKILL_CLOSE", "TAXIMAP_OPENED",
-                      "HEARTHSTONE_BOUND" }) do
+                      "HEARTHSTONE_BOUND", "AUCTION_HOUSE_SHOW", "AUCTION_HOUSE_CLOSED" }) do
   pcall(f.RegisterEvent, f, ev) -- an event this client lacks must not break the addon
 end

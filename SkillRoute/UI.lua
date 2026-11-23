@@ -145,6 +145,33 @@ local function setRow(i, opts)
   r.range:SetText(opts.range or "")
   r.item, r.spell, r.tip, r.tipTitle = opts.item, opts.spell, opts.tip, opts.tipTitle or opts.title
   r.skipSpell, r.skipName, r.waypoint, r.recipe = opts.skipSpell, opts.skipName, opts.waypoint, opts.recipe
+  -- "Buy" button (auction house open): this step's reagents -> Auctionator list
+  rawset(r, "ahStep", opts.ahStep)
+  if opts.ahStep and not rawget(r, "buyBtn") then
+    local b = CreateFrame("Button", nil, r, "UIPanelButtonTemplate")
+    b:SetSize(44, 16)
+    b:SetPoint("BOTTOMRIGHT", -EDGE, 2)
+    b:SetText("Buy")
+    b:RegisterForClicks("LeftButtonUp", "RightButtonUp")
+    b:SetScript("OnClick", function(_, button)
+      local st = rawget(r, "ahStep")
+      if st and lastPlan then Core.AddStepToAuctionator(lastPlan, st, button == "RightButton") end
+    end)
+    b:SetScript("OnEnter", function(self)
+      GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+      GameTooltip:SetText("Add to Auctionator")
+      GameTooltip:AddLine("This step's reagents x the crafts it still needs (with your safety margin),"
+        .. " minus what you have; vendor items left out.", 1, 1, 1, true)
+      GameTooltip:AddLine("Right-click: take them back out.", 1, 1, 1, true)
+      GameTooltip:Show()
+    end)
+    b:SetScript("OnLeave", function() GameTooltip:Hide() end)
+    r.buyBtn = b
+  end
+  if rawget(r, "buyBtn") then
+    if opts.ahStep then r.buyBtn:Show() else r.buyBtn:Hide() end
+    r.sub:SetPoint("RIGHT", r, "RIGHT", opts.ahStep and -(EDGE + 50) or -6, 0)
+  end
   r:Show()
 end
 
@@ -411,8 +438,12 @@ local function routeRows(plan)
         tip[#tip + 1] = "|cff808080Click: set a waypoint (TomTom).|r"
       end
       tip[#tip + 1] = "|cff808080Right-click: skip this recipe (e.g. pattern not for sale) and plan without it.|r"
+      local ahStep = Core.ahOpen and Core.CanExportToAuctionator() and st or nil
+      if ahStep then
+        tip[#tip + 1] = "|cff808080Buy button: add this step's reagents to your Auctionator shopping list (right-click it: take them out).|r"
+      end
       add({ item = r.out, spell = st.spell, tip = tip, skipSpell = st.spell, skipName = st.name, waypoint = waypoint,
-            recipe = st.spell,
+            recipe = st.spell, ahStep = ahStep,
             text = ("|cff%s~%d|r x %s"):format(COLORS[st.color] or "ffffff", math.ceil(st.crafts - 1e-9), st.name),
             sub = mats(st.spell, plan.line) .. learn,
             range = ("%d-%d"):format(st.from, st.to),
@@ -440,6 +471,39 @@ ahWhy = function(item, long) -- long: with the vendors' names (tooltips)
 end
 
 UI.AhWhy = function(item, long) return ahWhy(item, long) end
+
+-- "What to do with crafted items in your bags": AH, disenchant or vendor, whichever
+-- brings most (fresh AH prices only)
+local ACTION = { ah = "|cff40bf40List on the AH|r", de = "|cffa335eeDisenchant|r", vendor = "|cffffd100Sell to a vendor|r" }
+local function craftedRows(plan, add)
+  local list = Core.CraftedAdvice(plan)
+  if #list == 0 then return end
+  add({ icon = "Interface\\Icons\\INV_Misc_Bag_10", text = "|cffffffffCrafted items in your bags|r",
+        sub = "The best of: AH (fresh price, after the 5% cut), disenchant (results at AH prices), vendor." })
+  for _, x in ipairs(list) do
+    local a = x.advice
+    local parts = {}
+    parts[#parts + 1] = a.ah and ("AH " .. money(a.ah)) or "AH: no fresh price"
+    if a.de then parts[#parts + 1] = "disenchant ~" .. money(a.de)
+    elseif a.deSkill and a.deSkill > 0 then parts[#parts + 1] = ("disenchant needs %d"):format(a.deSkill) end
+    parts[#parts + 1] = "vendor " .. money(a.vendor)
+    local tip = { "Each: " .. table.concat(parts, ", ") .. "." }
+    if a.deLoot then
+      local t = {}
+      for i = 1, #a.deLoot, 4 do
+        t[#t + 1] = ("%d%% %d-%d %s"):format(a.deLoot[i + 1], a.deLoot[i + 2], a.deLoot[i + 3], itemName(a.deLoot[i]))
+      end
+      tip[#tip + 1] = "Disenchants into: " .. table.concat(t, ", ") .. " (Classic loot tables; Forever may differ)."
+    end
+    if a.best == "ah" then
+      tip[#tip + 1] = "Listing costs a deposit, which you lose if it doesn't sell; the price is today's lowest listing."
+    end
+    add({ item = x.item, tip = tip,
+          text = ("%s %d x %s"):format(ACTION[a.best], x.count, itemName(x.item)),
+          sub = "each: " .. table.concat(parts, "  -  "),
+          right = money(a.bestValue * x.count) })
+  end
+end
 
 local function shoppingRows(plan)
   local n = 0
@@ -489,6 +553,7 @@ local function shoppingRows(plan)
           tipTitle = loc and b.name or nil, tip = tip, waypoint = loc })
     end
   end
+  craftedRows(plan, add)
   return n
 end
 
@@ -576,6 +641,7 @@ function UI.SetMode(mode)
   if frame and frame:IsShown() then UI.Refresh() end
 end
 function UI.Rows() return rows end
+function UI._lastPlan() return lastPlan end -- for the tests
 
 local function build()
   frame = CreateFrame("Frame", "SkillRouteFrame", UIParent, "BasicFrameTemplateWithInset")

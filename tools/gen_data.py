@@ -16,7 +16,7 @@ PROFESSIONS = {171: "Alchemy", 164: "Blacksmithing", 333: "Enchanting", 202: "En
                165: "Leatherworking", 197: "Tailoring", 185: "Cooking", 129: "First Aid"}
 TABLES = ["SkillLineAbility", "SpellReagents", "SpellName", "SpellEffect",
           "ItemSparse", "ItemEffect", "ItemXItemEffect", "SpellCooldowns",
-          "SpellTotems", "TotemCategory", "Faction", "TaxiNodes", "TaxiPath", "TaxiPathNode"]
+          "SpellTotems", "TotemCategory", "Faction", "TaxiNodes", "TaxiPath", "TaxiPathNode", "Item"]
 FLY_SPEED = 32      # yards/second on a flight path
 FLY_OVERHEAD = 10   # seconds: take-off, landing
 # Not trainer recipes even though no item teaches them (quest rewards etc.). Only
@@ -377,6 +377,30 @@ def main():
     for sl, name in GATHER.items():  # gathering: no recipes, a zone route instead
         sp = f", spell = {rank1[sl]}" if sl in rank1 else ""
         lines.append(f'  [{sl}] = {{ name = {lua_str(name)}{sp}, recipes = {{}}, gather = true }},')
+    # Disenchanting (tools/import_disenchant.py): each crafted item's bracket in Forever's
+    # ItemDisenchantLoot (class, quality, item level), its Classic loot. Forever's table
+    # leaves the skill at 0, so the Classic rule: item level 20 and below 1, then +25
+    # per 5 levels (21-25: 25 ... 61-65: 225).
+    dpath = os.path.join(os.path.dirname(os.path.abspath(__file__)), "disenchant.json")
+    de = json.load(open(dpath, encoding="utf-8")) if os.path.exists(dpath) else {"rows": [], "loot": {}}
+    item_class = {int(r["ID"]): (int(r["ClassID"]), int(r["SubclassID"])) for r in rows(p["Item"])}
+    de_of = {}
+    for sp_out in {o[0] for o in creates.values()} & used_items:
+        r = items.get(sp_out)
+        cs = item_class.get(sp_out)
+        if not r or not cs:
+            continue
+        q, lvl = int(r["OverallQualityID"]), int(r["ItemLevel"])
+        best = None
+        for c, sub, qq, lo, hi, _, key in de["rows"]:
+            if c == cs[0] and qq == q and lo <= lvl <= hi and sub in (-1, cs[1]):
+                if best is None or sub != -1:
+                    best = key
+        if best:
+            skill = 1 if lvl <= 20 else min(300, 25 * ((lvl - 16) // 5))
+            de_of[sp_out] = (best, skill)
+    for key in {k for k, _ in de_of.values()}:
+        used_items.update(it for it, *_ in de["loot"][key])
     lines += ["  },", "  -- [itemID] = {name, vendorSellPrice, vendorBuyPrice-or-nil (trade-supply reagents)}",
               "  items = {"]
     for i in sorted(used_items):
@@ -631,6 +655,15 @@ def main():
     sides = json.load(open(spath, encoding="utf-8")) if os.path.exists(spath) else {}
     lines += ["  },", "  -- zoneSide: [zone] = \"A\"|\"H\" (Forever's AreaTable); contested zones absent",
               "  zoneSide = {" + ",".join(f"[{lua_str(z)}]={lua_str(v)}" for z, v in sorted(sides.items())) + "},"]
+    lines += ["  -- disenchant: loot = {[key] = {item, chance%, min, max, ...}}; of = {[crafted item] = {key, skill}}",
+              "  disenchant = {", "    loot = {"]
+    for key in sorted({k for k, _ in de_of.values()}, key=int):
+        lines.append(f"      [{key}]={{{','.join(f'{i},{c},{a},{b}' for i, c, a, b in de['loot'][key])}}},")
+    lines += ["    },", "    of = {"]
+    ofs = [f"[{i}]={{{k},{sk}}}" for i, (k, sk) in sorted(de_of.items())]
+    for i in range(0, len(ofs), 10):
+        lines.append("      " + ",".join(ofs[i:i + 10]) + ",")
+    lines += ["    },", "  },"]
     kpath = os.path.join(os.path.dirname(os.path.abspath(__file__)), "skinning.json")
     skin = json.load(open(kpath, encoding="utf-8")) if os.path.exists(kpath) else {}
     lines += ["  -- skinZones: [zone] = {first beast level, skinnable spawns at it, at the next level, ...}",

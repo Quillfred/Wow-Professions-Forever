@@ -703,6 +703,112 @@ do
   print("quest recipe row: " .. row:gsub("|c%x%x%x%x%x%x%x%x", ""):gsub("|r", ""))
 end
 
+-- auction house open: each step gets a Buy button that puts its reagents (crafts x per
+-- craft, with the margin, minus what you have) into an Auctionator list; clicking
+-- twice doesn't double; right-click removes; closing the AH hides the buttons
+do
+  local lists, deleted = {}, 0
+  local api = Auctionator.API.v1
+  api.CreateShoppingList = function(_, name, terms) lists[name] = terms end
+  api.DeleteShoppingList = function(_, name) lists[name] = nil; deleted = deleted + 1 end
+  api.ConvertToSearchString = function(_, t) return ('"%s";;;;;;;;;;;;;%d'):format(t.searchString, t.quantity or 0) end
+  local saved = { GetProfessions, GetProfessionInfo, print }
+  GetProfessions = function() return 1 end
+  GetProfessionInfo = function() return "First Aid", 0, 150, 225, 0, 0, 129 end
+  fire("AUCTION_HOUSE_SHOW")
+  assert(Core.ahOpen, "AH open recorded")
+  UI.Toggle(129)
+  local btnRow
+  for _, r in ipairs(UI.Rows()) do
+    local b = rawget(r, "buyBtn")
+    if b and b.shown and rawget(r, "ahStep") then btnRow = btnRow or r end
+  end
+  assert(btnRow, "a step row has a Buy button while the AH is open")
+  local st = rawget(btnRow, "ahStep")
+  local expect = Core.StepShopping(UI._lastPlan(), st)
+  assert(#expect > 0, "the step has something to buy")
+  local said
+  _G.print = function(m) said = m end
+  btnRow.buyBtn.OnClick(btnRow.buyBtn, "LeftButton")
+  local name = "SkillRoute First Aid (steps)"
+  assert(lists[name] and #lists[name] == #expect, "list created with the step's reagents")
+  local qty1 = lists[name][1]
+  btnRow.buyBtn.OnClick(btnRow.buyBtn, "LeftButton")
+  assert(lists[name][1] == qty1, "clicking again updates, doesn't double: " .. tostring(lists[name][1]))
+  local addedMsg = said
+  btnRow.buyBtn.OnClick(btnRow.buyBtn, "RightButton")
+  assert(lists[name] == nil, "right-click takes the step out (list empty, removed)")
+  _G.print = saved[3]
+  -- quantity check: per craft x (crafts + margin), rounded up, minus what you have
+  local r = SkillRouteData.professions[129].recipes[st.spell]
+  local z = Core.MarginZ(SkillRouteDB.settings.margin)
+  local want = math.ceil(r.r[2] * (st.crafts + z * math.sqrt(st.var or 0)) - 1e-9)
+  local got = tonumber(qty1:match(";(%d+)$"))
+  assert(#expect ~= 1 or got == want - (Core.Have(r.r[1]) or 0) - (Core.HaveOnAlts(r.r[1]) or 0),
+    ("quantity %s vs %d"):format(tostring(got), want))
+  fire("AUCTION_HOUSE_CLOSED")
+  assert(not Core.ahOpen and not btnRow.buyBtn.shown, "buttons hidden once the AH closes")
+  UI.Toggle()
+  GetProfessions, GetProfessionInfo = saved[1], saved[2]
+  SkillRouteDB = SkillRouteDB -- keep
+  print("ah step button: " .. addedMsg)
+end
+
+-- what to do with crafted items: AH / disenchant / vendor, fresh AH prices only
+do
+  local D = SkillRouteData
+  local pick
+  for _, r in pairs(D.professions[197].recipes) do
+    local d = r.out and D.disenchant.of[r.out]
+    if d and d[2] <= 100 and D.items[r.out] and D.items[r.out][2] > 0 then pick = pick or r.out end
+  end
+  assert(pick, "a disenchantable Tailoring item")
+  local d = D.disenchant.of[pick]
+  local loot = D.disenchant.loot[d[1]]
+  local savedAge = Auctionator.API.v1.GetAuctionAgeByItemID
+  Auctionator.API.v1.GetAuctionAgeByItemID = function() return 0 end -- everything fresh
+  local ev = 0
+  for i = 1, #loot, 4 do prices[loot[i]] = 1000; ev = ev + loot[i + 1] / 100 * (loot[i + 2] + loot[i + 3]) / 2 * 1000 * 0.95 end
+  prices[pick] = 1
+  local a = Core.ItemAdvice(pick, 130)
+  assert(a.de == math.floor(ev) and a.best == "de", ("disenchant wins: %s vs %d"):format(tostring(a.de), math.floor(ev)))
+  assert(Core.ItemAdvice(pick, 0).de == nil, "no disenchant without the skill")
+  prices[pick] = 10000000
+  assert(Core.ItemAdvice(pick, 130).best == "ah", "a high AH price wins")
+  Auctionator.API.v1.GetAuctionAgeByItemID = function() return 5 end -- stale
+  local stale = Core.ItemAdvice(pick, 130)
+  assert(not stale.ah and not stale.de and stale.best == "vendor", "stale prices: no AH or disenchant advice")
+  -- bags: the item shows in the shopping list's crafted section (fresh prices)
+  Auctionator.API.v1.GetAuctionAgeByItemID = function() return 0 end
+  prices[pick] = 1
+  local savedC, savedCount = _G.C_Container, _G.GetItemCount
+  _G.C_Container = { GetContainerNumSlots = function(b) return b == 0 and 2 or 0 end,
+                     GetContainerItemID = function(b, s) if b == 0 and s == 1 then return pick end end }
+  _G.GetItemCount = function(id, bank) if id == pick then return 3 end return savedCount(id, bank) end
+  local saved = { GetProfessions, GetProfessionInfo }
+  GetProfessions = function() return 1, 2 end
+  GetProfessionInfo = function(i)
+    if i == 1 then return "Tailoring", 0, 110, 150, 0, 0, 197 end
+    return "Enchanting", 0, 130, 150, 0, 0, 333
+  end
+  local list = Core.CraftedAdvice(Core.Plan(197, 150))
+  assert(list[1] and list[1].item == pick and list[1].count == 3 and list[1].advice.best == "de", "crafted item advice from the bags")
+  UI.Toggle(197); UI.SetMode("shopping")
+  local row
+  for _, t in ipairs(texts) do
+    local v = rawget(t, "text")
+    if type(v) == "string" and v:find("Disenchant|r 3 x", 1, true) then row = v end
+  end
+  UI.SetMode("route"); UI.Toggle()
+  assert(row, "shopping list shows 'Disenchant 3 x ...'")
+  print("crafted advice: " .. row:gsub("|c%x%x%x%x%x%x%x%x", ""):gsub("|r", ""))
+  _G.C_Container, _G.GetItemCount = savedC, savedCount
+  GetProfessions, GetProfessionInfo = saved[1], saved[2]
+  Auctionator.API.v1.GetAuctionAgeByItemID = savedAge
+  for i = 1, #loot, 4 do prices[loot[i]] = nil end
+  prices[pick] = nil
+end
+
 -- another language: German names still match (profession via its rank spell,
 -- recipes via the item they make, rank-ups via the skill they need)
 do
