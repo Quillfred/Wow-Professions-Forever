@@ -852,15 +852,30 @@ do
   GetProfessions = function() return 1 end
   GetProfessionInfo = function() return "Tailoring", 0, 135, 225, 0, 0, 197 end
   UI.Toggle(197)
-  local tipLine
+  local tipRow, tipOf
   for _, r in ipairs(UI.Rows()) do
     for _, l in ipairs(rawget(r, "tip") or {}) do
-      if type(l) == "string" and l:find("Afterwards:", 1, true) then tipLine = tipLine or l end
+      if type(l) == "table" and l[1] == "Afterwards" and not tipRow then tipRow, tipOf = l, rawget(r, "tip") end
     end
   end
   UI.Toggle()
-  assert(tipLine and tipLine:find("each)", 1, true) and tipLine:find("vendor", 1, true), "step tooltip says what to do afterwards")
-  print("afterwards: " .. tipLine:gsub("|c%x%x%x%x%x%x%x%x", ""):gsub("|r", ""))
+  assert(tipRow and tipRow[2]:find("each", 1, true), "step tooltip: Afterwards row")
+  -- render it the way the game would: label | value lines
+  local out = {}
+  local savedTT = _G.GameTooltip
+  _G.GameTooltip = { AddLine = function(_, t) out[#out + 1] = t end,
+                     AddDoubleLine = function(_, a, b) out[#out + 1] = a .. "  |  " .. b end }
+  UI.AddTipLines(tipOf)
+  _G.GameTooltip = savedTT
+  local strip = function(t) return (t:gsub("|c%x%x%x%x%x%x%x%x", ""):gsub("|r", "")) end
+  local hasHeader, lastGap = false, false
+  for i, t in ipairs(out) do
+    if t == "SkillRoute" then hasHeader = true end
+    assert(not (t == " " and lastGap), "no doubled blank lines")
+    lastGap = t == " "
+  end
+  assert(hasHeader and out[#out] ~= " ", "header, and no blank line at the end")
+  print("step tooltip:\n    " .. table.concat((function() local t = {} for _, x in ipairs(out) do t[#t + 1] = strip(x) end return t end)(), "\n    "))
   GetProfessions, GetProfessionInfo = saved[1], saved[2]
 end
 

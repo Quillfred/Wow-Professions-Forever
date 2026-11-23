@@ -205,7 +205,10 @@ def main():
                     gm = re.search(r"\bqgs?\s*=\s*\{?\s*(\d+)", body)
                     if gm:
                         gid = int(gm.group(1))
-                        gl = text[m.start() + gm.start():].split("\n", 1)[0]
+                        # the name is the comment on the ID's own line: "qg = 12939,\t-- Name" or,
+                        # in a list, "qgs = {\n\t8125,\t-- Dirge Quikcleave"
+                        at = m.start() + gm.start(1)
+                        gl = text[at:].split("\n", 1)[0]
                         nm = re.search(r"--\s*(.*?)\s*(?:<(.*)>)?\s*$", gl)
                         givers.append(add_npc(gid, nm.group(1) if nm else str(gid), nm and nm.group(2),
                                               side, map_of(cm.group(3)), float(cm.group(1)), float(cm.group(2))))

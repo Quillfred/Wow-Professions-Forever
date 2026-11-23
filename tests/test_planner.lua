@@ -224,6 +224,14 @@ for line, prof in pairs(D.professions) do
   end
 end
 
+-- every NPC has a name, not its ID (ATT lists some quest givers over two lines)
+do
+  local bad = {}
+  for k, n in pairs(D.npcs) do if tostring(n[1]):match("^%d+$") then bad[#bad + 1] = k .. "=" .. n[1] end end
+  check(#bad == 0, "NPCs named by their ID: " .. table.concat(bad, ", "))
+  check(D.npcs[-81253] and D.npcs[-81253][1] == "Dirge Quikcleave", "Clamlette Surprise giver named")
+end
+
 -- the Forever check (tools/forever_checks.json) is applied to the data
 do
   check(not (D.trainers[165] or {})[7866], "leatherworking specialization trainer 7866 teaches no rank in Forever")
