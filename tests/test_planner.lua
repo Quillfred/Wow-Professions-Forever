@@ -371,6 +371,24 @@ check(#orangeOnly.steps >= 1 and orangeOnly.steps[1].spell == wwd, "only White W
 for _, b in ipairs(orangeOnly.shopping.buy) do check(b.need == b.expected, "orange-only: no margin for " .. b.name) end
 print(("margin 90%%: %d extra items, %.0fc -> %.0fc"):format(extra, noMargin.total, withMargin.total))
 
+-- 10j. time per craft: fewer crafts when it's worth it; never changes the shopping total rule
+local cheap0 = P.Plan(ctxFor(110, 200))
+local timed = P.Plan(ctxFor(110, 200, nil, { craftValue = 5000 }))
+local function crafts(pl) local n = 0 for _, st in ipairs(pl.steps) do if st.spell then n = n + st.crafts end end return n end
+check(crafts(timed) <= crafts(cheap0) + 1e-6, "valuing time never means more crafts")
+print(("craftcost 50s: %.0f -> %.0f crafts, %.0fc -> %.0fc"):format(crafts(cheap0), crafts(timed), cheap0.total, timed.total))
+
+-- 10k. trainer fees: counted once per learned recipe; a recipe isn't learned for a sliver
+local feePlan = P.Plan(ctxFor(110, 200))
+local noFee = P.Plan(ctxFor(110, 200, nil, { ignoreFees = true }))
+check(feePlan.fees and feePlan.fees > 0, "fees reported")
+local learned = 0
+for _, st in ipairs(feePlan.steps) do if st.learn == "trainer" then learned = learned + 1 end end
+local learnedNo = 0
+for _, st in ipairs(noFee.steps) do if st.learn == "trainer" then learnedNo = learnedNo + 1 end end
+check(learned <= learnedNo, "counting fees never learns more recipes")
+print(("trainer fees 110-200: %d recipes learned (%d ignoring fees), fees %.0fc"):format(learned, learnedNo, feePlan.fees))
+
 -- 11. reputation patterns: only with the standing they need
 local function repPlan(standing)
   return P.Plan({ recipes = T, items = items, tools = D.tools, hasTool = function() return false end,

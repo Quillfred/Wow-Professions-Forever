@@ -813,7 +813,7 @@ function Core.Plan(line, target)
   local known, settings = knownSet(line), db().settings
   local nKnown = 0
   for _ in pairs(known) do nKnown = nKnown + 1 end
-  local key = table.concat({ s.rank, target, nKnown, Core.dataVersion, settings.bonus or 0,
+  local key = table.concat({ s.rank, target, nKnown, Core.dataVersion, settings.bonus or 0, settings.craftValue or 0,
                              tostring(settings.estimate), tostring(settings.cdmats) }, ":")
   local recipes = Data.professions[line].recipes
   local owned = {}
@@ -829,6 +829,7 @@ function Core.Plan(line, target)
     price = Core.Price, have = Core.Have, hasTool = Core.HasTool, standing = Core.Standing,
     avoidMats = not settings.cdmats and Data.cooldownMats or nil,
     z = Core.MarginZ(settings.margin),
+    craftValue = settings.craftValue or 0,
     faction = (UnitFactionGroup and UnitFactionGroup("player") == "Alliance") and "A"
               or (UnitFactionGroup and UnitFactionGroup("player") == "Horde") and "H" or nil,
     patternVendors = Data.patternVendors,

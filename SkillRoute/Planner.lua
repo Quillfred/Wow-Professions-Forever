@@ -309,6 +309,7 @@ end
   price   = function(itemID) -> copper|nil, isEstimate
   have    = function(itemID) -> count       (optional)
   hasTool = function(toolKey) -> bool       (optional)
+  craftValue = copper per craft for your time (optional; affects the choice, not the total)
   z = safety margin in standard deviations for the shopping list (optional, 0 = expected)
   avoidMats = {[itemID]=true}               (optional; recipes using these are left out)
   skip = {[spell]=true}                     (optional; recipes you marked unavailable)
@@ -331,8 +332,23 @@ function Planner.Plan(ctx)
       for i = 1, #r.r, 2 do credit[r.r[i]] = 1 end
     end
   end
+  -- Trainer fees of recipes you don't know yet are one-time costs. Spread each fee
+  -- over the points the recipe can cover (first guess), then over the points the route
+  -- really uses it for, re-planning twice: a 40s recipe isn't learned for 1 point.
+  local surcharge, fees = {}, {}
+  if not ctx.ignoreFees then
+    for spell, r in pairs(ctx.recipes) do
+      local learnAt, how = Planner.LearnAt(spell, r, ctx)
+      local fee = (ctx.trainer[spell] and ctx.trainer[spell].cost) or r.tc
+      if learnAt and how ~= "known" and how ~= "pattern" and fee and fee > 0 then
+        fees[spell] = fee
+        local span = math.min(r.g, ctx.target) - math.max(learnAt, ctx.skill)
+        if span > 0 then surcharge[spell] = fee / span end
+      end
+    end
+  end
   local function run(set, cr)
-    return creditPlan(setmetatable({ unlocked = set, all = all }, { __index = ctx }), cr)
+    return creditPlan(setmetatable({ unlocked = set, all = all, surcharge = surcharge }, { __index = ctx }), cr)
   end
 
   local chosen, plan = {}, nil
@@ -376,6 +392,31 @@ function Planner.Plan(ctx)
     plan.unlockTries = tries
   end
 
+  -- refine the fee spreading on the route actually chosen
+  if next(fees) then
+    for _ = 1, 2 do
+      local points = {}
+      for _, st in ipairs(plan.steps) do
+        if st.spell and fees[st.spell] then points[st.spell] = (points[st.spell] or 0) + (st.to - st.from) end
+      end
+      local changed = false
+      for spell, n in pairs(points) do
+        local v = fees[spell] / n
+        if math.abs((surcharge[spell] or 0) - v) > 0.5 then surcharge[spell] = v; changed = true end
+      end
+      if not changed then break end
+      plan = run(chosen, copy(credit))
+    end
+  end
+  plan.fees = 0
+  local seen = {}
+  for _, st in ipairs(plan.steps) do
+    if st.spell and fees[st.spell] and not seen[st.spell] then
+      seen[st.spell] = true
+      plan.fees = plan.fees + fees[st.spell]
+    end
+  end
+
   -- Bought patterns and tools go on the shopping list and into the total; tools
   -- crafted by this profession are added to the crafts (Planner.Shopping).
   plan.unlocks = chosen
@@ -401,6 +442,8 @@ function Planner.PlanOnce(ctx, credit)
   -- Candidates: usable recipes not grey at our skill. Probes: recipes one unlock
   -- away; never chosen here, we only measure what that unlock would save.
   local cands, probes, unpriced = {}, {}, 0
+  local perCraft = ctx.craftValue or 0     -- your time per craft (copper), choice only
+  local sur = ctx.surcharge or {}          -- trainer fee per point
   local avoid = ctx.avoidMats
   local function usesAvoided(r)
     if not avoid then return false end
@@ -416,7 +459,7 @@ function Planner.PlanOnce(ctx, credit)
         if not c then
           if not missing then unpriced = unpriced + 1 end -- skipped, not guessed
         elseif missing then
-          probes[#probes + 1] = { key = missing, r = r, learnAt = learnAt, cost = c }
+          probes[#probes + 1] = { key = missing, r = r, learnAt = learnAt, cost = c, spell = spell }
         else
           cands[#cands + 1] = { spell = spell, r = r, learnAt = learnAt, how = how, cost = c, est = est }
         end
@@ -437,7 +480,7 @@ function Planner.PlanOnce(ctx, credit)
       if c.learnAt <= s then
         local p = Planner.Chance(c.r, s, ctx.bonus)
         if p > 0 then
-          local v = c.cost / p
+          local v = (c.cost + perCraft) / p + (sur[c.spell] or 0)
           if k == nextK then stickyC = v end
           if v < bestC then
             secondC, secondK = bestC, bestK
@@ -465,7 +508,7 @@ function Planner.PlanOnce(ctx, credit)
         if pr.learnAt <= s then
           local p = Planner.Chance(pr.r, s, ctx.bonus)
           if p > 0 then
-            local v = pr.cost / p
+            local v = (pr.cost + perCraft) / p
             if v < cur and (not low[pr.key] or v < low[pr.key]) then low[pr.key] = v end
           end
         end

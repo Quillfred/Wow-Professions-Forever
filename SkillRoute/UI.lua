@@ -407,7 +407,8 @@ local function refresh()
   content:SetHeight(math.max(1, n * ROW_H + ROWS_PAD))
   modeBtn:SetText(state.mode == "route" and "Shopping list" or "Route")
   if state.mode == "route" then hRange:Show() else hRange:Hide() end
-  footer:SetText(("Buy for |cffffffff%s|r%s   |cff808080planned in %s|r"):format(money(plan.total, "ffffff"),
+  footer:SetText(("Buy for |cffffffff%s|r%s%s   |cff808080planned in %s|r"):format(money(plan.total, "ffffff"),
+    (plan.fees or 0) > 0 and (" + |cffffffff" .. money(plan.fees, "ffffff") .. "|r training") or "",
     plan.estimated and " |cffff8040(includes estimates)|r" or "",
     plan.ms and ("%.1f ms"):format(plan.ms) or "?"))
 end
@@ -578,6 +579,14 @@ SlashCmdList.SKILLROUTE = function(msg)
     settings.estimate = (arg == "on")
     Core.InvalidatePatterns()
     print("SkillRoute: price estimates for items with no AH price are " .. (settings.estimate and "ON (marked in orange)" or "OFF (those recipes are skipped)"))
+  elseif cmd == "craftcost" and settings then
+    local v = tonumber(arg)
+    if v and v >= 0 then
+      settings.craftValue = math.floor(v)
+      print(("SkillRoute: each craft now counts as %s of your time when choosing recipes (not added to the total)."):format(money(settings.craftValue)))
+    else
+      print("SkillRoute: /sr craftcost <copper>  (what a craft's time is worth to you; 0 = only gold matters)")
+    end
   elseif cmd == "margin" and settings then
     local v = tonumber(arg)
     if v and v >= 50 and v <= 99 then
@@ -605,7 +614,7 @@ SlashCmdList.SKILLROUTE = function(msg)
     print("SkillRoute: open with the profession window is " .. (settings.auto and "ON" or "OFF"))
     return
   elseif cmd == "help" then
-    print("SkillRoute: /sr - open/close   /sr check   /sr auto on|off   /sr overtime <pct>   /sr estimate on|off   /sr cdmats on|off   /sr margin <50-99>   /sr ah   /sr unskip   (right-click a step to skip it)")
+    print("SkillRoute: /sr - open/close   /sr check   /sr auto on|off   /sr overtime <pct>   /sr estimate on|off   /sr cdmats on|off   /sr margin <50-99>   /sr craftcost <copper>   /sr ah   /sr unskip   (right-click a step to skip it)")
     return
   else
     UI.Toggle()
