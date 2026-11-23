@@ -839,6 +839,14 @@ function Core.Plan(line, target)
   end
   if not s then return nil, "This character doesn't have " .. Data.professions[line].name .. "." end
   target = math.max(s.rank + 1, math.min(target or 300, 300))
+  if Data.professions[line].gather then -- Mining, Herbalism, Skinning: a zone route
+    local t0g = debugprofilestop and debugprofilestop()
+    local plan = Planner.GatherPlan({ nodes = Data.gather and Data.gather[line], skinning = line == 393,
+      skill = s.rank, target = target, maxSkill = s.max, bonus = db().settings.bonus or 0 })
+    plan.ms = t0g and (debugprofilestop() - t0g)
+    plan.skill, plan.max, plan.target, plan.line = s.rank, s.max, target, line
+    return plan
+  end
   local t0 = debugprofilestop and debugprofilestop()
   altCache = {}
   local known, settings = knownSet(line), db().settings

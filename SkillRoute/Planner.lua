@@ -703,4 +703,89 @@ function Planner.Shopping(ctx, steps, unit, extra)
   return { buy = list, craft = craftList }, total, anyEst, made, pool
 end
 
+-- Gathering (Mining, Herbalism, Skinning): a route of what to gather where.
+-- A node needing skill R: orange (always a point) until R+25, then the chance falls
+-- to nothing at R+100. Per skill point pick the node with the best chance, weighted
+-- by how common it is (sqrt of its spawns), so a rare herb doesn't win on paper.
+-- Skinning: a level L beast needs skill 1 (L<=10), (L-10)*10 (L<=20), else 5*L; the
+-- route names the highest levels you can skin, which are orange.
+local function nodeRule(req) return { y = req + 25, g = req + 100 } end
+
+local function skinLevel(s)
+  if s >= 100 then return math.floor(s / 5) end
+  if s >= 10 then return math.floor(s / 10) + 10 end
+  return 10
+end
+
+function Planner.GatherPlan(ctx)
+  local from, to = ctx.skill, ctx.target
+  local steps, gaps, total = {}, {}, 0
+  if ctx.skinning then
+    local s = from
+    while s < to do
+      local e = math.min(to, s + 15 - (s % 15))
+      if e % 75 == 0 or e <= s then e = math.min(to, s + 15) end
+      local hi = skinLevel(s)
+      steps[#steps + 1] = { gather = true, skinning = true, name = ("level %d-%d beasts"):format(math.max(1, hi - 3), hi),
+                            from = s, to = e, crafts = e - s, color = "orange" }
+      total = total + (e - s)
+      s = e
+    end
+  else
+    local avail = {}
+    for i, nd in ipairs(ctx.nodes or {}) do
+      local n = 0
+      for k = 2, #nd[3], 2 do n = n + nd[3][k] end
+      avail[i] = math.sqrt(math.max(n, 1))
+    end
+    local pick = {}
+    for s = from, to - 1 do
+      local best, bestScore
+      for i, nd in ipairs(ctx.nodes or {}) do
+        if nd[2] <= s and not nd[4] and not (ctx.skip and ctx.skip[nd[1]]) then -- nd[4]: rare variant
+          local p = Planner.Chance(nodeRule(nd[2]), s, ctx.bonus)
+          local score = p * avail[i]
+          if p > 0 and (not bestScore or score > bestScore) then best, bestScore = i, score end
+        end
+      end
+      pick[s] = best
+    end
+    local s = from
+    while s < to do
+      local i = pick[s]
+      if not i then
+        local e = s
+        while e < to and not pick[e] do e = e + 1 end
+        steps[#steps + 1] = { gap = true, from = s, to = e }
+        gaps[#gaps + 1] = { from = s, to = e, patterns = {} }
+        s = e
+      else
+        local nd, e, n = ctx.nodes[i], s, 0
+        repeat
+          n = n + 1 / Planner.Chance(nodeRule(nd[2]), e, ctx.bonus)
+          e = e + 1
+        until e >= to or pick[e] ~= i or (e % 75 == 0 and e >= (ctx.maxSkill or 0))
+        -- rare ores that share these zones and give skill here: "mine when you see them"
+        local also = {}
+        for _, rn in ipairs(ctx.nodes) do
+          if rn[4] and rn[2] <= s and Planner.Chance(nodeRule(rn[2]), s) > 0 then
+            for k = 1, #rn[3], 2 do
+              for q = 1, #nd[3], 2 do if rn[3][k] == nd[3][q] then also[rn[1]] = true end end
+            end
+          end
+        end
+        local alsoList = {}
+        for name in pairs(also) do alsoList[#alsoList + 1] = name end
+        table.sort(alsoList)
+        steps[#steps + 1] = { gather = true, name = nd[1], from = s, to = e, crafts = n, zones = nd[3],
+                              color = Planner.Color(nodeRule(nd[2]), s), also = alsoList }
+        total = total + n
+        s = e
+      end
+    end
+  end
+  return { steps = steps, gaps = gaps, gather = true, gathers = total, total = 0, fees = 0, unpriced = 0,
+           shopping = { buy = {}, craft = {} }, unlocks = {}, expected = 0 }
+end
+
 return Planner

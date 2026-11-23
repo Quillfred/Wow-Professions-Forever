@@ -16,6 +16,10 @@ A WoW Forever addon that plans the cheapest way to level a crafting profession.
   each recipe is learned at (so cheap orange windows are used), trainer costs, and
   where patterns come from. The trainer window in game still overrides this if it
   disagrees.
+- **Gathering professions:** Mining and Herbalism get a route of which node to gather
+  in which zones for each skill range (node skill from the client, spawns from Classic
+  data); rare ores (Silver, Gold, Truesilver) are "when you see them". Skinning names
+  the beast levels to skin. Fishing isn't planned.
 - **All crafting professions:** Alchemy, Blacksmithing, Cooking, Enchanting,
   Engineering, First Aid, Leatherworking and Tailoring. The window shows the ones
   your character has; switch with the arrows.
@@ -82,6 +86,7 @@ python3 -I tools/import_sources.py blank-source-recipes.csv   # optional: source
 python3 -I tools/import_vendors.py ClassicDB_*.sql.gz FactionTemplate.csv   # optional: vendor factions
 (cd tools && python3 import_npcs.py ClassicDB_*.sql.gz WAGO_CACHE BUILD)     # optional: trainer/vendor locations
 python3 -I tools/import_att.py ATT/.contrib/.db/forever WAGO_CACHE BUILD     # optional: AllTheThings Forever NPCs
+(cd tools && python3 import_gather.py ClassicDB_*.sql.gz WAGO_CACHE BUILD)  # optional: herb/ore zones
 python3 -I tools/gen_data.py            # newest Forever build on wago.tools
 python3 -I tools/gen_data.py 1.60.1.71037
 ```

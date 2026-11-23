@@ -18,7 +18,7 @@ NPCs you visit in game override this.
 import csv, json, os, sys
 from import_vendors import sql_rows, columns, ALLIANCE, HORDE, GROUP_PLAYER, GROUP_ALLIANCE, GROUP_HORDE
 
-PROFESSIONS = {171, 164, 333, 202, 165, 197, 185, 129}
+PROFESSIONS = {171, 164, 333, 202, 165, 197, 185, 129, 186, 182, 393}  # + Mining, Herbalism, Skinning
 EFFECT_SKILL_STEP, EFFECT_LEARN = "118", "36"
 UIMAP_ZONE, UIMAP_CONTINENT = "3", "2"
 

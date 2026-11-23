@@ -426,6 +426,24 @@ do
   _G.Syndicator = nil
 end
 
+-- gathering: Mining shows a zone route, no shopping
+do
+  local saved = { GetProfessions, GetProfessionInfo }
+  GetProfessions = function() return 1 end
+  GetProfessionInfo = function() return "Mining", 0, 50, 75, 0, 0, 186 end
+  UI.Toggle(186)
+  local found, foot
+  for _, t in ipairs(texts) do
+    local v = rawget(t, "text")
+    if type(v) == "string" and v:find("Copper Vein", 1, true) then found = v end
+    if type(v) == "string" and v:find("^Gathering route") then foot = v end
+  end
+  assert(found and foot, "mining route rows + footer")
+  print("mining row: " .. found:gsub("|c%x%x%x%x%x%x%x%x", ""):gsub("|r", "") .. " | " .. foot:gsub("|c%x%x%x%x%x%x%x%x", ""):gsub("|r", ""))
+  UI.Toggle()
+  GetProfessions, GetProfessionInfo = saved[1], saved[2]
+end
+
 -- /sr check runs and reports; errors are caught, not thrown
 do
   local out = {}

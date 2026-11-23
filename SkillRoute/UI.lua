@@ -212,7 +212,23 @@ local function routeRows(plan)
         end
       end
     end
-    if st.gap then
+    if st.gather then
+      local zones = {}
+      for k = 1, #(st.zones or {}), 2 do
+        if #zones < 3 then zones[#zones + 1] = ("%s (%d)"):format(st.zones[k], st.zones[k + 1]) end
+      end
+      add({ icon = st.skinning and "Interface\\Icons\\INV_Misc_Pelt_Wolf_01"
+                   or (plan.line == 186 and "Interface\\Icons\\Trade_Mining" or "Interface\\Icons\\Trade_Herbalism"),
+            text = st.skinning and ("|cff%s~%d|r x skin %s"):format(COLORS[st.color] or "ffffff", math.ceil(st.crafts), st.name)
+                   or ("|cff%s~%d|r x %s"):format(COLORS[st.color] or "ffffff", math.ceil(st.crafts - 1e-9), st.name),
+            sub = st.skinning and "Skin the highest-level beasts you can: always a skill point."
+                  or ((#zones > 0 and ("Best zones: " .. table.concat(zones, ", ")) or "")
+                      .. ((st.also and #st.also > 0) and ("  |cff40bf40+ " .. table.concat(st.also, ", ") .. " when you see it|r") or "")),
+            range = ("%d-%d"):format(st.from, st.to),
+            tipTitle = st.name,
+            tip = { st.skinning and "Beasts of level 21+ need 5 x their level in skill; younger ones less."
+                    or "Zones with the most spawns of this node (Classic spawn data). Gather anything orange or yellow on the way." } })
+    elseif st.gap then
       add({ icon = "Interface\\Icons\\INV_Scroll_03",
             text = ("|cffff4040No usable recipe for %d-%d|r"):format(st.from, st.to),
             sub = plan.unpriced > 0 and "Scan the AH (some recipes had no prices), or get a pattern:"
@@ -411,6 +427,11 @@ local function refresh()
   content:SetHeight(math.max(1, n * ROW_H + ROWS_PAD))
   modeBtn:SetText(state.mode == "route" and "Shopping list" or "Route")
   if state.mode == "route" then hRange:Show() else hRange:Hide() end
+  if plan.gather then
+    footer:SetText(("Gathering route: about %d %s   |cff808080planned in %s|r"):format(math.ceil(plan.gathers or 0),
+      plan.line == 393 and "skins" or "nodes", plan.ms and ("%.1f ms"):format(plan.ms) or "?"))
+    return
+  end
   footer:SetText(("Buy for |cffffffff%s|r%s%s   |cff808080planned in %s|r"):format(money(plan.total, "ffffff"),
     ((plan.fees or 0) > 0 and (" + |cffffffff" .. money(plan.fees, "ffffff") .. "|r training") or "")
     .. (function()

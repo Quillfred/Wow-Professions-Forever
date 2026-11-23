@@ -403,6 +403,22 @@ check(back > 0, "resale reported")
 check(sell.expected <= base.expected + 1e-6, "counting resale never makes the chosen route dearer")
 print(("resale 50%%: route %.0fc -> %.0fc to buy, ~%.0fc back from sales"):format(base.total, sell.total, back))
 
+-- 10m. gathering: Mining 1-300 goes Copper -> Tin -> Iron -> Mithril -> Thorium, no gaps
+local mine = P.GatherPlan({ nodes = D.gather[186], skill = 1, target = 300 })
+check(#mine.gaps == 0, "mining 1-300 without gaps")
+local order = {}
+for _, st in ipairs(mine.steps) do
+  check(st.gather and st.crafts >= st.to - st.from, "gather step")
+  if order[#order] ~= st.name then order[#order + 1] = st.name end
+end
+check(order[1] == "Copper Vein" and order[#order]:find("Thorium"), "starts on Copper, ends on Thorium")
+for _, n in ipairs(order) do check(n ~= "Silver Vein" and n ~= "Gold Vein" and n ~= "Truesilver Deposit", "rare ore not a planned step: " .. n) end
+print("mining route: " .. table.concat(order, " -> ") .. (" (~%d nodes)"):format(mine.gathers))
+local herb = P.GatherPlan({ nodes = D.gather[182], skill = 1, target = 300 })
+check(#herb.gaps == 0, "herbalism 1-300 without gaps")
+local skin = P.GatherPlan({ skinning = true, skill = 120, target = 160 })
+check(skin.steps[1].name == "level 21-24 beasts", "skinning at 120: level 24 beasts (" .. skin.steps[1].name .. ")")
+
 -- 11. reputation patterns: only with the standing they need
 local function repPlan(standing)
   return P.Plan({ recipes = T, items = items, tools = D.tools, hasTool = function() return false end,
