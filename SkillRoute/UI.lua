@@ -507,6 +507,9 @@ local function build()
 
   modeBtn = CreateFrame("Button", nil, frame, "UIPanelButtonTemplate")
   modeBtn:SetSize(110, 22); modeBtn:SetPoint("TOPRIGHT", -14, -30)
+  local optBtn = CreateFrame("Button", nil, frame, "UIPanelButtonTemplate")
+  optBtn:SetSize(64, 22); optBtn:SetPoint("RIGHT", modeBtn, "LEFT", -4, 0); optBtn:SetText("Options")
+  optBtn:SetScript("OnClick", function() if ns.Options then ns.Options.Toggle() end end)
   modeBtn:SetScript("OnClick", function()
     state.mode = state.mode == "route" and "shopping" or "route"
     if scroll.SetVerticalScroll then scroll:SetVerticalScroll(0) end
@@ -641,6 +644,14 @@ SlashCmdList.SKILLROUTE = function(msg)
   elseif cmd == "ah" then
     if lastPlan then Core.ExportToAuctionator(lastPlan) else print("SkillRoute: open the window first (/sr).") end
     return
+  elseif cmd == "options" or cmd == "config" then
+    if ns.Options then ns.Options.Toggle() end
+    return
+  elseif cmd == "minimap" and settings then
+    settings.minimapHide = (arg == "off")
+    if ns.Options then ns.Options.UpdateMinimap() end
+    print("SkillRoute: minimap button " .. (settings.minimapHide and "hidden" or "shown"))
+    return
   elseif cmd == "check" then
     Core.Check()
     return
@@ -656,7 +667,7 @@ SlashCmdList.SKILLROUTE = function(msg)
     print("SkillRoute: open with the profession window is " .. (settings.auto and "ON" or "OFF"))
     return
   elseif cmd == "help" then
-    print("SkillRoute: /sr - open/close   /sr check   /sr auto on|off   /sr overtime <pct>   /sr estimate on|off   /sr cdmats on|off   /sr margin <50-99>   /sr craftcost <copper>   /sr alts on|off   /sr resale <pct>   /sr ah   /sr unskip   (right-click a step to skip it)")
+    print("SkillRoute: /sr - open/close   /sr options   /sr minimap on|off   /sr check   /sr auto on|off   /sr overtime <pct>   /sr estimate on|off   /sr cdmats on|off   /sr margin <50-99>   /sr craftcost <copper>   /sr alts on|off   /sr resale <pct>   /sr ah   /sr unskip   (right-click a step to skip it)")
     return
   else
     UI.Toggle()

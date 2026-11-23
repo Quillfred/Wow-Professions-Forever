@@ -64,7 +64,10 @@ _G.C_TradeSkillUI = {
 _G.TradeSkillFrame = stubObj()
 
 local ns = {}
-for _, f in ipairs({ "Data", "Planner", "Core", "UI", "Check" }) do
+_G.Minimap = setmetatable({ GetWidth = function() return 140 end, GetCenter = function() return 1000, 700 end,
+  GetEffectiveScale = function() return 1 end }, { __index = function() return function() end end })
+_G.GetCursorPosition = function() return 1000, 800 end -- straight above the minimap
+for _, f in ipairs({ "Data", "Planner", "Core", "UI", "Options", "Check" }) do
   local chunk = assert(loadfile("SkillRoute/" .. f .. ".lua"))
   chunk("SkillRoute", ns)
 end
@@ -463,6 +466,33 @@ do
   GetNumTrainerServices, GetTrainerServiceInfo, GetTrainerServiceSkillReq, GetTrainerServiceItemLink, npcName =
     saved[1], saved[2], saved[3], saved[4], saved[5]
   _G.GetSpellInfo = nil
+end
+
+-- minimap button and options window
+do
+  local O = ns.Options
+  local b = O.CreateMinimapButton()
+  assert(b, "minimap button created")
+  local opened = 0
+  local savedToggle = UI.Toggle
+  UI.Toggle = function() opened = opened + 1 end
+  b.OnClick(b, "LeftButton")
+  assert(opened == 1, "left-click opens the window")
+  UI.Toggle = savedToggle
+  b.OnClick(b, "RightButton")
+  assert(O.IsShown(), "right-click opens the options")
+  -- dragging: cursor straight above the minimap centre -> 90 degrees, saved
+  b.OnDragStart(b); local upd = rawget(b, "OnUpdate"); assert(upd, "drag follows the cursor"); upd(b)
+  assert(math.abs(SkillRouteDB.settings.minimapAngle - 90) < 1e-6, "angle saved: " .. tostring(SkillRouteDB.settings.minimapAngle))
+  -- a setting changed in the options re-plans with it
+  O.Set("margin", 75)
+  assert(SkillRouteDB.settings.margin == 75)
+  O.Set("minimapHide", true); assert(not b:IsShown(), "minimap button hidden")
+  O.Set("minimapHide", false); assert(b:IsShown(), "and shown again")
+  SlashCmdList.SKILLROUTE("minimap off"); assert(not b:IsShown())
+  SlashCmdList.SKILLROUTE("minimap on"); assert(b:IsShown())
+  O.Toggle(); assert(not O.IsShown(), "options close")
+  SkillRouteDB.settings.margin = nil
 end
 
 -- /sr check runs and reports; errors are caught, not thrown

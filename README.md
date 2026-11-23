@@ -52,6 +52,10 @@ Copy the `SkillRoute` folder into `World of Warcraft/_forever_/Interface/AddOns/
 - `/sr overtime <pct>` sets your Working Overtime talent bonus.
 - `/sr estimate on|off` turns price estimates for unpriced items on or off.
 - `/sr cdmats on|off` includes recipes using Mooncloth / Arcanite Bar (default off).
+- **Minimap button:** left-click opens SkillRoute, right-click the options, drag to
+  move it. `/sr minimap off` hides it.
+- **Options window** (right-click the minimap button, the Options button, or
+  `/sr options`): every setting below, with checkboxes and sliders.
 - `/sr check` lists what your client offers SkillRoute and runs a self-test.
 - `/sr margin <50-99>` how often the shopping list should be enough to finish
   (default 90; 50 = the expected amount).
