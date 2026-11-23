@@ -650,10 +650,13 @@ function Core.RankBook(line, rankStep)
   local books = Data.rankBooks and Data.rankBooks[line] and Data.rankBooks[line][rankStep]
   for _, item in ipairs(books or {}) do
     local it = Data.items[item]
-    local owned = (Core.Have(item) or 0) > 0
+    local total = Core.Have(item) or 0 -- bags + bank
+    local inBags = itemCount(item) -- bags only
+    local owned = total > 0
     local loc = not owned and Core.NearestVendor(item) or nil
     if owned or loc then
-      return { item = item, name = it and it[1] or ("item " .. item), price = it and it[3], owned = owned, loc = loc }
+      return { item = item, name = it and it[1] or ("item " .. item), price = it and it[3], owned = owned, loc = loc,
+               where = owned and (inBags > 0 and "in your bags" or "in your bank") or nil }
     end
   end
 end
@@ -879,9 +882,12 @@ function Core.Price(item)
   return nil
 end
 
-local getCount = (C_Item and C_Item.GetItemCount) or GetItemCount
+local function getCount(item, bank) -- looked up per call (the API can load after us)
+  local f = (C_Item and C_Item.GetItemCount) or GetItemCount
+  return f and f(item, bank) or 0
+end
 function Core.Have(item)
-  return getCount and getCount(item, true) or 0 -- bags + bank
+  return getCount(item, true) -- bags + bank
 end
 
 -- Materials on your other characters (same faction): Syndicator, else DataStore.
@@ -917,7 +923,7 @@ end
 -- A tool only counts in your bags (or equipped), not in the bank.
 function Core.HasTool(key)
   local def = Data.tools[key]
-  if not (def and getCount) then return false end
+  if not def then return false end
   for _, item in ipairs(def[2]) do
     if getCount(item) > 0 then return true end
   end

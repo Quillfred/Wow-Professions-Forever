@@ -521,6 +521,34 @@ do
   GetProfessions, GetProfessionInfo = saved[1], saved[2]
 end
 
+-- a rank book you own: "in your bags" only when it's in your bags; bank-only says bank
+do
+  local saved = { GetProfessions, GetProfessionInfo, _G.GetItemCount }
+  GetProfessions = function() return 1 end
+  GetProfessionInfo = function() return "First Aid", 0, 150, 150, 0, 0, 129 end
+  local function sub()
+    UI.Toggle(129)
+    local found
+    for _, t in ipairs(texts) do
+      local v = rawget(t, "text")
+      if type(v) == "string" and v:find("^Teaches Expert") then found = v end
+    end
+    UI.Toggle()
+    return found
+  end
+  _G.GetItemCount = function(id, bank) if id == 16084 then return bank and 1 or 0 end return saved[3](id, bank) end
+  local s1 = sub()
+  assert(s1 and s1:find("in your bank", 1, true), "bank-only book: " .. tostring(s1))
+  _G.GetItemCount = function(id, bank) if id == 16084 then return 1 end return saved[3](id, bank) end
+  local s2 = sub()
+  assert(s2 and s2:find("in your bags", 1, true), "book in bags: " .. tostring(s2))
+  _G.GetItemCount = function(id, bank) if id == 16084 then return 0 end return saved[3](id, bank) end
+  local s3 = sub()
+  assert(not s3 or not s3:find("in your", 1, true), "no book: not claimed owned: " .. tostring(s3))
+  print("expert book rows: bank -> " .. s1 .. " | none -> " .. tostring(s3))
+  GetProfessions, GetProfessionInfo, _G.GetItemCount = saved[1], saved[2], saved[3]
+end
+
 -- another language: German names still match (profession via its rank spell,
 -- recipes via the item they make, rank-ups via the skill they need)
 do

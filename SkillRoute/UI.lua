@@ -185,7 +185,7 @@ local function routeRows(plan)
       local quest = not book and (how == "Q" or not loc) and Core.RankQuest(plan.line, RANK_STEP[rank])
       if book then
         local bl = book.loc
-        tip = { book.owned and ("You have %s: use it to learn %s."):format(book.name, rank)
+        tip = { book.owned and ("The game reports %s %s: use it to learn %s."):format(book.name, book.where or "in your bags", rank)
                 or ("No trainer teaches %s %s: it comes from this book, sold by %s (nearest for your faction)."):format(
                      rank, Data.professions[plan.line].name, bl.npc) }
         if bl and Core.TravelText(bl) then tip[#tip + 1] = Core.TravelText(bl) .. "." end
@@ -193,7 +193,7 @@ local function routeRows(plan)
         add({ icon = "Interface\\Icons\\INV_Misc_Book_09", item = book.item,
               text = ("|cffffd100%s %s|r"):format(book.owned and "Read" or "Buy", book.name),
               sub = ("Teaches %s, needed past %d"):format(rank, trained)
-                    .. (bl and ("  -  from %s, %s"):format(bl.npc, Core.Where(bl) or "?") or "  -  in your bags"),
+                    .. (bl and ("  -  from %s, %s"):format(bl.npc, Core.Where(bl) or "?") or ("  -  " .. (book.where or "in your bags"))),
               range = tostring(trained), right = (not book.owned and book.price) and money(book.price) or nil,
               tipTitle = book.name, tip = tip, waypoint = bl })
       elseif quest then
