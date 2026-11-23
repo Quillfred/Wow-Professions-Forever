@@ -787,7 +787,9 @@ SLASH_SKILLROUTE1, SLASH_SKILLROUTE2 = "/sr", "/skillroute"
 SlashCmdList.SKILLROUTE = function(msg)
   local cmd, arg = (msg or ""):lower():match("^(%S*)%s*(.-)$")
   local settings = SkillRouteDB and SkillRouteDB.settings
-  if cmd == "overtime" and settings then
+  if cmd == "log" then
+    if ns.Recorder then ns.Recorder.Command(arg) end
+  elseif cmd == "overtime" and settings then
     local v = tonumber(arg)
     if v and v >= 0 and v <= 100 then
       settings.bonus = v / 100
@@ -854,7 +856,7 @@ SlashCmdList.SKILLROUTE = function(msg)
     print("SkillRoute: open with the profession window is " .. (settings.auto and "ON" or "OFF"))
     return
   elseif cmd == "help" then
-    print("SkillRoute: /sr - open/close   /sr options   /sr minimap on|off   /sr check   /sr auto on|off   /sr overtime <pct>   /sr estimate on|off   /sr cdmats on|off   /sr margin <50-99>   /sr craftcost <copper>   /sr alts on|off   /sr resale <pct>   /sr ah   /sr unskip   (right-click a step to skip it)")
+    print("SkillRoute: /sr - open/close   /sr options   /sr minimap on|off   /sr check   /sr auto on|off   /sr overtime <pct>   /sr estimate on|off   /sr cdmats on|off   /sr margin <50-99>   /sr craftcost <copper>   /sr alts on|off   /sr resale <pct>   /sr ah   /sr log on|off|skip|boat   /sr unskip   (right-click a step to skip it)")
     return
   else
     UI.Toggle()

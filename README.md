@@ -43,6 +43,13 @@ A WoW Forever addon that plans the cheapest way to level a crafting profession.
   disenchant (enchanters with the skill; results at AH prices) or sell to a vendor,
   whichever brings most. Disenchant results: Forever's brackets (ItemDisenchantLoot)
   with the Classic loot tables (cMaNGOS); the skill needed follows the Classic rule.
+- **Data recorder** (`/sr log on`): while you play, records what the game tells addons
+  about the data SkillRoute can't confirm offline. That covers trainer windows (what's
+  offered, greyed out, skill/level needed, the trainer's text), vendors (stock, limited,
+  usable), disenchants (item, item level, results, skill errors), fishing (casts,
+  catches, "got away" per zone), gathering, and boat marks (`/sr log boat`). A small
+  window lists the checks and ticks each off as it's done (`/sr log skip` skips one).
+  Afterwards send `WTF/Account/<account>/SavedVariables/SkillRoute.lua`.
 - **All crafting professions:** Alchemy, Blacksmithing, Cooking, Enchanting,
   Engineering, First Aid, Leatherworking and Tailoring. The window shows the ones
   your character has; switch with the arrows.

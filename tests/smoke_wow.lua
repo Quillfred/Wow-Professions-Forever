@@ -67,7 +67,7 @@ local ns = {}
 _G.Minimap = setmetatable({ GetWidth = function() return 140 end, GetCenter = function() return 1000, 700 end,
   GetEffectiveScale = function() return 1 end }, { __index = function() return function() end end })
 _G.GetCursorPosition = function() return 1000, 800 end -- straight above the minimap
-for _, f in ipairs({ "Data", "Planner", "Core", "UI", "Options", "Check" }) do
+for _, f in ipairs({ "Data", "Planner", "Core", "UI", "Options", "Recorder", "Check" }) do
   local chunk = assert(loadfile("SkillRoute/" .. f .. ".lua"))
   chunk("SkillRoute", ns)
 end
@@ -807,6 +807,104 @@ do
   Auctionator.API.v1.GetAuctionAgeByItemID = savedAge
   for i = 1, #loot, 4 do prices[loot[i]] = nil end
   prices[pick] = nil
+end
+
+-- /sr log: records trainers, vendors, disenchants, fishing, boats; steps tick off
+do
+  local Rec = ns.Recorder
+  local clock = 50000
+  local savedTime, savedGuid, savedCount = _G.GetTime, _G.UnitGUID, _G.GetItemCount
+  _G.GetTime = function() return clock end
+  _G.UnitGUID = function() return "Creature-0-1-0-1-4576-0000" end
+  _G.strsplit = _G.strsplit or function(sep, str)
+    local t = {}
+    for part in (str .. sep):gmatch("(.-)" .. sep:gsub("%-", "%%-")) do t[#t + 1] = part end
+    return unpack(t)
+  end
+  _G.ERR_FISH_ESCAPED, _G.ERR_FISH_NOT_HOOKED = "Your fish got away!", "No fish are hooked."
+  local saved = { GetProfessions, GetProfessionInfo }
+  GetProfessions = function() return 1, 2, 3 end
+  GetProfessionInfo = function(i)
+    if i == 1 then return "Tailoring", 0, 130, 150, 0, 0, 197 end
+    if i == 2 then return "Enchanting", 0, 130, 150, 0, 0, 333 end
+    return "Fishing", 0, 60, 75, 0, 0, 356
+  end
+  local said = {}
+  local realPrint = print
+  _G.print = function(m) said[#said + 1] = m end
+  SlashCmdList.SKILLROUTE("log on")
+  local rf
+  for _, fr in ipairs(frames) do local e = rawget(fr, "events"); if e and e.LOOT_READY then rf = fr end end
+  assert(rf and SkillRouteDB.log.on, "recorder on, events registered")
+  local function fireR(ev, ...) rf.OnEvent(rf, ev, ...) end
+  assert(Rec.Current().id == "trainer", "first step: the trainer")
+  -- trainer window (Josef): services recorded
+  fireR("TRAINER_SHOW")
+  -- second trainer
+  fireR("TRAINER_SHOW")
+  fireR("GOSSIP_SHOW")
+  assert(SkillRouteDB.log.done.trainer and SkillRouteDB.log.done.trainer2, "trainer steps done")
+  -- vendor
+  fireR("MERCHANT_SHOW")
+  assert(SkillRouteDB.log.done.vendor, "vendor step done")
+  -- disenchant: item 7051 leaves the bags, loot recorded
+  local bag = { [1] = 7051 }
+  local savedC = _G.C_Container
+  _G.C_Container = { GetContainerNumSlots = function(b) return b == 0 and 1 or 0 end,
+                     GetContainerItemID = function(b, sl) return b == 0 and bag[sl] or nil end }
+  local have = 1
+  _G.GetItemCount = function(id, bank) if id == 7051 then return have end return savedCount(id, bank) end
+  _G.GetItemInfo = function(id) if id == 7051 then return "Earthen Vest", nil, 2, 22, 0, "Armor", "Cloth", 1, "", 0, 0, 4 end end
+  _G.GetNumLootItems = function() return 1 end
+  _G.GetLootSlotLink = function() return "|Hitem:10940::|h" end
+  _G.GetLootSlotInfo = function() return nil, "Strange Dust", 3 end
+  _G.IsFishingLoot = function() return false end
+  fireR("UNIT_SPELLCAST_SENT", "player", "Earthen Vest", "guid", 13262)
+  fireR("UNIT_SPELLCAST_SUCCEEDED", "player", "guid", 13262)
+  have = 0; bag[1] = nil
+  fireR("LOOT_READY")
+  local de
+  for _, e in ipairs(SkillRouteDB.log.entries) do if e.kind == "disenchant" then de = e end end
+  assert(de and de.item == 7051 and de.ilvl == 22 and de.loot[1][1] == 10940 and de.loot[1][2] == 3,
+    "disenchant recorded: item, item level, results")
+  assert(SkillRouteDB.log.done.disenchant, "disenchant step done")
+  -- skill too low: the error text is kept
+  clock = clock + 5
+  fireR("UNIT_SPELLCAST_SENT", "player", "Big Vest", "g2", 13262)
+  fireR("UI_ERROR_MESSAGE", 50, "Requires Enchanting (150)")
+  assert(SkillRouteDB.log.done.deskill, "disenchant skill error recorded")
+  -- fishing: a cast, a catch, a fish that got away
+  local fishSpell = SkillRouteData.professions[356].spell
+  _G.GetSpellInfo = function(id) if id == fishSpell or id == 7620 then return "Fishing" end end
+  clock = clock + 5
+  fireR("UNIT_SPELLCAST_CHANNEL_START", "player", "g3", 7620)
+  _G.IsFishingLoot = function() return true end
+  fireR("LOOT_READY")
+  fireR("UNIT_SPELLCAST_CHANNEL_START", "player", "g4", 7620)
+  fireR("UI_ERROR_MESSAGE", 51, "Your fish got away!")
+  local fz
+  for _, f in pairs(SkillRouteDB.log.fishing) do fz = f end
+  assert(fz and fz.casts == 2 and fz.caught == 1 and fz.away == 1, "fishing counted per zone")
+  -- disenchant5 / fish need more; skip them, then the boat
+  SlashCmdList.SKILLROUTE("log skip") -- disenchant5
+  SlashCmdList.SKILLROUTE("log skip") -- fish (20 casts)
+  assert(Rec.Current().id == "boat", "next: boat (Felwood n/a without Herbalism): " .. tostring(Rec.Current() and Rec.Current().id))
+  SlashCmdList.SKILLROUTE("log boat")
+  clock = clock + 356
+  SlashCmdList.SKILLROUTE("log boat")
+  assert(SkillRouteDB.log.done.boat and Rec.Current() == nil, "boat done: all checks done")
+  local allDone = false
+  for _, m in ipairs(said) do if tostring(m):find("all checks done", 1, true) then allDone = true end end
+  assert(allDone, "says what to send when everything's done")
+  SlashCmdList.SKILLROUTE("log off")
+  assert(not SkillRouteDB.log.on, "log off")
+  _G.print = realPrint
+  print(("recorder: %d entries, steps ticked in order; last message: %s"):format(#SkillRouteDB.log.entries,
+    tostring(said[#said - 1]):gsub("|c%x%x%x%x%x%x%x%x", ""):gsub("|r", "")))
+  _G.C_Container, _G.GetItemCount, _G.GetTime, _G.UnitGUID = savedC, savedCount, savedTime, savedGuid
+  _G.GetItemInfo = function() return nil end
+  GetProfessions, GetProfessionInfo = saved[1], saved[2]
+  SkillRouteDB.log = nil
 end
 
 -- another language: German names still match (profession via its rank spell,
