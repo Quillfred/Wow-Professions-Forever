@@ -1010,6 +1010,24 @@ function Core.Plan(line, target)
   for key in pairs(Core.ToolsFor(line)) do if Core.HasTool(key) then owned[#owned + 1] = key end end
   table.sort(owned)
   key = key .. ":" .. table.concat(owned, ",")
+  -- patterns you already have for recipes you don't know: bags, bank, or an alt (if
+  -- alts are counted). Part of the cache key, so picking one up re-plans.
+  local ownedPatterns, ownedList = {}, {}
+  for spell, r in pairs(recipes) do
+    if r.pat and not known[spell] then
+      for _, it in ipairs(r.pat) do
+        if ownedPatterns[it] == nil then
+          local w = getCount(it) > 0 and "in your bags" or Core.Have(it) > 0 and "in your bank"
+                    or Core.HaveOnAlts(it) > 0 and "on an alt" or false
+          ownedPatterns[it] = w
+          if w then ownedList[#ownedList + 1] = it end
+        end
+      end
+    end
+  end
+  for it, w in pairs(ownedPatterns) do if not w then ownedPatterns[it] = nil end end
+  table.sort(ownedList)
+  key = key .. ":" .. table.concat(ownedList, ",")
   for _, f in ipairs(Core.FactionsFor(line)) do key = key .. ":" .. f .. "=" .. tostring(Core.Standing(f)) end
   local cached = patternCache[line]
   local plan = Planner.Plan({
@@ -1027,7 +1045,7 @@ function Core.Plan(line, target)
     vendorSeen = function(item) return Core.Place("vendor", item) ~= nil end,
     bonus = settings.bonus or 0,
     fixedUnlocks = cached and cached.key == key and cached.set or nil,
-    skip = Core.Skips(line), ahFresh = Core.AHFresh,
+    skip = Core.Skips(line), ahFresh = Core.AHFresh, ownedPatterns = ownedPatterns,
   })
   if not (cached and cached.key == key) then
     local set = {}

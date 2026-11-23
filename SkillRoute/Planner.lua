@@ -166,7 +166,11 @@ local function findUnlocks(ctx, unit)
         local isVendor = r.from and r.from:find("Vendor")
         local best, bestItem, bestVia, bestInfo
         for _, it in ipairs(r.pat) do
-          if Planner.RepOK(ctx, r, it) then
+          local own = ctx.ownedPatterns and ctx.ownedPatterns[it]
+          if own and Planner.RepOK(ctx, r, it) then
+            -- you already have it (bags, bank or an alt): free, nothing to buy
+            if not best or best > 0 then best, bestItem, bestVia, bestInfo = 0, it, "owned", { where = own } end
+          elseif Planner.RepOK(ctx, r, it) then
             -- Can a vendor of YOUR faction sell it? A vendor you visited: yes. Else the
             -- vendor lists (Classic data): only if one serves your faction. Not listed
             -- (new in Forever): allowed, flagged unverified.
@@ -194,7 +198,7 @@ local function findUnlocks(ctx, unit)
         end
         if best then
           all["p:" .. spell] = { kind = "pattern", spell = spell, price = best, item = bestItem, from = 0,
-                                 name = r.n, via = bestVia,
+                                 name = r.n, via = bestVia, owned = bestInfo and bestInfo.where or nil,
                                  vendorNames = bestInfo and bestInfo.names ~= "" and bestInfo.names or nil,
                                  unverified = bestInfo and bestInfo.unverified or nil }
         end
@@ -429,7 +433,7 @@ function Planner.Plan(ctx)
   -- crafted by this profession are added to the crafts (Planner.Shopping).
   plan.unlocks = chosen
   for key, u in pairs(chosen) do
-    if not u.craftSpell then
+    if not u.craftSpell and u.via ~= "owned" then
       local it = ctx.items[u.item]
       table.insert(plan.shopping.buy, 1, { item = u.item, name = it and it[1] or u.name, need = 1, expected = 1, have = 0,
         buy = 1, price = u.price, vendor = u.via ~= "ah" and it and it[3] ~= nil, pattern = u.kind == "pattern",

@@ -549,6 +549,34 @@ do
   GetProfessions, GetProfessionInfo, _G.GetItemCount = saved[1], saved[2], saved[3]
 end
 
+-- patterns you own (bank) are free: no AH purchase, nothing on the shopping list
+do
+  local saved = { GetProfessions, GetProfessionInfo, _G.GetItemCount }
+  GetProfessions = function() return 1 end
+  GetProfessionInfo = function() return "First Aid", 0, 180, 225, 0, 0, 129 end
+  local manuals = { [16112] = true, [16113] = true } -- Heavy Silk, Mageweave Bandage
+  local function stepFor(plan, spell) for _, st in ipairs(plan.steps) do if st.spell == spell then return st end end end
+  _G.GetItemCount = function(id, bank) if manuals[id] then return 0 end return saved[3](id, bank) end
+  local before = Core.Plan(129, 225)
+  _G.GetItemCount = function(id, bank) if manuals[id] then return bank and 1 or 0 end return saved[3](id, bank) end
+  local after = Core.Plan(129, 225)
+  for _, b in ipairs(after.shopping.buy) do assert(not manuals[b.item], "owned manual not on the shopping list") end
+  local mw = stepFor(after, 10840)
+  assert(mw and mw.unlock and mw.unlock.via == "owned" and mw.unlock.owned == "in your bank", "Mageweave from the owned manual")
+  assert(after.total <= before.total, "owning patterns never costs more")
+  UI.Toggle(129)
+  local row
+  for _, t in ipairs(texts) do
+    local v = rawget(t, "text")
+    if type(v) == "string" and v:find("Learn from your", 1, true) then row = row or v end
+  end
+  UI.Toggle()
+  assert(row and row:find("in your bank", 1, true), "row says where the manual is: " .. tostring(row))
+  print(("owned manuals: total %d -> %d copper; row: %s"):format(before.total, after.total,
+    row:gsub("|c%x%x%x%x%x%x%x%x", ""):gsub("|r", "")))
+  GetProfessions, GetProfessionInfo, _G.GetItemCount = saved[1], saved[2], saved[3]
+end
+
 -- another language: German names still match (profession via its rank spell,
 -- recipes via the item they make, rank-ups via the skill they need)
 do

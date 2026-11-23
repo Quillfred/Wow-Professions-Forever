@@ -308,7 +308,9 @@ local function routeRows(plan)
         learn = "  |cffffd100Learn at " .. (trainerLoc and trainerLoc.npc or "trainer")
                 .. (st.learnCost and (" (" .. money(st.learnCost, YELLOW) .. ")") or "") .. "|r"
       elseif st.learn == "pattern" then
-        if st.unlock and st.unlock.via == "ah" then
+        if st.unlock and st.unlock.via == "owned" then
+          learn = "  |cffffd100Learn from your " .. itemName(st.unlock.item) .. " (" .. st.unlock.owned .. ")|r"
+        elseif st.unlock and st.unlock.via == "ah" then
           learn = "  |cffffd100Buy pattern on the AH (last seen " .. money(st.learnCost, YELLOW) .. ")|r"
         else
           local p = st.unlock and (Core.Place("vendor", st.unlock.item) or Core.NearestVendor(st.unlock.item))
@@ -345,9 +347,14 @@ local function routeRows(plan)
       end
       if st.learn == "pattern" and st.unlock then
         local p, n = Core.Place("vendor", st.unlock.item)
-        local near = not p and st.unlock.via ~= "ah" and Core.NearestVendor(st.unlock.item)
-        waypoint = st.unlock.via ~= "ah" and (p or near) or nil
-        if p then
+        local buy = st.unlock.via ~= "ah" and st.unlock.via ~= "owned"
+        local near = not p and buy and Core.NearestVendor(st.unlock.item)
+        waypoint = buy and (p or near) or nil
+        if st.unlock.via == "owned" then
+          tip[#tip + 1] = ("You already have %s %s: nothing to buy.%s"):format(itemName(st.unlock.item), st.unlock.owned,
+            st.unlock.owned == "in your bank" and " Take it out of the bank and use it."
+            or st.unlock.owned == "on an alt" and " Mail it to this character." or "")
+        elseif p then
           tip[#tip + 1] = ("Sold by %s%s.%s"):format(Core.FormatPlace(p, true), p.limited and " (limited stock)" or "",
             n > 1 and (" %d vendors known."):format(n) or "")
         elseif near then
