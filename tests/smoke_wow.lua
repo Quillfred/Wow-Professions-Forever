@@ -626,6 +626,13 @@ do
   GetProfessions, GetProfessionInfo = saved[1], saved[2]
 end
 
+-- a pattern bought on the AH says why: Cooked Crab Claw's (2698) only vendor is Alliance
+do
+  local why = UI.AhWhy(2698):gsub("|c%x%x%x%x%x%x%x%x", ""):gsub("|r", "")
+  assert(why:find("only Alliance vendors sell it: Kendor Kabonka", 1, true), why)
+  print("ah why (Horde, Cooked Crab Claw):" .. why)
+end
+
 -- another language: German names still match (profession via its rank spell,
 -- recipes via the item they make, rank-ups via the skill they need)
 do

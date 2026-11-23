@@ -12,6 +12,7 @@ local COST_W, RANGE_W, COL_GAP, EDGE = 100, 62, 10, 6
 local RANGE_X = EDGE + COST_W + COL_GAP            -- range column's right edge, from row's right
 local RANGE_COLOR = { 0.55, 0.80, 1.00 }
 local RANKS = { [75] = "Journeyman", [150] = "Expert", [225] = "Artisan" }
+local ahWhy -- defined with the shopping list
 local RANK_STEP = { Journeyman = 2, Expert = 3, Artisan = 4 }
 local RANK_NAMES = { [3] = "Neutral", [4] = "Friendly", [5] = "Honored", [6] = "Revered", [7] = "Exalted" }
 local COLORS = { orange = "ff8040", yellow = "ffff00", green = "40bf40", grey = "808080" }
@@ -315,6 +316,7 @@ local function routeRows(plan)
           learn = "  |cffffd100Learn from your " .. itemName(st.unlock.item) .. " (" .. st.unlock.owned .. ")|r"
         elseif st.unlock and st.unlock.via == "ah" then
           learn = "  |cffffd100Buy pattern on the AH (last seen " .. money(st.learnCost, YELLOW) .. ")|r"
+                  .. ahWhy(st.unlock.item)
         else
           local p = st.unlock and (Core.Place("vendor", st.unlock.item) or Core.NearestVendor(st.unlock.item))
           local who = (p and p.npc) or (st.unlock and st.unlock.vendorNames and st.unlock.vendorNames:match("^[^,]+")) or "a vendor"
@@ -406,6 +408,25 @@ local function routeRows(plan)
   return n
 end
 
+-- why a pattern is bought on the AH: no vendor of your faction sells it, or the AH
+-- is cheaper than the vendor
+ahWhy = function(item)
+  local pv = Data.patternVendors and Data.patternVendors[item]
+  local mine = UnitFactionGroup and UnitFactionGroup("player")
+  local me = mine == "Alliance" and "A" or mine == "Horde" and "H" or nil
+  if pv and me and not pv[1]:find(me, 1, true) then
+    local other = me == "H" and pv[2] or pv[3]
+    return (" |cff808080(only %s vendors sell it%s)|r"):format(me == "H" and "Alliance" or "Horde",
+      other ~= "" and (": " .. other) or "")
+  end
+  local it = Data.items[item]
+  if it and it[3] then return (" |cff808080(cheaper than the vendor's %s)|r"):format(money(it[3])) end
+  if not pv then return " |cff808080(no vendor sells it)|r" end
+  return ""
+end
+
+UI.AhWhy = function(item) return ahWhy(item) end
+
 local function shoppingRows(plan)
   local n = 0
   local function add(o) n = n + 1; setRow(n, o) end
@@ -424,7 +445,7 @@ local function shoppingRows(plan)
     local loc = p or near or nil
     local who = p and Core.FormatPlace(p, true) or near and (near.npc .. ", " .. (Core.Where(near) or "?")) or nil
     if b.book then tags[#tags + 1] = "|cffffd100rank-up book, from " .. (who or "a vendor") .. "|r"
-    elseif b.pattern then tags[#tags + 1] = b.ah and "|cffffd100pattern, on the AH (last seen price)|r"
+    elseif b.pattern then tags[#tags + 1] = b.ah and ("|cffffd100pattern, on the AH (last seen price)|r" .. ahWhy(b.item))
                                          or ("|cffffd100pattern, from " .. (who or "a vendor") .. "|r")
     elseif b.tool then tags[#tags + 1] = "|cffff8040tool: keep it in your bags|r"
                                          .. (who and (", from " .. who) or b.vendor and ", vendor" or "")
