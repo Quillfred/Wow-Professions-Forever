@@ -13,6 +13,7 @@ local RANGE_X = EDGE + COST_W + COL_GAP            -- range column's right edge,
 local RANGE_COLOR = { 0.55, 0.80, 1.00 }
 local RANKS = { [75] = "Journeyman", [150] = "Expert", [225] = "Artisan" }
 local ahWhy -- defined with the shopping list
+
 local RANK_STEP = { Journeyman = 2, Expert = 3, Artisan = 4 }
 local RANK_NAMES = { [3] = "Neutral", [4] = "Friendly", [5] = "Honored", [6] = "Revered", [7] = "Exalted" }
 local COLORS = { orange = "ff8040", yellow = "ffff00", green = "40bf40", grey = "808080" }
@@ -48,6 +49,24 @@ end
 local function itemName(item)
   local n = GetItemInfo and GetItemInfo(item)
   return n or (Data.items[item] and Data.items[item][1]) or ("item " .. item)
+end
+
+-- "Afterwards: sell the 5 Formal White Shirts to a vendor (5s 50c each) - AH 5s 40c
+-- after the cut, can't be disenchanted. Not counted in the cost." Same comparison as
+-- the shopping list's crafted-items section.
+local ACTION_SHORT = { ah = "list the %d %s on the AH", de = "disenchant the %d %s", vendor = "sell the %d %s to a vendor" }
+local function afterCrafting(item, n)
+  local ench = Core.Skills()[333]
+  local a = Core.ItemAdvice(item, ench and ench.rank)
+  local parts = { a.ah and ("AH " .. money(a.ah) .. " after the 5% cut") or "AH: no fresh price" }
+  if a.de then parts[#parts + 1] = "disenchant ~" .. money(a.de)
+  elseif not (Data.disenchant and Data.disenchant.of and Data.disenchant.of[item]) then parts[#parts + 1] = "can't be disenchanted"
+  elseif not ench then parts[#parts + 1] = "disenchant: needs Enchanting"
+  elseif a.deSkill and ench.rank < a.deSkill then parts[#parts + 1] = ("disenchant needs Enchanting %d"):format(a.deSkill)
+  else parts[#parts + 1] = "disenchant: no fresh prices for the results" end
+  parts[#parts + 1] = "vendor " .. money(a.vendor)
+  return ("|cffffd100Afterwards:|r " .. ACTION_SHORT[a.best] .. " (%s each). Compared: %s. Not counted in the cost.")
+    :format(n, itemName(item), money(a.bestValue), table.concat(parts, ", "))
 end
 
 local function mats(spell, line)
@@ -374,8 +393,8 @@ local function routeRows(plan)
       elseif st.resale then
         tip[#tip + 1] = ("Selling what you make on the AH brings back about %s (at your /sr resale share, after the AH cut).")
           :format(money(st.resale))
-      elseif st.vendorBack > 0 then
-        tip[#tip + 1] = ("Vendoring the results gives back about %s (not counted)."):format(money(st.vendorBack))
+      elseif r.out then
+        tip[#tip + 1] = afterCrafting(r.out, math.ceil(st.crafts - 1e-9) * (r.outN or 1))
       end
       if st.learn == "pattern" then
         local sv = st.unlock and st.unlock.savesShown

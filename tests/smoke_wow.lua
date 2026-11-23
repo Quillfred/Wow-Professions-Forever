@@ -809,6 +809,24 @@ do
   prices[pick] = nil
 end
 
+-- step tooltips: what to do with what the step makes (same advice as the shopping list)
+do
+  local saved = { GetProfessions, GetProfessionInfo }
+  GetProfessions = function() return 1 end
+  GetProfessionInfo = function() return "Tailoring", 0, 135, 225, 0, 0, 197 end
+  UI.Toggle(197)
+  local tipLine
+  for _, r in ipairs(UI.Rows()) do
+    for _, l in ipairs(rawget(r, "tip") or {}) do
+      if type(l) == "string" and l:find("Afterwards:", 1, true) then tipLine = tipLine or l end
+    end
+  end
+  UI.Toggle()
+  assert(tipLine and tipLine:find("each)", 1, true) and tipLine:find("vendor", 1, true), "step tooltip says what to do afterwards")
+  print("afterwards: " .. tipLine:gsub("|c%x%x%x%x%x%x%x%x", ""):gsub("|r", ""))
+  GetProfessions, GetProfessionInfo = saved[1], saved[2]
+end
+
 -- a rank the character is too low-level for: the row warns (Artisan needs level 35)
 do
   local saved = { GetProfessions, GetProfessionInfo, _G.UnitLevel }
