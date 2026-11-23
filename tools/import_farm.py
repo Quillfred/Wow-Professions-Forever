@@ -11,6 +11,8 @@ import_gather.py: those zones come from pool descriptions), within 400 yards; mo
 farther from any node are left out rather than guessed.
 
 Usage: (cd tools && python3 import_farm.py CLASSICDB.sql.gz WAGO_CACHE_DIR BUILD)
+Also: where skinnable beasts are (creature_template SkinningLootId, non-elite), per
+zone and level -> tools/skinning.json.
 Writes tools/zone_sides.json ({zone: "A"|"H"}, contested zones left out) and
 tools/farm.json: {item: {"mobs": [[name, zone, chance%, minLvl, maxLvl, spawns]],
                                 "fish": [[zone, chance%, fishingLevel]]}}
@@ -68,9 +70,13 @@ def main():
     cl = chances("creature_loot_template")
     cc = columns(sqlgz, "creature_template")
     E, N, L, MIN, MAX = (cc.index(k) for k in ("Entry", "Name", "LootId", "MinLevel", "MaxLevel"))
+    SK, RK = cc.index("SkinningLootId"), cc.index("Rank")
     drops = {}  # creature -> {item: chance}
     info = {}
+    skinnable = {}  # creature -> (min level, max level): normal (non-elite) mobs with skinning loot
     for r in sql_rows(sqlgz, "creature_template"):
+        if int(r[SK] or 0) > 0 and int(r[RK] or 0) == 0:
+            skinnable[int(r[E])] = (int(r[MIN]), int(r[MAX]))
         lid = int(r[L] or 0)
         if lid and lid in cl:
             d = resolve(cl[lid])
@@ -95,12 +101,17 @@ def main():
         return best
 
     spawns = {}  # (creature, zone) -> count
+    skin = {}  # zone -> {level: skinnable spawns (a spawn spread over its level range)}
     for r in sql_rows(sqlgz, "creature"):
         e = int(r[1])
-        if e in drops:
+        if e in drops or e in skinnable:
             z = zone_at(int(r[2]), float(r[4]), float(r[5]))
-            if z:
+            if z and e in drops:
                 spawns[(e, z)] = spawns.get((e, z), 0) + 1
+            if z and e in skinnable:
+                lo, hi = skinnable[e]
+                for lv in range(lo, hi + 1):
+                    skin.setdefault(z, {})[lv] = skin.get(z, {}).get(lv, 0) + 1 / (hi - lo + 1)
 
     out = {}
     for (e, z), n in spawns.items():
@@ -160,6 +171,13 @@ def main():
                 d["fish"].append([z, round(ch, 1), level.get(z, 0)])
     for d in out.values():
         d["fish"] = best(d["fish"], lambda f: f[0], lambda f: (-f[1], f[2]), 3)
+    with open(os.path.join(here, "skinning.json"), "w", encoding="utf-8") as f:
+        # {zone: [first level, spawns at that level, at the next, ...]}
+        out_skin = {}
+        for z, lv in skin.items():
+            lo, hi = min(lv), max(lv)
+            out_skin[z] = [lo] + [round(lv.get(k, 0), 1) for k in range(lo, hi + 1)]
+        json.dump(out_skin, f, separators=(",", ":"), sort_keys=True)
     with open(os.path.join(here, "zone_sides.json"), "w", encoding="utf-8") as f:  # farming, gathering, fishing
         json.dump({z: v for z, v in side.items() if v}, f, separators=(",", ":"), sort_keys=True)
 

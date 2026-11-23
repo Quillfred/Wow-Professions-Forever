@@ -443,8 +443,8 @@ do
   end
   assert(found and foot, "mining route rows + footer")
   -- Horde: no Alliance zone listed before a Horde/contested one, in every gathering row
-  for _, line in ipairs({ 186, 182, 356 }) do
-    local name = ({ [186] = "Mining", [182] = "Herbalism", [356] = "Fishing" })[line]
+  for _, line in ipairs({ 186, 182, 356, 393 }) do
+    local name = ({ [186] = "Mining", [182] = "Herbalism", [356] = "Fishing", [393] = "Skinning" })[line]
     GetProfessionInfo = function() return name, 0, 1, 300, 0, 0, line end
     local plan = Core.Plan(line, 300)
     local rows = 0
@@ -483,6 +483,40 @@ do
     if type(v) == "string" and v:find("^Best zones") then found = found or v end
   end
   print("mining row: " .. found:gsub("|c%x%x%x%x%x%x%x%x", ""):gsub("|r", "") .. " | " .. foot:gsub("|c%x%x%x%x%x%x%x%x", ""):gsub("|r", ""))
+  UI.Toggle()
+  GetProfessions, GetProfessionInfo = saved[1], saved[2]
+end
+
+-- ranks ATT says come from a quest: Horde First Aid at 225 gets "Triage" from its giver,
+-- not a trainer; Skinning rows name zones (Horde first)
+do
+  local saved = { GetProfessions, GetProfessionInfo }
+  GetProfessions = function() return 1 end
+  GetProfessionInfo = function() return "First Aid", 0, 225, 225, 0, 0, 129 end
+  UI.Toggle(129)
+  local quest
+  for _, t in ipairs(texts) do
+    local v = rawget(t, "text")
+    if type(v) == "string" and v:find('Quest "Triage"', 1, true) then quest = v end
+  end
+  assert(quest, "Artisan First Aid shown as the Triage quest")
+  local sub
+  for _, t in ipairs(texts) do
+    local v = rawget(t, "text")
+    if type(v) == "string" and v:find("^Needs skill 225") then sub = v end
+  end
+  assert(sub and sub:find("Gregory Victor", 1, true), "Horde Triage giver: " .. tostring(sub))
+  print("first aid 225 (Horde): " .. quest:gsub("|c%x%x%x%x%x%x%x%x", ""):gsub("|r", "") .. " | " .. sub)
+  UI.Toggle()
+  GetProfessionInfo = function() return "Skinning", 0, 100, 150, 0, 0, 393 end
+  UI.Toggle(393)
+  local skin
+  for _, t in ipairs(texts) do
+    local v = rawget(t, "text")
+    if type(v) == "string" and v:find("^Best zones") then skin = skin or v end
+  end
+  assert(skin, "skinning rows list zones")
+  print("skinning 100 (Horde): " .. skin)
   UI.Toggle()
   GetProfessions, GetProfessionInfo = saved[1], saved[2]
 end

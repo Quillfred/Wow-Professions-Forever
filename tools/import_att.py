@@ -81,6 +81,61 @@ def read_tiers(struct_dir):
     return out
 
 
+def read_sources(db_dir):
+    """How each recipe / rank spell is learned in Forever, from ATT's "profession db"
+    lists: {spell: {"how": [...], "items": [...], "spec": bool}}. Sections: TRAINER
+    (i(0, spell)), QUEST, ITEM (i(patternItem, spell)), and specialisation sections
+    (i(..., spell, nil, SPEC)). Inside --[[ ]]: UNRELEASED CONTENT = not obtainable
+    ("u"); UNKNOWN / UNSURE = ATT doesn't know, so it says nothing (other data decides)."""
+    out = {}
+    for fn in sorted(os.listdir(db_dir)):
+        if not fn.endswith(".lua"):
+            continue
+        section, commented = None, False
+        for raw in open(os.path.join(db_dir, fn), encoding="utf-8"):
+            line = raw.strip()
+            if line.startswith("--[["):
+                commented = True
+                continue
+            if line.startswith("--]]"):
+                commented, section = False, None if section in ("UNRELEASED CONTENT", "UNKNOWN", "UNSURE") else section
+                continue
+            m = re.match(r"^---\s*(.+?)\s*---$", line)
+            if m:
+                section = m.group(1)
+                continue
+            m = re.match(r"^([ir])\((\d+)(?:\s*,\s*(\d+))?(?:\s*,\s*nil\s*,\s*([A-Z_]+))?", line)
+            if not m:
+                continue
+            if m.group(1) == "i" and not m.group(3):
+                continue  # a bare item (commented pattern): its recipe is listed separately
+            item, spell = (int(m.group(2)), int(m.group(3))) if m.group(1) == "i" else (0, int(m.group(2)))
+            if commented:
+                if section != "UNRELEASED CONTENT":
+                    continue
+                how = "u"
+            elif section == "QUEST":
+                how = "Q"
+            elif item:
+                how = "p"
+            else:
+                how = "T"
+            d = out.setdefault(str(spell), {"how": [], "items": [], "spec": False})
+            if how not in d["how"]:
+                d["how"].append(how)
+            if item and how == "p" and item not in d["items"]:
+                d["items"].append(item)
+            if m.group(4):
+                d["spec"] = True
+    return out
+
+
+def read_learn_levels(path):
+    """{spell: skill it's learnable at} (ATT's "Skill Level Requirements" export)"""
+    code = open(path, encoding="utf-8").read()
+    return {k: int(v) for k, v in re.findall(r"\[(\d+)\]\s*=\s*(\d+)", code)}
+
+
 def read_maps(path):
     code = open(path, encoding="utf-8").read()
     return {k: int(v) for k, v in re.findall(r"\b([A-Z_0-9]+)\s*=\s*(\d+)\s*;", code)}
@@ -106,14 +161,60 @@ def main():
                 return int(a["MapID"]), x1 - (v - v0) / (v1 - v0) * (x1 - x0), y1 - (u - u0) / (u1 - u0) * (y1 - y0)
         return None
 
-    npcs, trainers, vendors = {}, {}, {}
+    npcs, trainers, vendors, quests = {}, {}, {}, {}
     zone_dir = os.path.join(att, "zones")
-    for root, _, files in os.walk(zone_dir):
-        for fn in files:
+
+    def add_npc(nid, name, title, side, ui, zx, zy):
+        key = f"{nid}:{side}"  # the same NPC can be listed per faction
+        w = to_world(ui, zx / 100, zy / 100)
+        npcs.setdefault(key, {"id": nid, "n": name, "title": title, "side": side,
+                              "ui": ui, "zone": uimap.get(ui, {}).get("Name_lang"),
+                              "zx": zx, "zy": zy, "map": w[0] if w else None,
+                              "x": round(w[1], 1) if w else None, "y": round(w[2], 1) if w else None})
+        return key
+
+    def map_of(token):
+        return maps.get(token.split(".")[-1])
+
+    for root, _, files in sorted(os.walk(zone_dir)):  # fixed order: same output on any machine
+        for fn in sorted(files):
             if not fn.endswith(".lua"):
                 continue
             text = open(os.path.join(root, fn), encoding="utf-8").read()
             code = strip_comments(text)
+            # quests that teach a recipe or a rank (Triage -> First Aid (Artisan)):
+            # the innermost q(...) around each recipe(spell)
+            qspans = [(m, block_end(code, m.start() + 1)) for m in re.finditer(r"\bq\((\d+)\s*,\s*\{", code)]
+            for rm in re.finditer(r"\brecipe\((\d+)", code):
+                inner = [(m, e) for m, e in qspans if m.start() < rm.start() < e]
+                if not inner:
+                    continue
+                m, e = max(inner, key=lambda me: me[0].start())
+                body = code[m.start():e]
+                if "CREATED_1_60_1" in body:
+                    continue  # not confirmed live in Forever yet
+                head = text[m.end():text.find("\n", m.end())]
+                title = re.match(r"\s*--\s*(.*?)\s*$", head)
+                title = title.group(1) if title else str(m.group(1))
+                # ATT's tags aren't part of the name: "Triage [A]", "Triage (H)", "... [Durotar]"
+                title = re.sub(r"(\s*(\[[^\]]*\]|\([AH]\)))+$", "", title)
+                side = "H" if "HORDE_ONLY" in body else "A" if "ALLIANCE_ONLY" in body else "AH"
+                cm = re.search(r"\bcoords?\s*=\s*\{\s*\{?\s*([\d.]+)\s*,\s*([\d.]+)\s*,\s*MAP\.([A-Z_0-9.]+)", body)
+                givers = []
+                if cm and map_of(cm.group(3)):
+                    gm = re.search(r"\bqgs?\s*=\s*\{?\s*(\d+)", body)
+                    if gm:
+                        gid = int(gm.group(1))
+                        gl = text[m.start() + gm.start():].split("\n", 1)[0]
+                        nm = re.search(r"--\s*(.*?)\s*(?:<(.*)>)?\s*$", gl)
+                        givers.append(add_npc(gid, nm.group(1) if nm else str(gid), nm and nm.group(2),
+                                              side, map_of(cm.group(3)), float(cm.group(1)), float(cm.group(2))))
+                lm = re.search(r"\blearnedAt\s*=\s*(\d+)", body)
+                q = {"q": int(m.group(1)), "t": title, "skill": int(lm.group(1)) if lm else 0,
+                     "side": side, "givers": givers}
+                lst = quests.setdefault(rm.group(1), [])
+                if all(x["q"] != q["q"] for x in lst):
+                    lst.append(q)
             # context spans: vendor sections and profession (trainer) sections
             spans = []
             for m in re.finditer(r"\bn\(VENDORS\s*,", code):
@@ -140,12 +241,7 @@ def main():
                     continue
                 zx, zy = float(cm.group(1)), float(cm.group(2))
                 side = "H" if "HORDE_ONLY" in body else "A" if "ALLIANCE_ONLY" in body else "AH"
-                key = f"{m.group(1)}:{side}"  # the same NPC can be listed per faction
-                w = to_world(ui, zx / 100, zy / 100)
-                npc = npcs.setdefault(key, {"id": int(m.group(1)), "n": name, "title": title, "side": side,
-                                            "ui": ui, "zone": uimap.get(ui, {}).get("Name_lang"),
-                                            "zx": zx, "zy": zy, "map": w[0] if w else None,
-                                            "x": round(w[1], 1) if w else None, "y": round(w[2], 1) if w else None})
+                key = add_npc(int(m.group(1)), name, title, side, ui, zx, zy)
                 if "trainer" in ctx:
                     for prefix, tier in re.findall(r"\b([A-Z_]+)_RECIPES\.([A-Z_]+)", body):
                         if prefix in RECIPE_PREFIX and tier in TIERS:
@@ -164,13 +260,18 @@ def main():
     out = {"npcs": npcs,
            "trainers": {l: {k: sorted(v) for k, v in d.items()} for l, d in trainers.items()},
            "vendors": {it: [[k, lim] for k, lim in d.items()] for it, d in vendors.items()},
-           "recipeTier": recipe_tier}
+           "recipeTier": recipe_tier,
+           "sources": read_sources(os.path.join(att, "profession db")),
+           "learnAt": read_learn_levels(os.path.join(att, ".config", "exports", "Skill Level Requirements.lua")),
+           "quests": quests}
     dst = os.path.join(os.path.dirname(os.path.abspath(__file__)), "att_forever.json")
     with open(dst, "w", encoding="utf-8") as f:
         json.dump(out, f, separators=(",", ":"), sort_keys=True)
     nt = sum(len(d) for d in out["trainers"].values())
     print(f"{len(npcs)} NPCs, {nt} trainer entries in {len(out['trainers'])} professions, "
-          f"{len(vendors)} items sold, {len(recipe_tier)} recipes with a trainer tier -> {os.path.relpath(dst)}")
+          f"{len(vendors)} items sold, {len(recipe_tier)} recipes with a trainer tier, "
+          f"{len(out['sources'])} recipe sources, {len(out['learnAt'])} learn levels, "
+          f"{len(quests)} spells taught by quests -> {os.path.relpath(dst)}")
 
 
 if __name__ == "__main__":

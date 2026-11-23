@@ -178,9 +178,11 @@ local function routeRows(plan)
       else
         tip[1] = "No trainer known. Talk to one once and SkillRoute will remember where they are."
       end
-      -- no trainer teaches it: a book (Expert First Aid) or a quest (Artisan: "Triage")
-      local book = not loc and Core.RankBook(plan.line, RANK_STEP[rank])
-      local quest = not loc and not book and Core.RankQuest(plan.line, RANK_STEP[rank])
+      -- no trainer teaches it: a book (Expert First Aid) or a quest (Artisan: "Triage").
+      -- ATT's Forever data says which; a trainer you saw offer it still wins.
+      local how = not p and Data.rankSource and Data.rankSource[plan.line] and Data.rankSource[plan.line][RANK_STEP[rank]]
+      local book = (how == "B" or not loc) and Core.RankBook(plan.line, RANK_STEP[rank])
+      local quest = not book and (how == "Q" or not loc) and Core.RankQuest(plan.line, RANK_STEP[rank])
       if book then
         local bl = book.loc
         tip = { book.owned and ("You have %s: use it to learn %s."):format(book.name, rank)
@@ -261,14 +263,17 @@ local function routeRows(plan)
                    or ("|cff%s~%d|r x %s"):format(COLORS[st.color] or "ffffff", math.ceil(st.crafts - 1e-9), st.name),
             sub = st.fishing and (#zones > 0 and ("No fish get away in: " .. table.concat(zones, ", "))
                                   or "Fish in your starting zone's waters")
-                  or st.skinning and "Skin the highest-level beasts you can: always a skill point."
+                  or st.skinning and (#zones > 0 and ("Best zones: " .. table.concat(zones, ", "))
+                                      or "Skin the highest-level beasts you can: always a skill point.")
                   or ((#zones > 0 and ("Best zones: " .. table.concat(zones, ", ")) or "")
                       .. ((st.also and #st.also > 0) and ("  |cff40bf40+ " .. table.concat(st.also, ", ") .. " when you see it|r") or "")),
             range = ("%d-%d"):format(st.from, st.to),
             tipTitle = st.name,
             tip = { st.fishing and ("A catch gives a point %s. Below a zone's fishing level you hook nothing; until 95 above it some fish get away."):format(
                       st.from < 75 and "every time below 75" or ("about 1 in %d times here"):format(math.ceil(1 / ns.Planner.FishChance(st.from))))
-                    or st.skinning and "Beasts of level 21+ need 5 x their level in skill; younger ones less."
+                    or st.skinning and ("Skin the highest-level beasts you can: always a skill point. Beasts of level 21+"
+                                        .. " need 5 x their level in skill; younger ones less. Zones: most skinnable"
+                                        .. " beasts of these levels (Classic spawn data), your faction's first.")
                     or "Zones with the most spawns of this node (Classic spawn data). Gather anything orange or yellow on the way." } })
     elseif st.gap then
       add({ icon = "Interface\\Icons\\INV_Scroll_03",

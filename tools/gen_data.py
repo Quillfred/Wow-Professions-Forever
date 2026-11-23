@@ -208,7 +208,30 @@ def main():
                 if it in items and items[it]["Display_lang"]:
                     used_items.add(it)
                     vendor_patterns.add(it)  # vendor price + vendor lists, like patterns
+    # ATT: rank-ups learned from a book (ITEM) or a quest (QUEST) instead of a trainer
+    rank_source = {}  # (line, step) -> "B" | "Q"
+    def att_rank_spells():  # (ATT spell, (line, step)) for rank spells and their learn spells
+        for sp in list(att.get("sources", {})) + list(att.get("quests", {})):
+            tgt = int(sp) if int(sp) in rank_step else rank_learn.get(int(sp))
+            if tgt in rank_step:
+                yield sp, rank_step[tgt]
+    for sp, (line, st) in att_rank_spells():
+        av = att.get("sources", {}).get(str(sp))
+        if not av or (line not in PROFESSIONS and line not in GATHER_LINES):
+            continue
+        for it in av["items"]:
+            if it in items:
+                rank_books.setdefault((line, st), set()).add(it)
+                if line in PROFESSIONS or line in GATHER_LINES:
+                    used_items.add(it)
+                    vendor_patterns.add(it)
+        if "T" not in av["how"]:
+            if "Q" in av["how"]:
+                rank_source[(line, st)] = "Q"
+            elif av["items"]:
+                rank_source[(line, st)] = "B"
     out = {sl: [] for sl in PROFESSIONS}
+    att_decided = {}
     for s, a in sorted(abil.items()):
         if s not in reagents or s not in names:
             continue  # not a craft (no reagents) -> nothing to plan
@@ -238,8 +261,40 @@ def main():
         else:
             src = "x"  # quest/special/no known source: only used if the character knows it
             origin = w and w[1]
-        if src in ("t", "x") and str(s) in att["recipeTier"] and s not in NOT_TRAINER:
+        # AllTheThings' Forever lists decide where they have an answer; the Wowhead and
+        # Classic-based choice above stays for recipes ATT doesn't list (or lists as unknown)
+        av = att.get("sources", {}).get(str(s))
+        a_learn = att.get("learnAt", {}).get(str(s))
+        if src != "a" and av:
+            how = av["how"]
+            if av["spec"]:
+                src, origin = "x", ["Specialization"]  # needs a specialisation: only if known
+            elif "T" in how:
+                if src != "T":
+                    cost = None  # Wowhead's fee belongs to Wowhead's source
+                src = "T"
+                learn = a_learn if a_learn is not None else (w[0] if (w and w[0] is not None) else y)
+                if w and "Trainer" in w[1]:
+                    cost = w[2]
+                origin = None
+            elif "p" in how:
+                pats = sorted(set(pats) | {i for i in av["items"] if i in items})
+                src = "p"
+                if a_learn is not None:
+                    learn = a_learn
+                elif learn is None:
+                    ranks = [int(items[i]["RequiredSkillRank"]) for i in pats
+                             if int(items[i]["RequiredSkill"]) == int(a["SkillLine"])]
+                    learn = min(ranks) if ranks else None
+            elif "Q" in how:
+                src, origin = "x", ["Quest"]
+            elif "u" in how:
+                src, origin = "x", ["Not in Forever yet"]
+            att_decided[src] = att_decided.get(src, 0) + 1
+        elif src in ("t", "x") and str(s) in att["recipeTier"] and s not in NOT_TRAINER:
             src, learn, origin = "T", y, None  # ATT lists it under a Forever trainer's tier
+        elif src != "a" and a_learn is not None and src in ("T", "p"):
+            learn = a_learn
         if (learn if learn is not None else y) >= MAX_SKILL:
             continue
         o = creates.get(s)
@@ -411,14 +466,31 @@ def main():
             lines.append(f"    [{line}]={{{','.join(parts)}}},")
     lines += ["  },", "  -- rank-up quests: [skillLine] = {[rank] = {{questID, title, skill needed, {giver npcs}}}}",
               "  rankQuests = {"]
-    for line, ranks in sorted(npcdata.get("rankQuests", {}).items()):
-        parts = []
-        for st, qs in sorted(ranks.items()):
-            qrows = []
+    # ATT's quests (exact givers) first; Classic quest data for ranks ATT has none for
+    rq = {}  # (line, step) -> rows
+    for sp, (line, st) in set(att_rank_spells()):
+        if line not in PROFESSIONS and line not in GATHER_LINES:
+            continue
+        for q in att.get("quests", {}).get(str(sp), []):
+            givers = [att_npc(k) for k in q["givers"] if k in att["npcs"]]
+            if givers:
+                rq.setdefault((line, st), []).append(
+                    "{%d,%s,%d,{%s}}" % (q["q"], lua_str(q["t"]), q["skill"], ",".join(map(str, givers))))
+    for line, ranks in npcdata.get("rankQuests", {}).items():
+        for st, qs in ranks.items():
+            if (int(line), int(st)) in rq:
+                continue
             for q in qs:
                 givers = [k for k in (classic_npc(g) for g in q["givers"]) if k is not None]
-                qrows.append("{%d,%s,%d,{%s}}" % (q["q"], lua_str(q["t"]), q["skill"], ",".join(map(str, givers))))
-            parts.append(f"[{st}]={{{','.join(qrows)}}}")
+                rq.setdefault((int(line), int(st)), []).append(
+                    "{%d,%s,%d,{%s}}" % (q["q"], lua_str(q["t"]), q["skill"], ",".join(map(str, givers))))
+    for line in sorted({l for l, _ in rq}):
+        parts = [f"[{st}]={{{','.join(rows_)}}}" for (l, st), rows_ in sorted(rq.items()) if l == line]
+        lines.append(f"    [{line}]={{{','.join(parts)}}},")
+    lines += ["  },", "  -- rank-ups no trainer teaches in Forever (ATT): [skillLine] = {[rank] = \"B\" book | \"Q\" quest}",
+              "  rankSource = {"]
+    for line in sorted({l for l, _ in rank_source}):
+        parts = [f"[{st}]=\"{v}\"" for (l, st), v in sorted(rank_source.items()) if l == line]
         lines.append(f"    [{line}]={{{','.join(parts)}}},")
     lines += ["  },", "  -- [npc] = {name, faction, map, worldX, worldY, continentUiMap, contX, contY, zone, zoneX, zoneY, zoneUiMap}",
               "  -- (zoneUiMap set = exact, from ATT; else Classic spawn, zone resolved by the game)",
@@ -502,7 +574,13 @@ def main():
     sides = json.load(open(spath, encoding="utf-8")) if os.path.exists(spath) else {}
     lines += ["  },", "  -- zoneSide: [zone] = \"A\"|\"H\" (Forever's AreaTable); contested zones absent",
               "  zoneSide = {" + ",".join(f"[{lua_str(z)}]={lua_str(v)}" for z, v in sorted(sides.items())) + "},"]
-    lines += ["  -- fishing: {zone, fishing level} (you lose fish below level + 95)", "  fishing = {"]
+    kpath = os.path.join(os.path.dirname(os.path.abspath(__file__)), "skinning.json")
+    skin = json.load(open(kpath, encoding="utf-8")) if os.path.exists(kpath) else {}
+    lines += ["  -- skinZones: [zone] = {first beast level, skinnable spawns at it, at the next level, ...}",
+              "  skinZones = {"]
+    for z, v in sorted(skin.items()):
+        lines.append(f"    [{lua_str(z)}]={{{v[0]},{','.join(str(round(c)) for c in v[1:])}}},")
+    lines += ["  },", "  -- fishing: {zone, fishing level} (you lose fish below level + 95)", "  fishing = {"]
     for z, lvl in gather.get("fishing", []):
         lines.append(f"    {{{lua_str(z)},{lvl}}},")
     lines += ["  },", "  factions = {"]
@@ -512,6 +590,8 @@ def main():
     dst = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "SkillRoute", "Data.lua")
     with open(dst, "w", encoding="utf-8") as f:
         f.write("\n".join(lines))
+    print(f"ATT decided {sum(att_decided.values())} recipe sources {att_decided}; "
+          f"rank-ups from ATT: {len(rank_source)} not from trainers, {sum(1 for k in rq if k in rank_source)} with quests")
     print(f"build {build}: " + ", ".join(f"{PROFESSIONS[sl]} {len(v)}" for sl, v in out.items())
           + f"; {len(used_items)} items -> {os.path.relpath(dst)}")
 

@@ -728,6 +728,7 @@ end
 
 function Planner.GatherPlan(ctx)
   local from, to = ctx.skill, ctx.target
+  local rank = ctx.zoneRank or function() return 0 end -- 0 your faction, 1 contested, 2 the other
   local steps, gaps, total = {}, {}, 0
   if ctx.fishing then
     local s = from
@@ -739,7 +740,6 @@ function Planner.GatherPlan(ctx)
       for _, z in ipairs(ctx.fishing) do if z[2] + 95 <= s then safe[#safe + 1] = z end end
       -- your faction's zones first, then contested, then the other faction's (ctx.zoneRank
       -- 0/1/2); within each the highest fishing level you lose nothing in
-      local rank = ctx.zoneRank or function() return 0 end
       table.sort(safe, function(a, b)
         local ra, rb = rank(a[1]), rank(b[1])
         if ra ~= rb then return ra < rb end
@@ -759,8 +759,34 @@ function Planner.GatherPlan(ctx)
       local e = math.min(to, s + 15 - (s % 15))
       if e % 75 == 0 or e <= s then e = math.min(to, s + 15) end
       local hi = skinLevel(s)
-      steps[#steps + 1] = { gather = true, skinning = true, name = ("level %d-%d beasts"):format(math.max(1, hi - 3), hi),
-                            from = s, to = e, crafts = e - s, color = "orange" }
+      local lo = math.max(1, hi - 3)
+      -- zones with the most skinnable beasts of these levels: your faction's and
+      -- contested first (ctx.zoneRank 0/1/2), then by spawns
+      local found = {}
+      for zone, v in pairs(ctx.skinZones or {}) do
+        local n = 0
+        for lv = lo, hi do n = n + (v[2 + lv - v[1]] or 0) end
+        if n >= 1 then found[#found + 1] = { zone, n, rank(zone) } end
+      end
+      -- worth the trip: at least a fifth of the best zone's beasts (else a zone of yours
+      -- with a handful would push out a contested one full of them). "Best" among the
+      -- zones you can safely use, so the other faction's big zones don't hide yours.
+      local best, bestAny = 0, 0
+      for _, f in ipairs(found) do
+        bestAny = math.max(bestAny, f[2])
+        if f[3] < 2 then best = math.max(best, f[2]) end
+      end
+      if best == 0 then best = bestAny end
+      for k = #found, 1, -1 do if found[k][2] < best / 5 then table.remove(found, k) end end
+      table.sort(found, function(a, b)
+        if a[3] ~= b[3] then return a[3] < b[3] end
+        if a[2] ~= b[2] then return a[2] > b[2] end
+        return a[1] < b[1]
+      end)
+      local zones = {}
+      for k = 1, math.min(4, #found) do zones[#zones + 1] = found[k][1]; zones[#zones + 1] = math.floor(found[k][2] + 0.5) end
+      steps[#steps + 1] = { gather = true, skinning = true, name = ("level %d-%d beasts"):format(lo, hi),
+                            from = s, to = e, crafts = e - s, color = "orange", zones = zones }
       total = total + (e - s)
       s = e
     end
@@ -768,7 +794,6 @@ function Planner.GatherPlan(ctx)
     local avail = {}
     -- spawns you can reach: your faction's and contested zones; the other faction's
     -- only count for a node that grows nowhere else
-    local rank = ctx.zoneRank or function() return 0 end
     for i, nd in ipairs(ctx.nodes or {}) do
       local n, all = 0, 0
       for k = 2, #nd[3], 2 do

@@ -29,7 +29,7 @@ A WoW Forever addon that plans the cheapest way to level a crafting profession.
   Your faction's zones are listed first, then contested ones; the other faction's
   zones come last, marked "(Alliance)"/"(Horde)", and only count when nowhere else
   has the item (whose zone it is comes from Forever's own zone table). Mining,
-  Herbalism and Fishing zones are ordered the same way, and node/fishing choices
+  Herbalism, Skinning and Fishing zones are ordered the same way, and node/fishing choices
   count the other faction's zones only when nothing else fits.
 - **All crafting professions:** Alchemy, Blacksmithing, Cooking, Enchanting,
   Engineering, First Aid, Leatherworking and Tailoring. The window shows the ones
@@ -131,9 +131,14 @@ lua5.1 tests/smoke_wow.lua      # whole addon against a fake WoW API
 ## Data sources
 - Recipes, reagents, skill thresholds, tools, cooldowns, factions, flight paths: WoW Forever client
   tables via wago.tools.
-- Learn levels, sources and trainer costs: Wowhead (exported by hand).
-- Trainers (and the recipe tier each teaches), pattern vendors and their exact Forever
-  coordinates: AllTheThings' Forever database (MIT, see THIRD_PARTY_NOTICES.md).
-- Fallback where AllTheThings has nothing yet — vendors, trainers, NPC positions,
-  boats/zeppelins: derived from the cMaNGOS Classic database
-  (github.com/cmangos/classic-db, GPL v3) — Classic data, so Forever may differ.
+- AllTheThings' Forever database (MIT, see THIRD_PARTY_NOTICES.md) first, for everything
+  it covers: how each recipe is learned (trainer, pattern, quest, specialisation, not
+  released yet), learn levels, how each rank is learned (trainer, book or quest, with the
+  quest giver), trainers and the recipe tier each teaches, pattern vendors, and exact
+  Forever coordinates.
+- Wowhead (exported by hand): trainer costs, plus sources and learn levels for recipes
+  AllTheThings doesn't list.
+- cMaNGOS Classic database (github.com/cmangos/classic-db, GPL v3) for what AllTheThings
+  doesn't have: other vendors/trainers and NPC positions, boats/zeppelins, herb/ore
+  spawns, fishing loot, mob drops for farming, and skinnable beasts — Classic data, so
+  Forever may differ.
