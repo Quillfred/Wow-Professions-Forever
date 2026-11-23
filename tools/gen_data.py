@@ -232,6 +232,9 @@ def main():
                 rank_source[(line, st)] = "B"
     out = {sl: [] for sl in PROFESSIONS}
     att_decided = {}
+    supply_priced = 0
+    # items that teach something (patterns, rank books): vendor handling of their own
+    teaching_items = {it for its in taught_by.values() for it in its} | {it for its in rank_books.values() for it in its}
     # recipes where Wowhead's Forever page was checked and beats ATT on the source
     opath = os.path.join(os.path.dirname(os.path.abspath(__file__)), "source_overrides.json")
     wh_first = {k for k in (json.load(open(opath, encoding="utf-8")) if os.path.exists(opath) else {})
@@ -370,7 +373,14 @@ def main():
         r = items.get(i)
         if not r:
             continue
-        vendor = r["Display_lang"] in VENDOR or i in vendor_patterns
+        # a vendor price: trade-supply names, patterns, or anything Classic vendors of both
+        # factions sell without a stock limit (Mild Spices, Flint and Tinder, vials)
+        sup_sides = {c for e, lim in npcdata.get("supplies", {}).get(str(i), []) if not lim
+                     for c in npcdata["npcs"].get(str(e), {}).get("side", "")}
+        vendor = (r["Display_lang"] in VENDOR or i in vendor_patterns
+                  or ({"A", "H"} <= sup_sides and i not in teaching_items))
+        if vendor and not (r["Display_lang"] in VENDOR or i in vendor_patterns):
+            supply_priced += 1
         buy = r["BuyPrice"] if vendor and int(r["BuyPrice"]) > 0 else "nil"
         lines.append(f"    [{i}]={{{lua_str(r['Display_lang'])},{r['SellPrice']},{buy}}},")
     lines += ["  },", "  -- [toolKey] = {name, itemIDs that satisfy it}; negative key = that exact item",
@@ -465,7 +475,20 @@ def main():
         pv_lines.append(f"    [{i}]={{\"{sides}\",{lua_str(names_a)},{lua_str(names_h)}}},")
     lines += ["  },", "  -- [patternItem] = {who vendors sell it to \"A\"|\"H\"|\"AH\", Alliance vendors, Horde vendors}",
               "  patternVendors = {"] + pv_lines
-    lines += ["  },", "  -- [patternItem] = {npc keys of vendors selling it}", "  vendorNpcs = {"] + vend_lines
+    # every other item recipes use that a vendor sells (reagents, tools): ATT's vendors
+    # where it lists the item, else Classic vendors without a stock limit
+    supply_items = 0
+    for i in sorted(used_items - set(vendor_patterns) - teaching_items):
+        keys = [att_npc(k) for k, lim in att["vendors"].get(str(i), []) if k in att["npcs"] and not lim]
+        if not keys:
+            keys = [k for k in (classic_npc(e) for e, lim in npcdata.get("supplies", {}).get(str(i), []) if not lim)
+                    if k is not None]
+        if keys:
+            vend_lines.append(f"    [{i}]={{{','.join(map(str, keys))}}},")
+            supply_items += 1
+    vend_lines.sort(key=lambda l: int(l.split("]")[0].strip()[1:]))
+    lines += ["  },", "  -- [item] = {npc keys of vendors selling it} (patterns, books, reagents, tools)",
+              "  vendorNpcs = {"] + vend_lines
     # ranks no trainer teaches: books (vendors above) and quests
     lines += ["  },", "  -- rank-up books: [skillLine] = {[rank] = {itemIDs}} (rank 3 Expert, 4 Artisan)", "  rankBooks = {"]
     for line in sorted({l for l, _ in rank_books}):
@@ -604,6 +627,7 @@ def main():
     dst = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "SkillRoute", "Data.lua")
     with open(dst, "w", encoding="utf-8") as f:
         f.write("\n".join(lines))
+    print(f"vendor locations for {supply_items} reagents/tools; {supply_priced} newly vendor-priced")
     print(f"ATT decided {sum(att_decided.values())} recipe sources {att_decided}; "
           f"rank-ups from ATT: {len(rank_source)} not from trainers, {sum(1 for k in rq if k in rank_source)} with quests")
     print(f"build {build}: " + ", ".join(f"{PROFESSIONS[sl]} {len(v)}" for sl, v in out.items())

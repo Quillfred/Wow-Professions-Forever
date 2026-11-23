@@ -232,11 +232,16 @@ local function routeRows(plan)
                 range = ("%d+"):format(math.max(u.from, st.from)), right = money(u.price),
                 tip = { ("A tool: needed from %d on. Craft it once and keep it in your bags (not the bank)."):format(st.from) } })
         else
+          local isVendor = Data.items[u.item] and Data.items[u.item][3]
+          local v = isVendor and (Core.Place("vendor", u.item) or Core.NearestVendor(u.item)) or nil
+          local tip = { ("A tool: needed from %d on. Keep it in your bags (not the bank)."):format(st.from) }
+          if v and Core.TravelText(v) then tip[#tip + 1] = Core.TravelText(v) .. "." end
+          if v then tip[#tip + 1] = "|cff808080Click: set a waypoint (TomTom).|r" end
           add({ item = u.item,
                 text = ("|cffff8040Buy 1 x %s|r (tool)"):format(itemName(u.item)),
-                sub = (Data.items[u.item] and Data.items[u.item][3]) and "From a trade supplies vendor" or "From the auction house",
-                right = money(u.price),
-                tip = { ("A tool: needed from %d on. Keep it in your bags (not the bank)."):format(st.from) } })
+                sub = v and ("From %s, %s"):format(v.npc, Core.Where(v) or "?")
+                      or isVendor and "From a trade supplies vendor" or "From the auction house",
+                right = money(u.price), tip = tip, waypoint = v })
         end
       end
     end
@@ -413,7 +418,7 @@ local function shoppingRows(plan)
   for _, b in ipairs(plan.shopping.buy) do
     local tags = {}
     -- who sells it, as on the route: a vendor you visited, else the nearest for your faction
-    local sold = (b.pattern or b.tool or b.book) and not b.ah
+    local sold = (b.pattern or b.tool or b.book or b.vendor) and not b.ah
     local p = sold and Core.Place("vendor", b.item)
     local near = sold and not p and Core.NearestVendor(b.item)
     local loc = p or near or nil
@@ -423,7 +428,7 @@ local function shoppingRows(plan)
                                          or ("|cffffd100pattern, from " .. (who or "a vendor") .. "|r")
     elseif b.tool then tags[#tags + 1] = "|cffff8040tool: keep it in your bags|r"
                                          .. (who and (", from " .. who) or b.vendor and ", vendor" or "")
-    elseif b.vendor then tags[#tags + 1] = "vendor" end
+    elseif b.vendor then tags[#tags + 1] = who and ("vendor: " .. who) or "vendor" end
     local tip
     if loc then
       tip = { p and ("Sold by %s (you visited them)."):format(Core.FormatPlace(p, true))

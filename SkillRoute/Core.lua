@@ -733,16 +733,28 @@ local function isPattern(item)
   return patternItems[item]
 end
 
+-- price and stock of merchant slot i: the old global API, or Forever's modern
+-- C_MerchantFrame.GetItemInfo (a table). Either can be missing.
+local function merchantInfo(i)
+  if GetMerchantItemInfo then
+    local _, _, price, _, numAvailable = GetMerchantItemInfo(i)
+    return price, numAvailable
+  end
+  local info = C_MerchantFrame and C_MerchantFrame.GetItemInfo and C_MerchantFrame.GetItemInfo(i)
+  if type(info) == "table" then return info.price, info.numAvailable end
+end
+
 function Core.ScanMerchant()
   local npc = UnitName and UnitName("npc")
-  if not npc or not GetMerchantNumItems then return end
+  local count = GetMerchantNumItems or (C_MerchantFrame and C_MerchantFrame.GetNumItems)
+  if not npc or not count then return end
   local spot, found = nil, 0
-  for i = 1, GetMerchantNumItems() do
+  for i = 1, count() or 0 do
     local id = (GetMerchantItemID and GetMerchantItemID(i))
                or itemIdFromLink(GetMerchantItemLink and GetMerchantItemLink(i))
     if id and isPattern(id) then
       spot = spot or here()
-      local _, _, price, _, numAvailable = GetMerchantItemInfo(i)
+      local price, numAvailable = merchantInfo(i)
       local v = places().vendors
       v[id] = v[id] or {}
       local e = {}

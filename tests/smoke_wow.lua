@@ -92,6 +92,21 @@ Core.ScanMerchant()
 local vp = Core.Place("vendor", patItem)
 assert(vp and vp.npc == "Kania" and vp.price == 100000 and not vp.limited, "pattern vendor recorded")
 assert(Core.FormatPlace(vp, true) == "Kania, Stonetalon Mountains, Sun Rock Retreat (47.2, 61.8)", Core.FormatPlace(vp, true))
+-- Forever's client: no GetMerchantItemInfo / GetMerchantNumItems, only C_MerchantFrame
+do
+  local oldInfo, oldNum = _G.GetMerchantItemInfo, _G.GetMerchantNumItems
+  _G.GetMerchantItemInfo, _G.GetMerchantNumItems = nil, nil
+  _G.C_MerchantFrame = { GetNumItems = function() return 1 end,
+                         GetItemInfo = function() return { name = "Pattern", price = 90000, stackCount = 1, numAvailable = 2 } end }
+  npcName = "Kania2"
+  local ok, err = pcall(Core.ScanMerchant)
+  assert(ok, "vendor scan with the modern merchant API: " .. tostring(err))
+  local e = SkillRouteDB.places.vendors[patItem].Kania2
+  assert(e and e.price == 90000 and e.limited, "modern API: price and limited stock recorded")
+  SkillRouteDB.places.vendors[patItem].Kania2 = nil
+  _G.C_MerchantFrame, _G.GetMerchantItemInfo, _G.GetMerchantNumItems = nil, oldInfo, oldNum
+  npcName = "Kania"
+end
 UnitFactionGroup = function() return "Alliance" end
 assert(not Core.Place("vendor", patItem), "other faction's vendor not suggested")
 UnitFactionGroup = function() return "Horde" end
@@ -602,6 +617,11 @@ do
   UI.SetMode("route")
   UI.Toggle()
   assert(bookRow and type(bookWp) == "table" and bookWp.npc, "book row names its vendor and has a waypoint")
+  -- vendor reagents and tools: nearest vendor named (Horde); Flint and Tinder has vendors
+  assert(SkillRouteData.vendorNpcs[4471] and #SkillRouteData.vendorNpcs[4471] > 0, "Flint and Tinder vendors in the data")
+  local fl = Core.NearestVendor(4471)
+  assert(fl and fl.npc, "nearest Flint and Tinder vendor for Horde")
+  print("flint and tinder: " .. fl.npc .. ", " .. tostring(Core.Where(fl)))
   print("shopping: " .. bookRow:gsub("|c%x%x%x%x%x%x%x%x", ""):gsub("|r", "") .. " (waypoint: " .. bookWp.npc .. ")")
   GetProfessions, GetProfessionInfo = saved[1], saved[2]
 end

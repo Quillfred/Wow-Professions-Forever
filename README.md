@@ -142,6 +142,7 @@ lua5.1 tests/smoke_wow.lua      # whole addon against a fake WoW API
   wins (tools/source_overrides.json, with the evidence). Recipes ATT calls unreleased
   are used only if their pattern is really on your auction house.
 - cMaNGOS Classic database (github.com/cmangos/classic-db, GPL v3) for what AllTheThings
-  doesn't have: other vendors/trainers and NPC positions, boats/zeppelins, herb/ore
+  doesn't have: other vendors/trainers and NPC positions, vendors of reagents and tools
+  (unlimited stock, no reputation, not holiday-only), boats/zeppelins, herb/ore
   spawns, fishing loot, mob drops for farming, and skinnable beasts — Classic data, so
   Forever may differ.

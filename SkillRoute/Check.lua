@@ -24,6 +24,7 @@ local APIS = {
   { "Select a recipe", { "C_TradeSkillUI.OpenRecipe", "C_TradeSkillUI.SetSelectedRecipeID", "TradeSkillFrame_SetSelection" }, "click a step to open its recipe" },
   { "Trainer window", { "GetTrainerServiceSkillReq" }, "real learn levels and trainer ranks" },
   { "Vendor window", { "GetMerchantItemID", "GetMerchantItemLink" }, "remembering pattern vendors" },
+  { "Vendor prices", { "C_MerchantFrame.GetItemInfo", "GetMerchantItemInfo" }, "price and stock at vendors you visit" },
   { "Your map position", { "C_Map.GetPlayerMapPosition" }, "nearest trainer, travel times" },
   { "World -> map", { "C_Map.GetMapPosFromWorldPos" }, "zone + coordinates of Classic NPCs" },
   { "Zone at a spot", { "C_Map.GetMapInfoAtPosition" }, "zone names of Classic NPCs" },

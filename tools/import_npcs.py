@@ -115,13 +115,23 @@ def main():
         teaches.setdefault(("tpl", int(r[0])), set()).add(int(r[1]))
 
     vendor_items = json.load(open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "vendor_factions.json")))
+    # (npc|tpl, id) -> {item: not a reliable supply?}: limited stock, or a condition on
+    # the row (reputation, quest)
     sells = {}
     for r in sql_rows(sqlgz, "npc_vendor"):
-        sells.setdefault(("npc", int(r[0])), set()).add(int(r[1]))
+        sells.setdefault(("npc", int(r[0])), {})[int(r[1])] = int(r[2] or 0) > 0 or int(r[5] or 0) != 0
     for r in sql_rows(sqlgz, "npc_vendor_template"):
-        sells.setdefault(("tpl", int(r[0])), set()).add(int(r[1]))
+        sells.setdefault(("tpl", int(r[0])), {})[int(r[1])] = int(r[2] or 0) > 0 or int(r[5] or 0) != 0
+    # NPCs that only spawn during a world event (Winter Veil, fireworks): not a supply
+    event_guids = {int(r[0]) for r in sql_rows(sqlgz, "game_event_creature") if int(r[1]) > 0}
+    permanent, seen_entry = set(), set()
+    for r in sql_rows(sqlgz, "creature"):
+        seen_entry.add(int(r[1]))
+        if int(r[0]) not in event_guids:
+            permanent.add(int(r[1]))
+    event_only = seen_entry - permanent
 
-    trainers, vendors, recipe_trainers, wanted = {}, {}, {}, set()
+    trainers, vendors, recipe_trainers, wanted, supplies = {}, {}, {}, set(), {}
     for entry, t in tmpl.items():
         spells = teaches.get(("npc", entry), set()) | teaches.get(("tpl", int(t[TT] or 0)), set())
         for s in spells:
@@ -131,10 +141,16 @@ def main():
                 wanted.add(entry)
             for recipe in {s} | teach.get(s, set()):
                 recipe_trainers.setdefault(recipe, set()).add(entry)
-        items = sells.get(("npc", entry), set()) | sells.get(("tpl", int(t[VT] or 0)), set())
-        for it in items:
+        items = dict(sells.get(("tpl", int(t[VT] or 0)), {}))
+        items.update(sells.get(("npc", entry), {}))
+        for it, limited in items.items():
             if str(it) in vendor_items:
                 vendors.setdefault(str(it), []).append(entry)
+                wanted.add(entry)
+            # every item a vendor sells (reagents, tools, Flint and Tinder): gen_data keeps
+            # the ones recipes use. Limited stock kept apart: not a reliable supply.
+            if entry not in event_only:
+                supplies.setdefault(str(it), {})[entry] = limited
                 wanted.add(entry)
 
     # Ranks taught by a quest (Artisan First Aid: "Triage"): quests whose reward spell
@@ -227,12 +243,15 @@ def main():
                        for rc, es in recipe_trainers.items() if any(str(e) in npcs for e in es)},
            "npcs": npcs,
            "trainers": {line: {e: r for e, r in d.items() if e in npcs} for line, d in trainers.items()},
-           "vendors": {it: sorted({e for e in es if str(e) in npcs}) for it, es in vendors.items()}}
+           "vendors": {it: sorted({e for e in es if str(e) in npcs}) for it, es in vendors.items()},
+           # [item] = [[vendor, limited stock?], ...] for everything vendors sell
+           "supplies": {it: sorted([e, lim] for e, lim in d.items() if str(e) in npcs)
+                        for it, d in supplies.items() if any(str(e) in npcs for e in d)}}
     dst = os.path.join(os.path.dirname(os.path.abspath(__file__)), "npcs.json")
     with open(dst, "w", encoding="utf-8") as f:
         json.dump(out, f, separators=(",", ":"), sort_keys=True)
     print(f"{len(npcs)} NPCs ({sum(len(d) for d in out['trainers'].values())} trainer entries, "
-          f"{len(out['vendors'])} patterns with vendors) -> {os.path.relpath(dst)}")
+          f"{len(out['vendors'])} patterns with vendors, {len(out['supplies'])} items sold by vendors) -> {os.path.relpath(dst)}")
 
 
 if __name__ == "__main__":
