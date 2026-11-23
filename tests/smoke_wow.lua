@@ -381,6 +381,23 @@ do
   print(("travel graph, every flight point known (%d flights): first %.1f ms, cached %.2f ms per lookup (%s)"):format(
     #SkillRouteData.taxi.flights, first, cached, e and e.npc or "?"))
 end
+-- shopping list -> Auctionator shopping list (vendor items left out)
+do
+  local created
+  Auctionator.API.v1.CreateShoppingList = function(caller, name, terms) created = { name = name, terms = terms } end
+  Auctionator.API.v1.ConvertToSearchString = function(caller, t) return ('"%s";;;;;;;;;;;;;%d'):format(t.searchString, t.quantity or 0) end
+  local plan = Core.Plan(197, 300)
+  local realPrint = print; _G.print = function() end
+  assert(Core.ExportToAuctionator(plan), "export succeeded")
+  _G.print = realPrint
+  assert(created and created.name == "SkillRoute Tailoring" and #created.terms > 0, "list created")
+  for _, t in ipairs(created.terms) do
+    assert(not t:find("Fine Thread", 1, true) and not t:find("Dye", 1, true), "vendor items left out: " .. t)
+  end
+  print(("Auctionator list '%s': %d items, e.g. %s"):format(created.name, #created.terms, created.terms[1]))
+  Auctionator.API.v1.CreateShoppingList, Auctionator.API.v1.ConvertToSearchString = nil, nil
+end
+
 -- /sr check runs and reports; errors are caught, not thrown
 do
   local out = {}

@@ -57,7 +57,8 @@ local function mats(spell, line)
 end
 
 -- Frame ----------------------------------------------------------------------------
-local frame, scroll, content, info, footer, targetBox, profText, modeBtn, hRange
+local frame, scroll, content, info, footer, targetBox, profText, modeBtn, hRange, ahBtn
+local lastPlan
 local rows = {}
 local state = { mode = "route" }
 UI._state = state -- for tests
@@ -383,6 +384,10 @@ local function refresh()
   info:SetText(("Skill %d/%d  ->  %d   -   %s%s"):format(plan.skill, plan.max, plan.target, src,
     #warn > 0 and ("\n" .. table.concat(warn, "\n")) or ""))
 
+  lastPlan = plan
+  if ahBtn then
+    if state.mode == "shopping" and Core.CanExportToAuctionator() then ahBtn:Show() else ahBtn:Hide() end
+  end
   local n = state.mode == "route" and routeRows(plan) or shoppingRows(plan)
   for i = n + 1, #rows do rows[i]:Hide() end
   content:SetHeight(math.max(1, n * ROW_H + ROWS_PAD))
@@ -483,7 +488,13 @@ local function build()
   scroll:SetScript("OnSizeChanged", function(_, w) content:SetWidth(w) end)
 
   footer = frame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-  footer:SetPoint("BOTTOMLEFT", 14, 12); footer:SetPoint("RIGHT", -14, 0); footer:SetJustifyH("LEFT")
+  footer:SetPoint("BOTTOMLEFT", 14, 12); footer:SetPoint("RIGHT", -170, 0); footer:SetJustifyH("LEFT")
+
+  ahBtn = CreateFrame("Button", nil, frame, "UIPanelButtonTemplate")
+  ahBtn:SetSize(150, 22); ahBtn:SetPoint("BOTTOMRIGHT", -14, 8)
+  ahBtn:SetText("Send to Auctionator")
+  ahBtn:SetScript("OnClick", function() if lastPlan then Core.ExportToAuctionator(lastPlan) end end)
+  ahBtn:Hide()
 end
 
 -- autoOpened: the window was opened by opening a profession window, so it closes
@@ -562,6 +573,9 @@ SlashCmdList.SKILLROUTE = function(msg)
     else
       print(("SkillRoute: /sr margin <50-99>  (now %d: buy enough to finish the route that many times in 100)"):format(settings.margin or 90))
     end
+  elseif cmd == "ah" then
+    if lastPlan then Core.ExportToAuctionator(lastPlan) else print("SkillRoute: open the window first (/sr).") end
+    return
   elseif cmd == "check" then
     Core.Check()
     return
@@ -577,7 +591,7 @@ SlashCmdList.SKILLROUTE = function(msg)
     print("SkillRoute: open with the profession window is " .. (settings.auto and "ON" or "OFF"))
     return
   elseif cmd == "help" then
-    print("SkillRoute: /sr - open/close   /sr check   /sr auto on|off   /sr overtime <pct>   /sr estimate on|off   /sr cdmats on|off   /sr margin <50-99>   /sr unskip   (right-click a step to skip it)")
+    print("SkillRoute: /sr - open/close   /sr check   /sr auto on|off   /sr overtime <pct>   /sr estimate on|off   /sr cdmats on|off   /sr margin <50-99>   /sr ah   /sr unskip   (right-click a step to skip it)")
     return
   else
     UI.Toggle()

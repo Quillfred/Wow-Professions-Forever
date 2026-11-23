@@ -848,6 +848,46 @@ function Core.Plan(line, target)
   return plan
 end
 
+-- Send the shopping list to Auctionator as a shopping list (exact names, amounts).
+-- Vendor items (thread, dyes, vendor patterns/tools) are left out: not on the AH.
+function Core.CanExportToAuctionator()
+  local api = Auctionator and Auctionator.API and Auctionator.API.v1
+  return api and api.CreateShoppingList and true or false
+end
+
+function Core.ExportToAuctionator(plan)
+  local api = Auctionator and Auctionator.API and Auctionator.API.v1
+  if not (api and api.CreateShoppingList) then
+    print("SkillRoute: your Auctionator version can't create shopping lists.")
+    return false
+  end
+  local terms, n = {}, 0
+  for _, b in ipairs(plan.shopping.buy) do
+    if b.buy > 0 and not (b.vendor and not b.ah) then
+      local name = (GetItemInfo and GetItemInfo(b.item)) or b.name
+      local term
+      if api.ConvertToSearchString then
+        local ok, s = pcall(api.ConvertToSearchString, addonName, { searchString = name, isExact = true, quantity = b.buy })
+        term = ok and s or nil
+      end
+      terms[#terms + 1] = term or ('"' .. name .. '"')
+      n = n + 1
+    end
+  end
+  if n == 0 then
+    print("SkillRoute: nothing to buy on the auction house.")
+    return false
+  end
+  local listName = "SkillRoute " .. Data.professions[plan.line].name
+  local ok, err = pcall(api.CreateShoppingList, addonName, listName, terms)
+  if ok then
+    print(("SkillRoute: Auctionator shopping list \"%s\" created with %d items (vendor items left out)."):format(listName, n))
+  else
+    Core.ReportError("Auctionator shopping list", err)
+  end
+  return ok
+end
+
 -- Safety margin: confidence (%) that the shopping list covers the whole route ->
 -- standard deviations (Abramowitz & Stegun 26.2.23, error < 0.0005).
 function Core.MarginZ(conf)
