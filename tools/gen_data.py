@@ -248,6 +248,7 @@ def main():
         rm = ck_vend.get(str(item))
         return not (rm == "all" or (rm and npc in rm))
     recipe_quests = {}  # recipe spell -> ATT quests that teach it
+    gated = 0
     # items that teach something (patterns, rank books): vendor handling of their own
     teaching_items = {it for its in taught_by.values() for it in its} | {it for its in rank_books.values() for it in its}
     # recipes where Wowhead's Forever page was checked and beats ATT on the source
@@ -285,6 +286,7 @@ def main():
             origin = w and w[1]
         # AllTheThings' Forever lists decide where they have an answer; the Wowhead and
         # Classic-based choice above stays for recipes ATT doesn't list (or lists as unknown)
+        tier_gate = int(checks.get("trainerGate", {}).get("tiers", {}).get(str(att["recipeTier"].get(str(s), 0)), 0))
         av = None if str(s) in wh_first else att.get("sources", {}).get(str(s))
         a_learn = att.get("learnAt", {}).get(str(s))
         w_learn = w[0] if (w and w[0] is not None) else None
@@ -336,6 +338,9 @@ def main():
             src, learn, origin = "T", y, None  # ATT lists it under a Forever trainer's tier
         elif src != "a" and a_learn is not None and src in ("T", "p") and w_learn is None:
             learn = a_learn  # Wowhead's learn level first (checked on Forever pages), ATT if none
+        if src == "T" and tier_gate and (learn if learn is not None else y) < tier_gate:
+            learn = tier_gate  # its trainer offers nothing below the tier's gate
+            gated += 1
         if (learn if learn is not None else y) >= MAX_SKILL:
             continue
         o = creates.get(s)
@@ -501,8 +506,13 @@ def main():
             # Magar <Expert> teaches JOURNEYMAN, Josef <Artisan> EXPERT, Master ARTISAN)
             # Forever trainers teach every rank up to that one (Wowhead Forever: Expert-titled
             # trainers teach Apprentice + Journeyman; gathering trainers Apprentice-Artisan)
+            # Forever: a crafting/secondary trainer teaches the one tier below its title and
+            # nothing until your skill reaches that tier (Wowhead guide; players at Timothy
+            # Worthington). Gathering trainers: every rank up to it (not confirmed otherwise).
             if int(e) not in att_ids and rank >= 2 and classic_npc(int(e)) is not None:
-                mask = ck_train.get(int(e), (1 << (min(rank, 5) - 1)) - 1)
+                top = min(rank, 5) - 1
+                default = ((1 << top) - 1) if (line in GATHER or line in (185, 129)) else (1 << (top - 1))
+                mask = ck_train.get(int(e), default)
                 if mask:
                     entries[int(e)] = mask
         if entries:
@@ -591,7 +601,18 @@ def main():
                 qrows.append("{%d,%s,%d,{%s}}" % (q["q"], lua_str(q["t"]), q["skill"], ",".join(map(str, givers))))
         if qrows:
             lines.append(f"    [{sp}]={{{','.join(qrows)}}},")
-    lines += ["  },", "  -- rank-ups no trainer teaches in Forever (ATT): [skillLine] = {[rank] = \"B\" book | \"Q\" quest}",
+    lv = checks.get("rankLevel", {}).get("levels", {})
+    notes = {k: v for k, v in checks.get("npcNotes", {}).items() if not k.startswith("_")}
+    note_rows = []
+    for k, v in sorted(notes.items()):
+        for key in sorted(npc_rows):  # Classic key = the ID; ATT keys = -(ID*10 + side)
+            if key == int(k) or (key < 0 and -key // 10 == int(k)):
+                note_rows.append(f"[{key}]={lua_str(v)}")
+    lines += ["  },", "  -- character level to learn a rank (crafting and secondary professions)",
+              "  rankLevel = {" + ",".join(f"[{k}]={v}" for k, v in sorted(lv.items())) + "},",
+              "  -- notes shown with an NPC (e.g. inside a dungeon)",
+              "  npcNotes = {" + ",".join(note_rows) + "},"]
+    lines += ["  -- rank-ups no trainer teaches in Forever (ATT): [skillLine] = {[rank] = \"B\" book | \"Q\" quest}",
               "  rankSource = {"]
     for line in sorted({l for l, _ in rank_source}):
         parts = [f"[{st}]=\"{v}\"" for (l, st), v in sorted(rank_source.items()) if l == line]
@@ -717,7 +738,8 @@ def main():
     dst = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "SkillRoute", "Data.lua")
     with open(dst, "w", encoding="utf-8") as f:
         f.write("\n".join(lines))
-    print(f"vendor locations for {supply_items} reagents/tools; {supply_priced} newly vendor-priced")
+    print(f"vendor locations for {supply_items} reagents/tools; {supply_priced} newly vendor-priced; "
+          f"{gated} trainer recipes moved to their tier's gate")
     print(f"ATT decided {sum(att_decided.values())} recipe sources {att_decided}; "
           f"rank-ups from ATT: {len(rank_source)} not from trainers, {sum(1 for k in rq if k in rank_source)} with quests")
     print(f"build {build}: " + ", ".join(f"{PROFESSIONS[sl]} {len(v)}" for sl, v in out.items())

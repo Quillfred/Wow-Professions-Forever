@@ -199,6 +199,10 @@ local function routeRows(plan)
       local tip = {}
       if p then
         tip[1] = ("You talked to %s here.%s"):format(p.npc, n > 1 and (" %d trainers known."):format(n) or "")
+      elseif loc and rank ~= "Journeyman" then
+        tip[1] = ("Nearest trainer for your faction who teaches %s %s. Forever trainers teach only the rank below their own title,"
+                  .. " and offer nothing until your skill reaches it (Journeyman 50, Expert 125, Artisan 200).")
+                  :format(rank, Data.professions[plan.line].name)
       elseif loc then
         tip[1] = ("Nearest trainer for your faction who teaches %s %s (an Artisan or Master trainer for Expert:"
                   .. " Forever trainers teach up to the rank below their own). Classic NPC data; Forever may differ.")
@@ -209,6 +213,8 @@ local function routeRows(plan)
       -- no trainer teaches it: a book (Expert First Aid) or a quest (Artisan: "Triage").
       -- ATT's Forever data says which; a trainer you saw offer it still wins.
       local book, quest = rh.book, rh.quest
+      local needLvl, myLvl = Core.RankLevelShort(plan.line, RANK_STEP[rank])
+      local lvlWarn = needLvl and ("  |cffff4040needs character level %d (you're %d)|r"):format(needLvl, myLvl) or ""
       if book then
         local bl = book.loc
         tip = { book.owned and ("The game reports %s %s: use it to learn %s."):format(book.name, book.where or "in your bags", rank)
@@ -219,7 +225,8 @@ local function routeRows(plan)
         add({ icon = "Interface\\Icons\\INV_Misc_Book_09", item = book.item,
               text = ("|cffffd100%s %s|r"):format(book.owned and "Read" or "Buy", book.name),
               sub = ("Teaches %s, needed past %d"):format(rank, trained)
-                    .. (bl and ("  -  from %s, %s"):format(bl.npc, Core.Where(bl) or "?") or ("  -  " .. (book.where or "in your bags"))),
+                    .. (bl and ("  -  from %s, %s"):format(bl.npc, Core.Where(bl) or "?") or ("  -  " .. (book.where or "in your bags")))
+                    .. lvlWarn,
               range = tostring(trained), right = (not book.owned and book.price) and money(book.price) or nil,
               tipTitle = book.name, tip = tip, waypoint = bl })
       elseif quest then
@@ -230,7 +237,7 @@ local function routeRows(plan)
         tip[#tip + 1] = "|cff808080Click: set a waypoint (TomTom).|r"
         add({ icon = "Interface\\Icons\\INV_Misc_Note_01",
               text = ("|cffffd100Quest \"%s\"|r for %s"):format(quest.title, rank),
-              sub = ("Needs skill %d  -  from %s, %s"):format(quest.skill, ql.npc, Core.Where(ql) or "?"),
+              sub = ("Needs skill %d  -  from %s, %s"):format(quest.skill, ql.npc, Core.Where(ql) or "?") .. lvlWarn,
               range = tostring(trained), tipTitle = quest.title, tip = tip, waypoint = ql })
       else
         if loc and Core.TravelText(loc) then tip[#tip + 1] = Core.TravelText(loc) .. "." end
@@ -238,7 +245,7 @@ local function routeRows(plan)
         add({ icon = "Interface\\Icons\\INV_Misc_Book_09",
               text = ("|cffffd100Train %s|r"):format(rank) .. (loc and (" at " .. loc.npc) or " at your trainer"),
               sub = ("Needed to go past %d"):format(trained)
-                    .. (where and ("  -  " .. where) or ("  -  |cff808080no %s trainer known|r"):format(rank)),
+                    .. (where and ("  -  " .. where) or ("  -  |cff808080no %s trainer known|r"):format(rank)) .. lvlWarn,
               range = tostring(trained), tipTitle = ("Train %s"):format(rank), tip = tip, waypoint = loc })
       end
       trained = trained + 75

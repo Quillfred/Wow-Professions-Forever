@@ -615,6 +615,7 @@ function Core.NearestNPC(ids)
   local copy = {}
   for k, v in pairs(loc) do copy[k] = v end
   copy.id = best
+  copy.note = Data.npcNotes and Data.npcNotes[best] -- "inside Uldaman (dungeon)"
   copy.travel = bestD < math.huge and bestD or nil
   copy.via = bestHow
   return copy
@@ -682,6 +683,15 @@ function Core.RankBook(line, rankStep)
   end
 end
 
+-- Character level a rank needs (Data.rankLevel; crafting and secondary professions),
+-- if you're below it: returns needed, yours.
+function Core.RankLevelShort(line, rankStep)
+  local need = Data.rankLevel and Data.rankLevel[rankStep]
+  if not need or Data.professions[line].gather and line ~= 356 then return nil end
+  local mine = UnitLevel and UnitLevel("player")
+  if mine and mine < need then return need, mine end
+end
+
 -- How to get a rank: the trainer you visited, else ATT's book/quest, else the nearest
 -- trainer, else a book or quest. One place for both the route and the shopping list.
 local RANK_NAME = { [2] = "Journeyman", [3] = "Expert", [4] = "Artisan" }
@@ -741,7 +751,13 @@ function Core.NearestVendor(item)
 end
 
 -- "Zone (x, y)"; for an NPC the game couldn't place, its spot on the continent map.
+local whereRaw
 function Core.Where(loc)
+  local w = whereRaw(loc)
+  if w and loc.note then w = w .. " - |cffff8040" .. loc.note .. "|r" end
+  return w
+end
+whereRaw = function(loc)
   if not loc then return nil end
   if loc.zone and loc.x then return ("%s (%.1f, %.1f)"):format(loc.zone, loc.x, loc.y) end
   local cont = loc.cui and C_Map and C_Map.GetMapInfo and C_Map.GetMapInfo(loc.cui)

@@ -227,8 +227,11 @@ end
 -- the Forever check (tools/forever_checks.json) is applied to the data
 do
   check(not (D.trainers[165] or {})[7866], "leatherworking specialization trainer 7866 teaches no rank in Forever")
-  check((D.trainers[356] or {})[14740] == 3, "Katoom the Angler: Apprentice + Journeyman only")
-  check((D.trainers[171] or {})[11042] == 7, "Sylvanna Forestmoon also teaches Expert Alchemy")
+  check((D.trainers[356] or {})[14740] == 3, "Katoom the Angler: Apprentice + Journeyman")
+  check((D.trainers[171] or {})[11042] == 2, "crafting trainers teach one tier (Sylvanna Forestmoon: Journeyman)")
+  check(D.professions[197].recipes[12079].learn == 200, "Red Mageweave Bag: its Master trainer offers nothing below 200")
+  check(D.rankLevel[4] == 35 and D.rankLevel[3] == 20 and D.rankLevel[2] == 10, "character level per rank")
+  check(D.npcNotes[11073] and D.npcNotes[11073]:find("Uldaman"), "Annora's note: inside Uldaman")
   check(D.items[858] and D.items[858][3] == nil, "Lesser Healing Potion: no vendor price (limited stock everywhere)")
   check(D.items[6887] and D.items[6887][3] == nil and not D.vendorNpcs[6887], "Spotted Yellowtail: no vendor")
   check(not D.farm[3821], "Goldthorn: no mob drops it in Forever")

@@ -809,6 +809,24 @@ do
   prices[pick] = nil
 end
 
+-- a rank the character is too low-level for: the row warns (Artisan needs level 35)
+do
+  local saved = { GetProfessions, GetProfessionInfo, _G.UnitLevel }
+  GetProfessions = function() return 1 end
+  GetProfessionInfo = function() return "Tailoring", 0, 200, 225, 0, 0, 197 end
+  _G.UnitLevel = function() return 29 end
+  UI.Toggle(197)
+  local warn
+  for _, t in ipairs(texts) do
+    local v = rawget(t, "text")
+    if type(v) == "string" and v:find("needs character level 35 (you're 29)", 1, true) then warn = v end
+  end
+  UI.Toggle()
+  assert(warn, "Artisan row warns about character level 35")
+  print("rank level warning: " .. warn:gsub("|c%x%x%x%x%x%x%x%x", ""):gsub("|r", ""))
+  GetProfessions, GetProfessionInfo, _G.UnitLevel = saved[1], saved[2], saved[3]
+end
+
 -- /sr log: records trainers, vendors, disenchants, fishing, boats; steps tick off
 do
   local Rec = ns.Recorder

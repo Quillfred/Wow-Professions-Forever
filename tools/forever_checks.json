@@ -38,20 +38,19 @@
   }
  },
  "trainers": {
-  "_about": "Classic trainer NPC -> tiers taught in Forever (bits: 1 Apprentice, 2 Journeyman, 4 Expert, 8 Artisan); 0 = no rank (remove).",
+  "_about": "Classic trainer NPC -> tiers taught in Forever (bits: 1 Apprentice, 2 Journeyman, 4 Expert, 8 Artisan); 0 = no rank (remove). Crafting trainers teach one tier, the one below their title; gathering and secondary (Cooking, First Aid, Fishing) trainers every rank they have.",
   "set": {
    "7866": 0,
    "7867": 0,
    "7868": 0,
    "7869": 0,
    "7870": 0,
-   "14740": 3,
-   "11042": 7
+   "14740": 3
   },
   "why": {
    "7866-7870": "leatherworking specialization trainers: teach no rank in Forever",
-   "14740": "Katoom the Angler: only Apprentice and Journeyman Fishing",
-   "11042": "Sylvanna Forestmoon also teaches Expert Alchemy (125)"
+   "14740": "Katoom the Angler: Apprentice + Journeyman Fishing, like every fishing trainer (Expert is a book, Artisan a quest)",
+   "note": "Wowhead's Teaches tabs list what a trainer has, not what Forever offers (2026-11-14 comment on Timothy Worthington); Sylvanna Forestmoon's extra Expert came from that and is dropped. tools/forever-trainer-gating-2026-11-23.md"
   }
  },
  "disenchant": {
@@ -684,5 +683,26 @@
     30
    ]
   }
+ },
+ "trainerGate": {
+  "_about": "A trainer offers nothing until your skill reaches the gate of the tier it teaches (Timothy Worthington, Master Tailor: nothing at 190, training at 200; players 2026-11-14..20). Recipes are learnable from max(own level, gate).",
+  "tiers": {
+   "1": 0,
+   "2": 50,
+   "3": 125,
+   "4": 200
+  }
+ },
+ "rankLevel": {
+  "_about": "Character level to learn a rank (Wowhead Forever Professions Overview, Method, icy-veins, wow-professions agree): crafting and secondary professions. Gathering: not confirmed.",
+  "levels": {
+   "2": 10,
+   "3": 20,
+   "4": 35
+  }
+ },
+ "npcNotes": {
+  "_about": "shown with the NPC",
+  "11073": "inside Uldaman (dungeon), behind trash"
  }
 }
