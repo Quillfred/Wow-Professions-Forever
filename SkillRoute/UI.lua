@@ -355,7 +355,9 @@ local function routeRows(plan)
         local buy = st.unlock.via ~= "ah" and st.unlock.via ~= "owned"
         local near = not p and buy and Core.NearestVendor(st.unlock.item)
         waypoint = buy and (p or near) or nil
-        if st.unlock.via == "owned" then
+        if st.unlock.via == "ah" then
+          tip[#tip + 1] = "Bought on the AH:" .. ahWhy(st.unlock.item, true):gsub("|c%x%x%x%x%x%x%x%x", ""):gsub("|r", "")
+        elseif st.unlock.via == "owned" then
           tip[#tip + 1] = ("You already have %s %s: nothing to buy.%s"):format(itemName(st.unlock.item), st.unlock.owned,
             st.unlock.owned == "in your bank" and " Take it out of the bank and use it."
             or st.unlock.owned == "on an alt" and " Mail it to this character." or "")
@@ -410,14 +412,14 @@ end
 
 -- why a pattern is bought on the AH: no vendor of your faction sells it, or the AH
 -- is cheaper than the vendor
-ahWhy = function(item)
+ahWhy = function(item, long) -- long: with the vendors' names (tooltips)
   local pv = Data.patternVendors and Data.patternVendors[item]
   local mine = UnitFactionGroup and UnitFactionGroup("player")
   local me = mine == "Alliance" and "A" or mine == "Horde" and "H" or nil
   if pv and me and not pv[1]:find(me, 1, true) then
     local other = me == "H" and pv[2] or pv[3]
     return (" |cff808080(only %s vendors sell it%s)|r"):format(me == "H" and "Alliance" or "Horde",
-      other ~= "" and (": " .. other) or "")
+      long and other ~= "" and (": " .. other) or "")
   end
   local it = Data.items[item]
   if it and it[3] then return (" |cff808080(cheaper than the vendor's %s)|r"):format(money(it[3])) end
@@ -425,7 +427,7 @@ ahWhy = function(item)
   return ""
 end
 
-UI.AhWhy = function(item) return ahWhy(item) end
+UI.AhWhy = function(item, long) return ahWhy(item, long) end
 
 local function shoppingRows(plan)
   local n = 0

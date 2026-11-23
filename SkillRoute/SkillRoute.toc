@@ -1,7 +1,7 @@
 ## Interface: 16001
 ## Title: SkillRoute
 ## Notes: Cheapest profession leveling route from WoW Forever's own recipe data and your Auctionator prices. /sr
-## Version: 0.24.3
+## Version: 0.24.4
 ## SavedVariables: SkillRouteDB
 ## OptionalDeps: Auctionator, TomTom
 ## IconTexture: Interface\Icons\Trade_Tailoring

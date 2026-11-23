@@ -650,7 +650,15 @@ function Core.NearestRecipeTrainer(line, spell, learnAt)
     local L = learnAt or 0
     tier = L >= 225 and 4 or L >= 125 and 3 or L >= 50 and 2 or 1
   end
-  return Core.NearestNPC(trainersTeaching(line, tier)), known
+  local ids = trainersTeaching(line, tier)
+  -- estimated tier with no trainer (Cooking trainers only list Journeyman): the highest
+  -- tier below that has one, rather than no name at all
+  local t = tier
+  while not known and #ids == 0 and t > 1 do
+    t = t - 1
+    ids = trainersTeaching(line, t)
+  end
+  return Core.NearestNPC(ids), known
 end
 
 -- Ranks no trainer teaches. A book (Expert First Aid - Under Wraps): owned, or the

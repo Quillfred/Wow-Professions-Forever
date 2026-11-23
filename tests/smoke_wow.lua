@@ -640,8 +640,14 @@ end
 
 -- a pattern bought on the AH says why: Cooked Crab Claw's (2698) only vendor is Alliance
 do
-  local why = UI.AhWhy(2698):gsub("|c%x%x%x%x%x%x%x%x", ""):gsub("|r", "")
+  local why = UI.AhWhy(2698, true):gsub("|c%x%x%x%x%x%x%x%x", ""):gsub("|r", "")
   assert(why:find("only Alliance vendors sell it: Kendor Kabonka", 1, true), why)
+  local short = UI.AhWhy(2698):gsub("|c%x%x%x%x%x%x%x%x", ""):gsub("|r", "")
+  assert(short == " (only Alliance vendors sell it)", "row text stays short: " .. short)
+  -- Goblin Deviled Clams (6500, learned at 125+): a Cooking trainer is named
+  local loc = Core.NearestRecipeTrainer(185, 6500, 125)
+  assert(loc and loc.npc, "a Cooking trainer for an Expert-level recipe")
+  print("goblin deviled clams trainer: " .. loc.npc)
   print("ah why (Horde, Cooked Crab Claw):" .. why)
 end
 
