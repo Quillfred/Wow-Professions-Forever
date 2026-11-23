@@ -440,7 +440,7 @@ local function routeRows(plan)
       local function note(t) tip[#tip + 1] = { note = t } end
       local function gap() tip[#tip + 1] = { gap = true } end
       local function travel(loc) local t = Core.TravelText(loc); return t and t:gsub("^about ", "~"):gsub(" away", "") end
-      row("Per craft", money(st.perCraft) .. (st.est and " |cffff8040(estimated)|r" or ""))
+      row("Cost per craft", money(st.perCraft) .. (st.est and " |cffff8040(estimated)|r" or ""))
       -- the last skill at which the recipe is each colour (Planner.Color: green from the
       -- midpoint of yellow and grey)
       do
