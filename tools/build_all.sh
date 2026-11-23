@@ -49,8 +49,9 @@ CLASSIC=$(ls "$EXT"/classic-db/Full_DB/*.sql.gz | head -1)
 if [ ! -d "$EXT/att/.git" ]; then
   git clone -q --depth 1 --filter=blob:none --sparse https://github.com/ATTWoWAddon/AllTheThings "$EXT/att"
   git -C "$EXT/att" sparse-checkout set .contrib/.db/forever
-else
-  git -C "$EXT/att" pull -q --depth 1
+else # a shallow copy can't "pull": fetch the newest commit and move to it
+  git -C "$EXT/att" fetch -q --depth 1 origin HEAD
+  git -C "$EXT/att" reset -q --hard FETCH_HEAD
 fi
 ATT=$EXT/att/.contrib/.db/forever
 echo "external data ready"
