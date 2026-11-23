@@ -80,6 +80,13 @@ For the best plan: scan the AH with Auctionator, open your profession window onc
 and visit your trainer once.
 
 ## Updating the data after a patch
+One step (downloads game tables, AllTheThings' Forever folder and the Classic
+database, runs every importer, regenerates Data.lua, runs the tests):
+```
+tools/build_all.sh            # newest Forever build
+tools/build_all.sh 1.60.1.71037
+```
+The individual steps, if you need one:
 ```
 python3 -I tools/import_wowhead.py wow-forever-recipes.json   # optional: new Wowhead export
 python3 -I tools/import_sources.py blank-source-recipes.csv   # optional: sources Wowhead left blank

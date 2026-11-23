@@ -44,8 +44,11 @@ MAX_SKILL = 300  # Forever's profession cap; recipes only usable above it are dr
 SPELL_EFFECT_CREATE_ITEM, SPELL_EFFECT_LEARN_SPELL, ITEM_TRIGGER_ON_LEARN = "24", "36", "6"
 
 
+UA = {"User-Agent": "SkillRoute-datagen/1.0"}  # wago.tools refuses Python's default agent
+
+
 def latest_build():
-    with urllib.request.urlopen("https://wago.tools/api/builds", timeout=30) as r:
+    with urllib.request.urlopen(urllib.request.Request("https://wago.tools/api/builds", headers=UA), timeout=30) as r:
         return json.load(r)["wowf"][0]["version"]
 
 
@@ -55,7 +58,8 @@ def fetch(build, cache):
         path = os.path.join(cache, f"{t}-{build}.csv")
         if not os.path.exists(path):  # tables are immutable per build: never re-download
             url = f"https://wago.tools/db2/{t}/csv?build={build}"
-            with urllib.request.urlopen(url, timeout=180) as r, open(path + ".part", "wb") as f:
+            with urllib.request.urlopen(urllib.request.Request(url, headers=UA), timeout=180) as r, \
+                    open(path + ".part", "wb") as f:
                 f.write(r.read())
             os.replace(path + ".part", path)
         return t, path
