@@ -109,6 +109,12 @@ def main():
         with open(npath, encoding="utf-8") as f:
             npcdata = json.load(f)
 
+    # AllTheThings (tools/import_att.py): loaded early, its trainer lists confirm recipes
+    att = {"npcs": {}, "trainers": {}, "vendors": {}, "recipeTier": {}}
+    apath = os.path.join(os.path.dirname(os.path.abspath(__file__)), "att_forever.json")
+    if os.path.exists(apath):
+        with open(apath, encoding="utf-8") as f:
+            att = json.load(f)
     abil = {}  # spell -> SkillLineAbility row (crafting recipes only)
     for r in rows(p["SkillLineAbility"]):
         sl = int(r["SkillLine"])
@@ -232,6 +238,8 @@ def main():
         else:
             src = "x"  # quest/special/no known source: only used if the character knows it
             origin = w and w[1]
+        if src in ("t", "x") and str(s) in att["recipeTier"] and s not in NOT_TRAINER:
+            src, learn, origin = "T", y, None  # ATT lists it under a Forever trainer's tier
         if (learn if learn is not None else y) >= MAX_SKILL:
             continue
         o = creates.get(s)
@@ -311,11 +319,6 @@ def main():
     # (tools/import_att.py: exact zone coordinates, the recipe tier each trainer
     # teaches, vendors' pattern lists); Classic data (tools/import_npcs.py) for NPCs
     # and patterns ATT doesn't list yet.
-    att = {"npcs": {}, "trainers": {}, "vendors": {}, "recipeTier": {}}
-    apath = os.path.join(os.path.dirname(os.path.abspath(__file__)), "att_forever.json")
-    if os.path.exists(apath):
-        with open(apath, encoding="utf-8") as f:
-            att = json.load(f)
     conts = npcdata.get("continents", {})
 
     def continent(mapid, x, y):

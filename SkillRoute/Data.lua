@@ -676,7 +676,7 @@ SkillRouteData = {
     [430409]={n="Blackfathom Mana Oil",y=100,g=120,src="p",out=211848,r={3372,1,10939,1,10940,5},pat={211849},tool={374}},
     [435481]={n="Enchant Weapon - Dismantle",y=200,g=235,src="p",learn=225,r={11174,4,5637,2,11177,2},pat={215129},tool={375}},
     [435903]={n="Enchant Chest - Retricutioner",y=200,g=240,src="p",learn=225,r={11177,1,11176,2},pat={215138},tool={375}},
-    [439134]={n="Greater Mystic Wand",y=195,g=235,src="x",out=217287,r={11291,1,11135,1,11137,1},tool={375}},
+    [439134]={n="Greater Mystic Wand",y=195,g=235,src="T",learn=195,out=217287,r={11291,1,11135,1,11137,1},tool={375}},
     [439156]={n="Sigil of Innovation",y=225,g=230,src="p",learn=225,out=217308,r={11137,5},pat={215141},tool={375}},
     [446243]={n="Sigil of Living Dreams",y=250,g=260,src="x",out=221028,r={11176,5},tool={376}},
     [448624]={n="Scroll of Spatial Mending",y=120,g=160,src="p",learn=120,out=220792,r={4470,1,10940,4},pat={223163},tool={374}},
@@ -1984,9 +1984,9 @@ SkillRouteData = {
     [7934]={n="Anti-Venom",y=80,g=150,src="T",learn=80,tc=263,out=6452,outN=3,r={1475,1}},
     [7935]={n="Strong Anti-Venom",y=130,g=200,src="p",learn=130,from="Drop",out=6453,outN=3,r={1288,1},pat={6454}},
     [10840]={n="Mageweave Bandage",y=210,g=270,src="p",learn=210,from="Vendor",out=8544,r={4338,1},pat={16113}},
-    [10841]={n="Heavy Mageweave Bandage",y=240,g=300,src="t",out=8545,r={4338,2}},
-    [18629]={n="Runecloth Bandage",y=260,g=320,src="t",out=14529,r={14047,1}},
-    [18630]={n="Heavy Runecloth Bandage",y=290,g=350,src="t",out=14530,r={14047,2}},
+    [10841]={n="Heavy Mageweave Bandage",y=240,g=300,src="T",learn=240,out=8545,r={4338,2}},
+    [18629]={n="Runecloth Bandage",y=260,g=320,src="T",learn=260,out=14529,r={14047,1}},
+    [18630]={n="Heavy Runecloth Bandage",y=290,g=350,src="T",learn=290,out=14530,r={14047,2}},
     [1230117]={n="First Aid Kit",y=20,g=20,src="T",learn=20,tc=105,out=279968,r={1251,3,159,1}},
     [1244431]={n="Minor Healing Potion",y=55,g=95,src="T",learn=1,tc=105,out=118,r={3371,1,2678,1,2447,1}},
     [1244432]={n="Lesser Healing Potion",y=85,g=125,src="T",learn=55,tc=157,out=858,r={3371,1,2678,2,2450,1}},
@@ -7007,7 +7007,7 @@ SkillRouteData = {
     [13893]={{"f","Azshara",5.0,205}},
   },
   -- zoneSide: [zone] = "A"|"H" (Forever's AreaTable); contested zones absent
-  zoneSide = {["Darkshore"]="A",["Dun Morogh"]="A",["Durotar"]="H",["Elwynn Forest"]="A",["Ironforge"]="A",["Loch Modan"]="A",["Mulgore"]="H",["Orgrimmar"]="H",["Silverpine Forest"]="H",["Stormwind City"]="A",["Teldrassil"]="A",["The Barrens"]="H",["Thunder Bluff"]="H",["Tirisfal Glades"]="H",["Westfall"]="A"},
+  zoneSide = {["Darkshore"]="A",["Darnassus"]="A",["Dun Morogh"]="A",["Durotar"]="H",["Elwynn Forest"]="A",["Elwynn Forest (Blue Whelpling Inn Prototype)"]="A",["Ironforge"]="A",["Loch Modan"]="A",["Mulgore"]="H",["Orgrimmar"]="H",["Silverpine Forest"]="H",["Stormwind City"]="A",["Teldrassil"]="A",["The Barrens"]="H",["Thunder Bluff"]="H",["Tirisfal Glades"]="H",["Undercity"]="H",["Unused The Deadmines 002"]="A",["Westfall"]="A"},
   -- fishing: {zone, fishing level} (you lose fish below level + 95)
   fishing = {
     {"Dun Morogh",-70},

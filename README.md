@@ -28,7 +28,9 @@ A WoW Forever addon that plans the cheapest way to level a crafting profession.
   zones), not counted in what you spend; each kill/catch counts as a little of your time.
   Your faction's zones are listed first, then contested ones; the other faction's
   zones come last, marked "(Alliance)"/"(Horde)", and only count when nowhere else
-  has the item (whose zone it is comes from Forever's own zone table).
+  has the item (whose zone it is comes from Forever's own zone table). Mining,
+  Herbalism and Fishing zones are ordered the same way, and node/fishing choices
+  count the other faction's zones only when nothing else fits.
 - **All crafting professions:** Alchemy, Blacksmithing, Cooking, Enchanting,
   Engineering, First Aid, Leatherworking and Tailoring. The window shows the ones
   your character has; switch with the arrows.

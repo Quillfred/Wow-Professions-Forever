@@ -737,7 +737,15 @@ function Planner.GatherPlan(ctx)
       for k = s, e - 1 do n = n + 1 / Planner.FishChance(k) end
       local safe = {}
       for _, z in ipairs(ctx.fishing) do if z[2] + 95 <= s then safe[#safe + 1] = z end end
-      table.sort(safe, function(a, b) if a[2] ~= b[2] then return a[2] > b[2] end return a[1] < b[1] end)
+      -- your faction's zones first, then contested, then the other faction's (ctx.zoneRank
+      -- 0/1/2); within each the highest fishing level you lose nothing in
+      local rank = ctx.zoneRank or function() return 0 end
+      table.sort(safe, function(a, b)
+        local ra, rb = rank(a[1]), rank(b[1])
+        if ra ~= rb then return ra < rb end
+        if a[2] ~= b[2] then return a[2] > b[2] end
+        return a[1] < b[1]
+      end)
       local zones = {}
       for k = 1, math.min(3, #safe) do zones[#zones + 1] = safe[k][1]; zones[#zones + 1] = safe[k][2] end
       steps[#steps + 1] = { gather = true, fishing = true, name = "fish", from = s, to = e, crafts = n,
@@ -758,10 +766,16 @@ function Planner.GatherPlan(ctx)
     end
   else
     local avail = {}
+    -- spawns you can reach: your faction's and contested zones; the other faction's
+    -- only count for a node that grows nowhere else
+    local rank = ctx.zoneRank or function() return 0 end
     for i, nd in ipairs(ctx.nodes or {}) do
-      local n = 0
-      for k = 2, #nd[3], 2 do n = n + nd[3][k] end
-      avail[i] = math.sqrt(math.max(n, 1))
+      local n, all = 0, 0
+      for k = 2, #nd[3], 2 do
+        all = all + nd[3][k]
+        if rank(nd[3][k - 1]) < 2 then n = n + nd[3][k] end
+      end
+      avail[i] = math.sqrt(math.max(n > 0 and n or all, 1))
     end
     local pick = {}
     for s = from, to - 1 do

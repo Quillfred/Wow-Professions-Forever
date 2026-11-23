@@ -160,9 +160,8 @@ def main():
                 d["fish"].append([z, round(ch, 1), level.get(z, 0)])
     for d in out.values():
         d["fish"] = best(d["fish"], lambda f: f[0], lambda f: (-f[1], f[2]), 3)
-    used = {m[1] for d in out.values() for m in d["mobs"]} | {f[0] for d in out.values() for f in d["fish"]}
-    with open(os.path.join(here, "zone_sides.json"), "w", encoding="utf-8") as f:
-        json.dump({z: side[z] for z in sorted(used) if side.get(z)}, f, separators=(",", ":"), sort_keys=True)
+    with open(os.path.join(here, "zone_sides.json"), "w", encoding="utf-8") as f:  # farming, gathering, fishing
+        json.dump({z: v for z, v in side.items() if v}, f, separators=(",", ":"), sort_keys=True)
 
     with open(os.path.join(here, "farm.json"), "w", encoding="utf-8") as f:
         json.dump(out, f, separators=(",", ":"), sort_keys=True)

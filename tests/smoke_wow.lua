@@ -442,6 +442,46 @@ do
     if type(v) == "string" and v:find("^Gathering route") then foot = v end
   end
   assert(found and foot, "mining route rows + footer")
+  -- Horde: no Alliance zone listed before a Horde/contested one, in every gathering row
+  for _, line in ipairs({ 186, 182, 356 }) do
+    local name = ({ [186] = "Mining", [182] = "Herbalism", [356] = "Fishing" })[line]
+    GetProfessionInfo = function() return name, 0, 1, 300, 0, 0, line end
+    local plan = Core.Plan(line, 300)
+    local rows = 0
+    for _, st in ipairs(plan.steps) do
+      if st.gather and st.zones then
+        local seenEnemy = false
+        local shown = {}
+        for k = 1, #st.zones, 2 do shown[#shown + 1] = { z = st.zones[k], i = k } end
+        table.sort(shown, function(a, b)
+          local ra, rb = Core.ZoneRank(a.z), Core.ZoneRank(b.z)
+          if ra ~= rb then return ra < rb end return a.i < b.i end)
+        for _, x in ipairs(shown) do
+          local enemy = Core.ZoneRank(x.z) == 2
+          assert(enemy or not seenEnemy, "Alliance zones last")
+          assert(enemy == (Core.ZoneName(x.z) ~= x.z), "only Alliance zones marked")
+          seenEnemy = seenEnemy or enemy
+        end
+        if line == 356 and #st.zones > 0 then
+          -- fishing picks: no Alliance zone chosen while a Horde/contested one is safe
+          local hasOk = false
+          for _, z in ipairs(SkillRouteData.fishing) do
+            if z[2] + 95 <= st.from and Core.ZoneRank(z[1]) < 2 then hasOk = true end
+          end
+          if hasOk then assert(Core.ZoneRank(st.zones[1]) < 2, "fishing: Horde or contested zone first at " .. st.from) end
+        end
+        rows = rows + 1
+      end
+    end
+    assert(rows > 0, name .. " gather rows")
+  end
+  GetProfessionInfo = function() return "Mining", 0, 50, 75, 0, 0, 186 end
+  UI.Toggle(); UI.Toggle(186)
+  found = nil
+  for _, t in ipairs(texts) do
+    local v = rawget(t, "text")
+    if type(v) == "string" and v:find("^Best zones") then found = found or v end
+  end
   print("mining row: " .. found:gsub("|c%x%x%x%x%x%x%x%x", ""):gsub("|r", "") .. " | " .. foot:gsub("|c%x%x%x%x%x%x%x%x", ""):gsub("|r", ""))
   UI.Toggle()
   GetProfessions, GetProfessionInfo = saved[1], saved[2]

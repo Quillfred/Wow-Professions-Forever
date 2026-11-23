@@ -241,13 +241,17 @@ local function routeRows(plan)
       end
     end
     if st.gather then
-      local zones = {}
+      -- your faction's zones first, then contested, the other faction's last (marked);
+      -- node zones keep their most-spawns order within each
+      local list = {}
       for k = 1, #(st.zones or {}), 2 do
-        if #zones < 3 then zones[#zones + 1] = ("%s (%d)"):format(st.zones[k], st.zones[k + 1]) end
+        list[#list + 1] = { z = st.zones[k], n = st.zones[k + 1], r = Core.ZoneRank(st.zones[k]), i = k }
       end
-      if st.fishing then
-        zones = {}
-        for k = 1, #(st.zones or {}), 2 do zones[#zones + 1] = st.zones[k] end
+      table.sort(list, function(a, b) if a.r ~= b.r then return a.r < b.r end return a.i < b.i end)
+      local zones = {}
+      for _, x in ipairs(list) do
+        if st.fishing then zones[#zones + 1] = Core.ZoneName(x.z)
+        elseif #zones < 3 then zones[#zones + 1] = ("%s (%d)"):format(Core.ZoneName(x.z), x.n) end
       end
       add({ icon = st.skinning and "Interface\\Icons\\INV_Misc_Pelt_Wolf_01"
                    or st.fishing and "Interface\\Icons\\Trade_Fishing"

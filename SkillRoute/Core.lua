@@ -787,6 +787,12 @@ local function zoneRank(zone)
   local me = myLetter()
   return (not me or s == me) and 0 or 2
 end
+Core.ZoneRank = zoneRank
+-- the zone's name, marked "(Alliance)" / "(Horde)" when it's the other faction's
+function Core.ZoneName(zone)
+  if zoneRank(zone) ~= 2 then return zone end
+  return zone .. (Data.zoneSide[zone] == "A" and " (Alliance)" or " (Horde)")
+end
 local function srcZone(s) return s[1] == "m" and s[3] or s[2] end
 local function srcChance(s) return (s[1] == "m" and s[4] or s[3]) or 0 end
 
@@ -831,10 +837,7 @@ function Core.FarmText(item, full)
   if not src then return nil end
   local parts = {}
   for _, s in ipairs(src) do
-    local z = srcZone(s)
-    if zoneRank(z) == 2 then
-      z = z .. (Data.zoneSide[z] == "A" and " (Alliance)" or " (Horde)")
-    end
+    local z = Core.ZoneName(srcZone(s))
     if s[1] == "m" then
       local lvl = s[5] == s[6] and tostring(s[5]) or (s[5] .. "-" .. s[6])
       parts[#parts + 1] = ("%s (lvl %s, %d%%) in %s"):format(s[2], lvl, math.floor(s[4] + 0.5), z)
@@ -982,7 +985,7 @@ function Core.Plan(line, target)
   if Data.professions[line].gather then -- Mining, Herbalism, Skinning: a zone route
     local t0g = debugprofilestop and debugprofilestop()
     local plan = Planner.GatherPlan({ nodes = Data.gather and Data.gather[line], skinning = line == 393,
-      fishing = line == 356 and Data.fishing or nil,
+      fishing = line == 356 and Data.fishing or nil, zoneRank = zoneRank,
       skill = s.rank, target = target, maxSkill = s.max, bonus = db().settings.bonus or 0 })
     plan.ms = t0g and (debugprofilestop() - t0g)
     plan.skill, plan.max, plan.target, plan.line = s.rank, s.max, target, line

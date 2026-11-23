@@ -264,11 +264,11 @@ local ex = P.Plan({ recipes = D.professions[333].recipes, items = items, tools =
 for _, st in ipairs(ex.steps) do if st.to == 150 and ex.steps[_ + 1] and ex.steps[_ + 1].spell == st.spell then splitAt150 = true end end
 check(not splitAt150, "no split at 150 when Expert is already trained")
 
--- 10c. First Aid: the probable trainer bandages close the old 270-290 gap, marked unconfirmed
+-- 10c. First Aid: the Artisan bandages (confirmed by ATT's trainer lists) close the old 270-290 gap
 local fa = plan(129, 1, 300)
 check(fa.gapPoints == 0, "First Aid plans all the way to 300")
 for _, st in ipairs(fa.steps) do
-  if st.spell == 18630 or st.spell == 18629 then check(st.learn == "trainer?", st.name .. " marked not confirmed") end
+  if st.spell == 18630 or st.spell == 18629 then check(st.learn == "trainer", st.name .. " is a confirmed trainer recipe") end
 end
 
 -- 10e. drop patterns: bought only on a real AH price, never on an estimate
