@@ -409,6 +409,23 @@ do
   assert(not Core.OpenRecipe(3848), "no API: reports it couldn't")
 end
 
+-- materials on alts (Syndicator): subtracted from what to buy, shown separately
+do
+  _G.Syndicator = { API = { GetInventoryInfoByItemID = function(item)
+    return { characters = { { character = "Tester", bags = 99 }, { character = "Altbank", bags = 3, bank = 7, mail = 1 } } }
+  end } }
+  local plan = Core.Plan(197, 300)
+  local b = plan.shopping.buy[#plan.shopping.buy]
+  for _, x in ipairs(plan.shopping.buy) do if not x.pattern and not x.tool then b = x break end end
+  assert(b.alts == 11, "alts counted, own character excluded: " .. tostring(b.alts))
+  assert(b.buy == math.max(0, b.need - b.have - 11), "alts reduce what to buy")
+  SlashCmdList.SKILLROUTE("alts off")
+  local plan2 = Core.Plan(197, 300)
+  for _, x in ipairs(plan2.shopping.buy) do assert((x.alts or 0) == 0, "alts off") end
+  SlashCmdList.SKILLROUTE("alts on")
+  _G.Syndicator = nil
+end
+
 -- /sr check runs and reports; errors are caught, not thrown
 do
   local out = {}

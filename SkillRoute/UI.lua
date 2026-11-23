@@ -349,9 +349,10 @@ local function shoppingRows(plan)
     if b.est then tags[#tags + 1] = "|cffff8040estimated price|r" end
     add({ item = b.item,
           text = b.buy > 0 and ("Buy %d x %s"):format(b.buy, b.name) or ("|cff40bf40Have all %s|r"):format(b.name),
-          sub = ("need %d%s, have %d%s"):format(b.need,
+          sub = ("need %d%s, have %d%s%s"):format(b.need,
                   (b.expected and b.expected < b.need) and (" (~%d expected)"):format(b.expected) or "",
-                  b.have, #tags > 0 and ("  -  " .. table.concat(tags, ", ")) or ""),
+                  b.have, (b.alts or 0) > 0 and (" |cff40bf40(+%d on alts)|r"):format(b.alts) or "",
+                  #tags > 0 and ("  -  " .. table.concat(tags, ", ")) or ""),
           right = b.price and money(b.price * b.buy) or money(nil) })
   end
   return n
@@ -587,6 +588,9 @@ SlashCmdList.SKILLROUTE = function(msg)
     else
       print("SkillRoute: /sr craftcost <copper>  (what a craft's time is worth to you; 0 = only gold matters)")
     end
+  elseif cmd == "alts" and settings then
+    settings.alts = (arg ~= "off")
+    print("SkillRoute: materials on your other characters are " .. (settings.alts and "counted (Syndicator/DataStore)" or "not counted"))
   elseif cmd == "margin" and settings then
     local v = tonumber(arg)
     if v and v >= 50 and v <= 99 then
@@ -614,7 +618,7 @@ SlashCmdList.SKILLROUTE = function(msg)
     print("SkillRoute: open with the profession window is " .. (settings.auto and "ON" or "OFF"))
     return
   elseif cmd == "help" then
-    print("SkillRoute: /sr - open/close   /sr check   /sr auto on|off   /sr overtime <pct>   /sr estimate on|off   /sr cdmats on|off   /sr margin <50-99>   /sr craftcost <copper>   /sr ah   /sr unskip   (right-click a step to skip it)")
+    print("SkillRoute: /sr - open/close   /sr check   /sr auto on|off   /sr overtime <pct>   /sr estimate on|off   /sr cdmats on|off   /sr margin <50-99>   /sr craftcost <copper>   /sr alts on|off   /sr ah   /sr unskip   (right-click a step to skip it)")
     return
   else
     UI.Toggle()

@@ -741,6 +741,36 @@ function Core.Have(item)
   return getCount and getCount(item, true) or 0 -- bags + bank
 end
 
+-- Materials on your other characters (same faction): Syndicator, else DataStore.
+-- Counted once per plan (cache reset in Core.Plan); 0 when neither is installed or
+-- /sr alts off.
+local altCache = {}
+function Core.HaveOnAlts(item)
+  local settings = db().settings
+  if settings.alts == false then return 0 end
+  if altCache[item] then return altCache[item] end
+  local me, n = UnitName and UnitName("player"), 0
+  local S = Syndicator and Syndicator.API
+  if S and S.GetInventoryInfoByItemID then
+    local ok, info = pcall(S.GetInventoryInfoByItemID, item, true, true)
+    for _, c in ipairs(ok and info and info.characters or {}) do
+      if c.character ~= me then
+        n = n + (c.bags or 0) + (c.bank or 0) + (c.mail or 0)
+      end
+    end
+  elseif DataStore and DataStore.GetCharacters and DataStore.GetContainerItemCount then
+    local ok, chars = pcall(DataStore.GetCharacters, DataStore)
+    for name, key in pairs(ok and chars or {}) do
+      if name ~= me then
+        local ok2, bags, bank = pcall(DataStore.GetContainerItemCount, DataStore, key, item)
+        if ok2 then n = n + (bags or 0) + (bank or 0) end
+      end
+    end
+  end
+  altCache[item] = n
+  return n
+end
+
 -- A tool only counts in your bags (or equipped), not in the bank.
 function Core.HasTool(key)
   local def = Data.tools[key]
@@ -810,6 +840,7 @@ function Core.Plan(line, target)
   if not s then return nil, "This character doesn't have " .. Data.professions[line].name .. "." end
   target = math.max(s.rank + 1, math.min(target or 300, 300))
   local t0 = debugprofilestop and debugprofilestop()
+  altCache = {}
   local known, settings = knownSet(line), db().settings
   local nKnown = 0
   for _ in pairs(known) do nKnown = nKnown + 1 end
@@ -826,7 +857,7 @@ function Core.Plan(line, target)
     recipes = recipes, items = Data.items, tools = Data.tools,
     skill = s.rank, target = target, maxSkill = s.max,
     known = known, trainer = db().trainer[line] or {},
-    price = Core.Price, have = Core.Have, hasTool = Core.HasTool, standing = Core.Standing,
+    price = Core.Price, have = Core.Have, haveAlts = Core.HaveOnAlts, hasTool = Core.HasTool, standing = Core.Standing,
     avoidMats = not settings.cdmats and Data.cooldownMats or nil,
     z = Core.MarginZ(settings.margin),
     craftValue = settings.craftValue or 0,

@@ -308,6 +308,7 @@ end
   trainer = {[spell]={req=, cost=}}
   price   = function(itemID) -> copper|nil, isEstimate
   have    = function(itemID) -> count       (optional)
+  haveAlts = function(itemID) -> count on your other characters (optional)
   hasTool = function(toolKey) -> bool       (optional)
   craftValue = copper per craft for your time (optional; affects the choice, not the total)
   z = safety margin in standard deviations for the shopping list (optional, 0 = expected)
@@ -662,14 +663,15 @@ function Planner.Shopping(ctx, steps, unit, extra)
     local expected = ceil(n - 1e-9)
     local want = ceil(n + z * math.sqrt(needVar[item] or 0) - 1e-9)
     local have = ctx.have and ctx.have(item) or 0
-    local buy = want - have
+    local alts = ctx.haveAlts and ctx.haveAlts(item) or 0
+    local buy = want - have - alts
     if buy < 0 then buy = 0 end
     local p, est = ctx.price(item)
     if p then total = total + p * buy end
     anyEst = anyEst or (est and buy > 0) or false
     local it = ctx.items[item]
     list[#list + 1] = { item = item, name = it and it[1] or ("item " .. item), need = want, expected = expected,
-                        have = have, buy = buy, price = p, est = est,
+                        have = have, alts = alts, buy = buy, price = p, est = est,
                         vendor = it and it[3] ~= nil }
   end
   table.sort(list, function(a, b)
