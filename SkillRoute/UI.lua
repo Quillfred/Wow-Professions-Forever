@@ -164,8 +164,8 @@ local function routeRows(plan)
     -- rank training needed before this step?
     while RANKS[trained] and st.from >= trained do
       local rank = RANKS[trained]
-      local p, n = Core.Place("trainer", plan.line, rank)       -- one you visited
-      local loc = p or Core.NearestTrainer(plan.line, RANK_STEP[rank]) -- else nearest in the data
+      local rh = Core.RankHow(plan.line, RANK_STEP[rank]) -- visited trainer / ATT book or quest / nearest
+      local p, n, loc = rh.place, rh.nPlaces, rh.loc
       local where = p and (p.zone .. (p.sub and (", " .. p.sub) or "") .. (p.x and (" (%.1f, %.1f)"):format(p.x, p.y) or ""))
                     or Core.Where(loc)
       local tip = {}
@@ -180,9 +180,7 @@ local function routeRows(plan)
       end
       -- no trainer teaches it: a book (Expert First Aid) or a quest (Artisan: "Triage").
       -- ATT's Forever data says which; a trainer you saw offer it still wins.
-      local how = not p and Data.rankSource and Data.rankSource[plan.line] and Data.rankSource[plan.line][RANK_STEP[rank]]
-      local book = (how == "B" or not loc) and Core.RankBook(plan.line, RANK_STEP[rank])
-      local quest = not book and (how == "Q" or not loc) and Core.RankQuest(plan.line, RANK_STEP[rank])
+      local book, quest = rh.book, rh.quest
       if book then
         local bl = book.loc
         tip = { book.owned and ("The game reports %s %s: use it to learn %s."):format(book.name, book.where or "in your bags", rank)
@@ -414,11 +412,25 @@ local function shoppingRows(plan)
   end
   for _, b in ipairs(plan.shopping.buy) do
     local tags = {}
-    local p = b.pattern and not b.ah and Core.Place("vendor", b.item)
-    if b.pattern then tags[#tags + 1] = b.ah and "|cffffd100pattern, on the AH (last seen price)|r"
-                                         or ("|cffffd100pattern, from " .. (p and Core.FormatPlace(p, true) or "a vendor") .. "|r")
-    elseif b.tool then tags[#tags + 1] = "|cffff8040tool: keep it in your bags|r" .. (b.vendor and ", vendor" or "")
+    -- who sells it, as on the route: a vendor you visited, else the nearest for your faction
+    local sold = (b.pattern or b.tool or b.book) and not b.ah
+    local p = sold and Core.Place("vendor", b.item)
+    local near = sold and not p and Core.NearestVendor(b.item)
+    local loc = p or near or nil
+    local who = p and Core.FormatPlace(p, true) or near and (near.npc .. ", " .. (Core.Where(near) or "?")) or nil
+    if b.book then tags[#tags + 1] = "|cffffd100rank-up book, from " .. (who or "a vendor") .. "|r"
+    elseif b.pattern then tags[#tags + 1] = b.ah and "|cffffd100pattern, on the AH (last seen price)|r"
+                                         or ("|cffffd100pattern, from " .. (who or "a vendor") .. "|r")
+    elseif b.tool then tags[#tags + 1] = "|cffff8040tool: keep it in your bags|r"
+                                         .. (who and (", from " .. who) or b.vendor and ", vendor" or "")
     elseif b.vendor then tags[#tags + 1] = "vendor" end
+    local tip
+    if loc then
+      tip = { p and ("Sold by %s (you visited them)."):format(Core.FormatPlace(p, true))
+              or ("Nearest vendor for your faction: %s, %s."):format(near.npc, Core.Where(near) or "?") }
+      if Core.TravelText(loc) then tip[#tip + 1] = Core.TravelText(loc) .. "." end
+      tip[#tip + 1] = "|cff808080Click: set a waypoint (TomTom).|r"
+    end
     if b.est then tags[#tags + 1] = "|cffff8040estimated price|r" end
     if b.farm and b.buy > 0 then
       add({ item = b.item,
@@ -433,7 +445,8 @@ local function shoppingRows(plan)
                   (b.expected and b.expected < b.need) and (" (~%d expected)"):format(b.expected) or "",
                   b.have, (b.alts or 0) > 0 and (" |cff40bf40(+%d on alts)|r"):format(b.alts) or "",
                   #tags > 0 and ("  -  " .. table.concat(tags, ", ")) or ""),
-          right = b.price and money(b.price * b.buy) or money(nil) })
+          right = b.price and money(b.price * b.buy) or money(nil),
+          tipTitle = loc and b.name or nil, tip = tip, waypoint = loc })
     end
   end
   return n
@@ -517,6 +530,12 @@ function UI.Refresh()
 end
 
 function UI.IsShown() return frame and frame:IsShown() end
+-- "route" or "shopping" (the Route / Shopping list button); also for the tests
+function UI.SetMode(mode)
+  state.mode = mode
+  if frame and frame:IsShown() then UI.Refresh() end
+end
+function UI.Rows() return rows end
 
 local function build()
   frame = CreateFrame("Frame", "SkillRouteFrame", UIParent, "BasicFrameTemplateWithInset")

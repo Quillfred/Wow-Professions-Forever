@@ -577,6 +577,35 @@ do
   GetProfessions, GetProfessionInfo, _G.GetItemCount = saved[1], saved[2], saved[3]
 end
 
+-- shopping list: rank books (Expert Cookbook) are on it and in the total; patterns and
+-- books name the vendor and set a waypoint, like the route
+do
+  local saved = { GetProfessions, GetProfessionInfo }
+  GetProfessions = function() return 1 end
+  GetProfessionInfo = function() return "Cooking", 0, 1, 75, 0, 0, 185 end
+  local plan = Core.Plan(185, 300)
+  local book
+  for _, b in ipairs(plan.shopping.buy) do if b.book then book = b end end
+  assert(book and book.item == 16072, "Expert Cookbook on the shopping list")
+  local spent = 0
+  for _, b in ipairs(plan.shopping.buy) do if not b.farm then spent = spent + (b.price or 0) * b.buy end end
+  assert(math.abs(plan.total - spent) < 1, "Buy for includes the book")
+  UI.Toggle(185)
+  UI.SetMode("shopping")
+  local bookRow, bookWp
+  for _, r in ipairs(UI.Rows()) do
+    local sub = r.sub and rawget(r.sub, "text")
+    if type(sub) == "string" and sub:find("rank-up book, from ", 1, true) and not sub:find("a vendor", 1, true) then
+      bookRow, bookWp = sub, rawget(r, "waypoint")
+    end
+  end
+  UI.SetMode("route")
+  UI.Toggle()
+  assert(bookRow and type(bookWp) == "table" and bookWp.npc, "book row names its vendor and has a waypoint")
+  print("shopping: " .. bookRow:gsub("|c%x%x%x%x%x%x%x%x", ""):gsub("|r", "") .. " (waypoint: " .. bookWp.npc .. ")")
+  GetProfessions, GetProfessionInfo = saved[1], saved[2]
+end
+
 -- another language: German names still match (profession via its rank spell,
 -- recipes via the item they make, rank-ups via the skill they need)
 do

@@ -661,6 +661,19 @@ function Core.RankBook(line, rankStep)
   end
 end
 
+-- How to get a rank: the trainer you visited, else ATT's book/quest, else the nearest
+-- trainer, else a book or quest. One place for both the route and the shopping list.
+local RANK_NAME = { [2] = "Journeyman", [3] = "Expert", [4] = "Artisan" }
+function Core.RankHow(line, rankStep)
+  local rank = RANK_NAME[rankStep]
+  local p, n = Core.Place("trainer", line, rank)
+  local loc = p or Core.NearestTrainer(line, rankStep)
+  local how = not p and Data.rankSource and Data.rankSource[line] and Data.rankSource[line][rankStep]
+  local book = (how == "B" or not loc) and Core.RankBook(line, rankStep) or nil
+  local quest = not book and (how == "Q" or not loc) and Core.RankQuest(line, rankStep) or nil
+  return { place = p, nPlaces = n, loc = loc, book = book, quest = quest }
+end
+
 function Core.RankQuest(line, rankStep)
   local quests = Data.rankQuests and Data.rankQuests[line] and Data.rankQuests[line][rankStep]
   local ids, byGiver = {}, {}
@@ -1051,6 +1064,16 @@ function Core.Plan(line, target)
     local set = {}
     for k in pairs(plan.unlocks or {}) do set[k] = true end
     patternCache[line] = { key = key, set = set }
+  end
+  -- rank books to buy (Expert Cookbook): on the shopping list and in "Buy for", like patterns
+  for cap = s.max, target - 1, 75 do
+    local stepN = ({ [75] = 2, [150] = 3, [225] = 4 })[cap]
+    local b = stepN and Core.RankHow(line, stepN).book
+    if b and not b.owned and b.price then
+      table.insert(plan.shopping.buy, 1, { item = b.item, name = b.name, need = 1, expected = 1, have = 0, buy = 1,
+        price = b.price, vendor = true, book = true })
+      plan.total = plan.total + b.price
+    end
   end
   plan.ms = t0 and (debugprofilestop() - t0)
   plan.skill, plan.max, plan.target, plan.line = s.rank, s.max, target, line
