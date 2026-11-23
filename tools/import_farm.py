@@ -11,7 +11,8 @@ import_gather.py: those zones come from pool descriptions), within 400 yards; mo
 farther from any node are left out rather than guessed.
 
 Usage: (cd tools && python3 import_farm.py CLASSICDB.sql.gz WAGO_CACHE_DIR BUILD)
-Writes tools/farm.json: {item: {"mobs": [[name, zone, chance%, minLvl, maxLvl, spawns]],
+Writes tools/zone_sides.json ({zone: "A"|"H"}, contested zones left out) and
+tools/farm.json: {item: {"mobs": [[name, zone, chance%, minLvl, maxLvl, spawns]],
                                 "fish": [[zone, chance%, fishingLevel]]}}
 """
 import csv, json, math, os, sys
@@ -106,11 +107,34 @@ def main():
         name, lo, hi = info[e]
         for item, ch in drops[e].items():
             out.setdefault(str(item), {"mobs": [], "fish": []})["mobs"].append([name, z, round(ch, 1), lo, hi, n])
-    for d in out.values():  # best: chance x spawns, at most 4
-        d["mobs"] = sorted(d["mobs"], key=lambda m: -m[2] * m[5])[:4]
+    # Whose territory each zone is: Forever's AreaTable FactionGroupMask on the top-level
+    # zone (2 Alliance, 4 Horde, 0 contested). Several rows can share a name; any one
+    # tagged with a side decides it.
+    area = {int(r["ID"]): r for r in csv.DictReader(open(tbl("AreaTable"), encoding="utf-8"))}
+    side = {}
+    for r in area.values():
+        if r["ParentAreaID"] == "0" and r["ContinentID"] in ("0", "1") and r["AreaName_lang"]:
+            m = int(r["FactionGroupMask"] or 0)
+            s = "A" if m & 2 and not m & 4 else "H" if m & 4 and not m & 2 else None
+            if s or r["AreaName_lang"] not in side:
+                side[r["AreaName_lang"]] = s
+
+    def best(rows, zone, key, n):
+        # the n best for each faction (leaving out the other faction's land), merged:
+        # a Horde player still gets Horde options when the top few are Alliance zones
+        keep = []
+        for me in ("A", "H"):
+            ok = [x for x in sorted(rows, key=key) if side.get(zone(x)) in (None, me)]
+            keep += [x for x in ok[:n] if x not in keep]
+        for x in sorted(rows, key=key)[:n]:  # and the best overall, enemy land included
+            if x not in keep:
+                keep.append(x)
+        return sorted(keep, key=key)
+
+    for d in out.values():  # best: chance x spawns
+        d["mobs"] = best(d["mobs"], lambda m: m[1], lambda m: -m[2] * m[5], 4)
 
     # fish
-    area = {int(r["ID"]): r for r in csv.DictReader(open(tbl("AreaTable"), encoding="utf-8"))}
 
     def top_zone(a):
         for _ in range(5):
@@ -135,7 +159,10 @@ def main():
             if not any(f[0] == z for f in d["fish"]):
                 d["fish"].append([z, round(ch, 1), level.get(z, 0)])
     for d in out.values():
-        d["fish"] = sorted(d["fish"], key=lambda f: (-f[1], f[2]))[:3]
+        d["fish"] = best(d["fish"], lambda f: f[0], lambda f: (-f[1], f[2]), 3)
+    used = {m[1] for d in out.values() for m in d["mobs"]} | {f[0] for d in out.values() for f in d["fish"]}
+    with open(os.path.join(here, "zone_sides.json"), "w", encoding="utf-8") as f:
+        json.dump({z: side[z] for z in sorted(used) if side.get(z)}, f, separators=(",", ":"), sort_keys=True)
 
     with open(os.path.join(here, "farm.json"), "w", encoding="utf-8") as f:
         json.dump(out, f, separators=(",", ":"), sort_keys=True)

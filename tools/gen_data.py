@@ -495,7 +495,11 @@ def main():
         srcs += [f"{{\"f\",{lua_str(f[0])},{f[1]},{f[2]}}}" for f in d["fish"]]
         if srcs:
             lines.append(f"    [{it}]={{{','.join(srcs)}}},")
-    lines += ["  },", "  -- fishing: {zone, fishing level} (you lose fish below level + 95)", "  fishing = {"]
+    spath = os.path.join(os.path.dirname(os.path.abspath(__file__)), "zone_sides.json")
+    sides = json.load(open(spath, encoding="utf-8")) if os.path.exists(spath) else {}
+    lines += ["  },", "  -- zoneSide: [zone] = \"A\"|\"H\" (Forever's AreaTable); contested zones absent",
+              "  zoneSide = {" + ",".join(f"[{lua_str(z)}]={lua_str(v)}" for z, v in sorted(sides.items())) + "},"]
+    lines += ["  -- fishing: {zone, fishing level} (you lose fish below level + 95)", "  fishing = {"]
     for z, lvl in gather.get("fishing", []):
         lines.append(f"    {{{lua_str(z)},{lvl}}},")
     lines += ["  },", "  factions = {"]

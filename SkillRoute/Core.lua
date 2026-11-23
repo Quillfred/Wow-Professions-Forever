@@ -779,26 +779,67 @@ end
 
 -- Farming ------------------------------------------------------------------------
 local FARM_ACTION = 25 -- copper per kill / catch, or your "value of a craft" if higher
-function Core.FarmCost(farm)
+
+-- 0 your faction's land, 1 contested, 2 the other faction's land
+local function zoneRank(zone)
+  local s = Data.zoneSide and Data.zoneSide[zone]
+  if not s then return 1 end
+  local me = myLetter()
+  return (not me or s == me) and 0 or 2
+end
+local function srcZone(s) return s[1] == "m" and s[3] or s[2] end
+local function srcChance(s) return (s[1] == "m" and s[4] or s[3]) or 0 end
+
+-- Sources in the order to show them: your faction's zones, contested, then enemy land;
+-- the data's own order (best first) within each. Cached per item (faction is fixed).
+local farmOrder = {}
+local function farmSources(item)
+  local o = farmOrder[item]
+  if o then return o end
+  local farm = Data.farm and Data.farm[item]
+  if not farm then return nil end
+  o = {}
+  for i, s in ipairs(farm) do o[i] = { s = s, r = zoneRank(srcZone(s)), i = i } end
+  table.sort(o, function(a, b) if a.r ~= b.r then return a.r < b.r end return a.i < b.i end)
+  for i, x in ipairs(o) do o[i] = x.s end
+  if myLetter() then farmOrder[item] = o end -- faction not known yet: don't keep
+  return o
+end
+
+-- What a farmed item costs in time: kills/catches per item x a small value each. Enemy
+-- land counts only when nowhere else has it.
+function Core.FarmCost(item)
+  local src = farmSources(item)
+  if not src then return nil end
   local per = math.max(FARM_ACTION, db().settings.craftValue or 0)
-  local best = math.huge
-  for _, s in ipairs(farm) do
-    local chance = s[1] == "m" and s[4] or s[3]
-    if chance and chance > 0 then best = math.min(best, 100 / chance) end
+  local best, bestEnemy = math.huge, math.huge
+  for _, s in ipairs(src) do
+    local c = srcChance(s)
+    if c > 0 then
+      if zoneRank(srcZone(s)) < 2 then best = math.min(best, 100 / c)
+      else bestEnemy = math.min(bestEnemy, 100 / c) end
+    end
   end
+  if best == math.huge then best = bestEnemy end
   return best < math.huge and best * per or nil
 end
 
--- "Goretusk (lvl 14-15, 29%) in Westfall"; full = every source, one per line
+-- "Goretusk (lvl 14-15, 29%) in Westfall"; full = every source, one per line.
+-- Your faction's zones first; the other faction's are marked.
 function Core.FarmText(item, full)
-  local farm = Data.farm and Data.farm[item]
-  if not farm then return nil end
+  local src = farmSources(item)
+  if not src then return nil end
   local parts = {}
-  for _, s in ipairs(farm) do
+  for _, s in ipairs(src) do
+    local z = srcZone(s)
+    if zoneRank(z) == 2 then
+      z = z .. (Data.zoneSide[z] == "A" and " (Alliance)" or " (Horde)")
+    end
     if s[1] == "m" then
-      parts[#parts + 1] = ("%s (lvl %d-%d, %d%%) in %s"):format(s[2], s[5], s[6], math.floor(s[4] + 0.5), s[3])
+      local lvl = s[5] == s[6] and tostring(s[5]) or (s[5] .. "-" .. s[6])
+      parts[#parts + 1] = ("%s (lvl %s, %d%%) in %s"):format(s[2], lvl, math.floor(s[4] + 0.5), z)
     else
-      parts[#parts + 1] = ("fish in %s (%d%%%s)"):format(s[2], math.floor(s[3] + 0.5),
+      parts[#parts + 1] = ("fish in %s (%d%%%s)"):format(z, math.floor(s[3] + 0.5),
         s[4] and s[4] > 0 and (", fishing " .. (s[4] + 95) .. " to lose none") or "")
     end
     if not full and #parts >= 2 then break end
@@ -827,8 +868,8 @@ function Core.Price(item)
   if ah or vendor then return ah or vendor, false end
   -- not on the AH, but farmable (meat, fish): no gold, a small time cost so a rare drop
   -- doesn't look free. Marked "farm": not added to what you spend.
-  local farm = Data.farm and Data.farm[item]
-  if farm then return Core.FarmCost(farm), false, "farm" end
+  local farm = Core.FarmCost(item)
+  if farm then return farm, false, "farm" end
   if db().settings.estimate and it and it[2] and it[2] > 0 then
     return it[2] * 4, true -- clearly flagged as an estimate in the UI
   end

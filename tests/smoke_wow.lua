@@ -559,6 +559,38 @@ do
   for k, v in pairs(savedPrices) do prices[k] = v end
 end
 
+local Data = SkillRouteData
+-- Farm zones sorted by faction (harness player is Horde): Alliance land last and marked,
+-- and it only sets the cost when no Horde or contested zone has the item
+do
+  local marked, checked = 0, 0
+  for item, src in pairs(Data.farm) do
+    local seenEnemy = false
+    for line in (Core.FarmText(item, true) .. "\n"):gmatch("(.-)\n") do
+      local enemy = line:find("(Alliance)", 1, true) ~= nil
+      assert(not line:find("(Horde)", 1, true), "own faction is never marked")
+      assert(enemy or not seenEnemy, "Alliance zones come after the others: " .. item)
+      seenEnemy = seenEnemy or enemy
+      if enemy then marked = marked + 1 end
+    end
+    local bestOk, bestAny = math.huge, math.huge
+    for _, s in ipairs(src) do
+      local z, c = s[1] == "m" and s[3] or s[2], s[1] == "m" and s[4] or s[3]
+      if c > 0 then
+        bestAny = math.min(bestAny, 100 / c)
+        if Data.zoneSide[z] ~= "A" then bestOk = math.min(bestOk, 100 / c) end
+      end
+    end
+    local want = (bestOk < math.huge and bestOk or bestAny) * 25
+    assert(math.abs(Core.FarmCost(item) - want) < 1e-6, "farm cost uses Horde/contested zones first: " .. item)
+    checked = checked + 1
+  end
+  local t = Core.FarmText(723)
+  assert(not t:find("^Goretusk"), "Westfall (Alliance) isn't listed first for Horde: " .. t)
+  print(("farm zones by faction: %d items, %d Alliance-zone sources marked and listed last; Horde sees 723 as: %s")
+    :format(checked, marked, t))
+end
+
 -- /sr check runs and reports; errors are caught, not thrown
 do
   local out = {}

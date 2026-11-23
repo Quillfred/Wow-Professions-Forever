@@ -26,6 +26,9 @@ A WoW Forever addon that plans the cheapest way to level a crafting profession.
 - **Farming Cooking ingredients:** raw meat and fish the AH has no price for are planned
   as "Farm 20 x Boar Ribs: Goretusk (lvl 14-15, 29%) in Westfall" (or the fishing
   zones), not counted in what you spend; each kill/catch counts as a little of your time.
+  Your faction's zones are listed first, then contested ones; the other faction's
+  zones come last, marked "(Alliance)"/"(Horde)", and only count when nowhere else
+  has the item (whose zone it is comes from Forever's own zone table).
 - **All crafting professions:** Alchemy, Blacksmithing, Cooking, Enchanting,
   Engineering, First Aid, Leatherworking and Tailoring. The window shows the ones
   your character has; switch with the arrows.
