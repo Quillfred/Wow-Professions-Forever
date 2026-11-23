@@ -535,6 +535,30 @@ do
   print(("Fishing: Expert book from %s, Artisan quest '%s' from %s"):format(book.loc.npc, q.title, q.loc.npc))
 end
 
+-- Cooking with nothing on the AH: farmable ingredients make the route possible,
+-- shown as "Farm ..." and not counted in what you spend
+do
+  local savedPrices = {}
+  for k, v in pairs(prices) do savedPrices[k] = v; prices[k] = nil end
+  local saved = { GetProfessions, GetProfessionInfo }
+  GetProfessions = function() return 1 end
+  GetProfessionInfo = function() return "Cooking", 0, 1, 75, 0, 0, 185 end
+  local plan = Core.Plan(185, 75)
+  assert(#plan.steps > 0 and #plan.gaps == 0, "cooking planned from farmable ingredients")
+  local farmRows, spent = 0, 0
+  for _, b in ipairs(plan.shopping.buy) do
+    if b.farm then farmRows = farmRows + 1 else spent = spent + (b.price or 0) * b.buy end
+  end
+  assert(farmRows > 0, "farm rows in the shopping list")
+  assert(math.abs(plan.total - spent) < 1, "farmed items not counted in 'Buy for'")
+  local first
+  for _, b in ipairs(plan.shopping.buy) do if b.farm then first = b break end end
+  print(("cooking 1-75 without AH prices: %d steps, %d farm rows, e.g. Farm %d x %s: %s"):format(
+    #plan.steps, farmRows, first.buy, first.name, Core.FarmText(first.item)))
+  GetProfessions, GetProfessionInfo = saved[1], saved[2]
+  for k, v in pairs(savedPrices) do prices[k] = v end
+end
+
 -- /sr check runs and reports; errors are caught, not thrown
 do
   local out = {}

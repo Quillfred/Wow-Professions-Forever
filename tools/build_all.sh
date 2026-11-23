@@ -61,6 +61,8 @@ if [ -n "${BLANK_CSV:-}" ]; then python3 -I tools/import_sources.py "$BLANK_CSV"
 (cd tools && python3 import_npcs.py "$CLASSIC" "$CACHE" "$BUILD")
 python3 -I tools/import_att.py "$ATT" "$CACHE" "$BUILD"
 (cd tools && python3 import_gather.py "$CLASSIC" "$CACHE" "$BUILD")
+fetch SkillLineAbility "$BUILD"; fetch SpellReagents "$BUILD"
+(cd tools && python3 import_farm.py "$CLASSIC" "$CACHE" "$BUILD")
 python3 -I tools/gen_data.py "$BUILD" "$CACHE"
 
 lua5.1 tests/test_planner.lua | tail -1

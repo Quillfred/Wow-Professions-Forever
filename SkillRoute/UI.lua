@@ -404,6 +404,13 @@ local function shoppingRows(plan)
     elseif b.tool then tags[#tags + 1] = "|cffff8040tool: keep it in your bags|r" .. (b.vendor and ", vendor" or "")
     elseif b.vendor then tags[#tags + 1] = "vendor" end
     if b.est then tags[#tags + 1] = "|cffff8040estimated price|r" end
+    if b.farm and b.buy > 0 then
+      add({ item = b.item,
+            text = ("|cff40bf40Farm %d x %s|r"):format(b.buy, b.name),
+            sub = Core.FarmText(b.item) or "",
+            tip = { "Not on the auction house: farm it.", Core.FarmText(b.item, true) or "",
+                    ("need %d, have %d"):format(b.need, b.have) } })
+    else
     add({ item = b.item,
           text = b.buy > 0 and ("Buy %d x %s"):format(b.buy, b.name) or ("|cff40bf40Have all %s|r"):format(b.name),
           sub = ("need %d%s, have %d%s%s"):format(b.need,
@@ -411,6 +418,7 @@ local function shoppingRows(plan)
                   b.have, (b.alts or 0) > 0 and (" |cff40bf40(+%d on alts)|r"):format(b.alts) or "",
                   #tags > 0 and ("  -  " .. table.concat(tags, ", ")) or ""),
           right = b.price and money(b.price * b.buy) or money(nil) })
+    end
   end
   return n
 end

@@ -777,6 +777,35 @@ function Core.ClearSkips()
   Core.InvalidatePatterns()
 end
 
+-- Farming ------------------------------------------------------------------------
+local FARM_ACTION = 25 -- copper per kill / catch, or your "value of a craft" if higher
+function Core.FarmCost(farm)
+  local per = math.max(FARM_ACTION, db().settings.craftValue or 0)
+  local best = math.huge
+  for _, s in ipairs(farm) do
+    local chance = s[1] == "m" and s[4] or s[3]
+    if chance and chance > 0 then best = math.min(best, 100 / chance) end
+  end
+  return best < math.huge and best * per or nil
+end
+
+-- "Goretusk (lvl 14-15, 29%) in Westfall"; full = every source, one per line
+function Core.FarmText(item, full)
+  local farm = Data.farm and Data.farm[item]
+  if not farm then return nil end
+  local parts = {}
+  for _, s in ipairs(farm) do
+    if s[1] == "m" then
+      parts[#parts + 1] = ("%s (lvl %d-%d, %d%%) in %s"):format(s[2], s[5], s[6], math.floor(s[4] + 0.5), s[3])
+    else
+      parts[#parts + 1] = ("fish in %s (%d%%%s)"):format(s[2], math.floor(s[3] + 0.5),
+        s[4] and s[4] > 0 and (", fishing " .. (s[4] + 95) .. " to lose none") or "")
+    end
+    if not full and #parts >= 2 then break end
+  end
+  return table.concat(parts, full and "\n" or "; or ")
+end
+
 function Core.PriceSource()
   return auctionator() and "Auctionator" or nil
 end
@@ -796,6 +825,10 @@ function Core.Price(item)
   vendor = vendor or (it and it[3])
   if ah and vendor then return math.min(ah, vendor), false end
   if ah or vendor then return ah or vendor, false end
+  -- not on the AH, but farmable (meat, fish): no gold, a small time cost so a rare drop
+  -- doesn't look free. Marked "farm": not added to what you spend.
+  local farm = Data.farm and Data.farm[item]
+  if farm then return Core.FarmCost(farm), false, "farm" end
   if db().settings.estimate and it and it[2] and it[2] > 0 then
     return it[2] * 4, true -- clearly flagged as an estimate in the UI
   end

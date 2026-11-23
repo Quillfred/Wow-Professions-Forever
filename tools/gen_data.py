@@ -483,6 +483,18 @@ def main():
                                               ",".join(f"{lua_str(z)},{round(c)}" for z, c in top),
                                               ",true" if nd["n"] in RARE_NODES else ""))
         lines.append(f"    [{line}]={{" + ",".join(rows_) + "},")
+    # where to farm Cooking ingredients (tools/import_farm.py): used when the AH has no price
+    fpath = os.path.join(os.path.dirname(os.path.abspath(__file__)), "farm.json")
+    farm = json.load(open(fpath, encoding="utf-8")) if os.path.exists(fpath) else {}
+    lines += ["  },", "  -- farm: [item] = {{\"m\", mob, zone, drop%, minLvl, maxLvl} | {\"f\", zone, catch%, fishing level}, ...}",
+              "  farm = {"]
+    for it, d in sorted(farm.items(), key=lambda kv: int(kv[0])):
+        if int(it) not in used_items:
+            continue
+        srcs = [f"{{\"m\",{lua_str(m[0])},{lua_str(m[1])},{m[2]},{m[3]},{m[4]}}}" for m in d["mobs"]]
+        srcs += [f"{{\"f\",{lua_str(f[0])},{f[1]},{f[2]}}}" for f in d["fish"]]
+        if srcs:
+            lines.append(f"    [{it}]={{{','.join(srcs)}}},")
     lines += ["  },", "  -- fishing: {zone, fishing level} (you lose fish below level + 95)", "  fishing = {"]
     for z, lvl in gather.get("fishing", []):
         lines.append(f"    {{{lua_str(z)},{lvl}}},")

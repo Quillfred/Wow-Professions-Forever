@@ -71,6 +71,7 @@ def main():
         return None
 
     out, kept, dropped = {}, 0, 0
+    points = []  # (map, x, y, zone) of every placed node: reused to name mob zones
     for r in sql_rows(sqlgz, "gameobject"):
         guid, entry = int(r[0]), int(r[1])
         if entry not in nodes:
@@ -81,6 +82,7 @@ def main():
             dropped += 1
             continue
         kept += 1
+        points.append((int(r[2]), float(r[4]), float(r[5]), z))
         d = out.setdefault(str(line), {}).setdefault(name, {"n": name, "req": req, "zones": {}})
         d["zones"][z] = d["zones"].get(z, 0) + weight.get(guid, 1.0)
     for d in out.values():
@@ -97,6 +99,8 @@ def main():
         if a and a["ParentAreaID"] == "0" and a["ContinentID"] in ("0", "1") and a["AreaName_lang"]:
             fish.append([a["AreaName_lang"], int(r[1])])
     res["fishing"] = sorted(fish, key=lambda z: (z[1], z[0]))
+    with open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "zone_points.json"), "w") as f:
+        json.dump([[m, round(x), round(y), z] for m, x, y, z in points], f, separators=(",", ":"))
     dst = os.path.join(os.path.dirname(os.path.abspath(__file__)), "gather.json")
     with open(dst, "w", encoding="utf-8") as f:
         json.dump(res, f, separators=(",", ":"), sort_keys=True)

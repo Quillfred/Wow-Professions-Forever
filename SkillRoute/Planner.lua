@@ -678,11 +678,12 @@ function Planner.Shopping(ctx, steps, unit, extra)
     local alts = ctx.haveAlts and ctx.haveAlts(item) or 0
     local buy = want - have - alts
     if buy < 0 then buy = 0 end
-    local p, est = ctx.price(item)
-    if p then total = total + p * buy end
+    local p, est, kind = ctx.price(item)
+    local farm = kind == "farm"
+    if p and not farm then total = total + p * buy end -- farmed: time, not gold
     anyEst = anyEst or (est and buy > 0) or false
     local it = ctx.items[item]
-    list[#list + 1] = { item = item, name = it and it[1] or ("item " .. item), need = want, expected = expected,
+    list[#list + 1] = { item = item, name = it and it[1] or ("item " .. item), need = want, expected = expected, farm = farm,
                         have = have, alts = alts, buy = buy, price = p, est = est,
                         vendor = it and it[3] ~= nil }
   end

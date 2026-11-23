@@ -23,6 +23,9 @@ A WoW Forever addon that plans the cheapest way to level a crafting profession.
   per catch below 75, then 25 / (skill - 50)) and the zones where no fish get away.
   Ranks no trainer teaches (Expert First Aid / Cooking / Fishing books, the Artisan
   quests) show the book's vendor or the quest giver.
+- **Farming Cooking ingredients:** raw meat and fish the AH has no price for are planned
+  as "Farm 20 x Boar Ribs: Goretusk (lvl 14-15, 29%) in Westfall" (or the fishing
+  zones), not counted in what you spend; each kill/catch counts as a little of your time.
 - **All crafting professions:** Alchemy, Blacksmithing, Cooking, Enchanting,
   Engineering, First Aid, Leatherworking and Tailoring. The window shows the ones
   your character has; switch with the arrows.
@@ -109,6 +112,7 @@ python3 -I tools/import_vendors.py ClassicDB_*.sql.gz FactionTemplate.csv   # op
 (cd tools && python3 import_npcs.py ClassicDB_*.sql.gz WAGO_CACHE BUILD)     # optional: trainer/vendor locations
 python3 -I tools/import_att.py ATT/.contrib/.db/forever WAGO_CACHE BUILD     # optional: AllTheThings Forever NPCs
 (cd tools && python3 import_gather.py ClassicDB_*.sql.gz WAGO_CACHE BUILD)  # optional: herb/ore zones
+(cd tools && python3 import_farm.py ClassicDB_*.sql.gz WAGO_CACHE BUILD)    # optional: where to farm ingredients
 python3 -I tools/gen_data.py            # newest Forever build on wago.tools
 python3 -I tools/gen_data.py 1.60.1.71037
 ```
