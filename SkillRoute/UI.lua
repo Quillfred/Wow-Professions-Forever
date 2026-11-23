@@ -113,7 +113,15 @@ local function row(i)
   r:SetScript("OnLeave", function() GameTooltip:Hide() end)
   r:RegisterForClicks("LeftButtonUp", "RightButtonUp")
   r:SetScript("OnClick", function(self, button)
-    if button == "LeftButton" then -- waypoint to this row's trainer / vendor
+    if button == "LeftButton" then
+      -- a recipe you know: open it in the profession window; else (or with Shift)
+      -- a waypoint to the trainer / vendor that has it
+      local shift = IsShiftKeyDown and IsShiftKeyDown()
+      if not shift and self.recipe and state.line and Core.IsRecipeKnown(state.line, self.recipe) then
+        if Core.OpenRecipe(self.recipe) then return end
+        print("SkillRoute: open your profession window to craft " .. (self.skipName or "it") .. ".")
+        return
+      end
       if self.waypoint then Core.Waypoint(self.waypoint) end
       return
     end
@@ -135,7 +143,7 @@ local function setRow(i, opts)
   r.right:SetText(opts.right or "")
   r.range:SetText(opts.range or "")
   r.item, r.spell, r.tip, r.tipTitle = opts.item, opts.spell, opts.tip, opts.tipTitle or opts.title
-  r.skipSpell, r.skipName, r.waypoint = opts.skipSpell, opts.skipName, opts.waypoint
+  r.skipSpell, r.skipName, r.waypoint, r.recipe = opts.skipSpell, opts.skipName, opts.waypoint, opts.recipe
   r:Show()
 end
 
@@ -304,9 +312,15 @@ local function routeRows(plan)
         for _, u in ipairs(st.tools) do names[#names + 1] = u.name end
         learn = learn .. "  |cffff8040needs " .. table.concat(names, ", ") .. "|r"
       end
-      if waypoint then tip[#tip + 1] = "|cff808080Click: set a waypoint (TomTom).|r" end
+      if Core.IsRecipeKnown(plan.line, st.spell) then
+        tip[#tip + 1] = "|cff808080Click: open this recipe in your profession window"
+                        .. (waypoint and "; Shift-click: waypoint." or ".") .. "|r"
+      elseif waypoint then
+        tip[#tip + 1] = "|cff808080Click: set a waypoint (TomTom).|r"
+      end
       tip[#tip + 1] = "|cff808080Right-click: skip this recipe (e.g. pattern not for sale) and plan without it.|r"
       add({ item = r.out, spell = st.spell, tip = tip, skipSpell = st.spell, skipName = st.name, waypoint = waypoint,
+            recipe = st.spell,
             text = ("|cff%s~%d|r x %s"):format(COLORS[st.color] or "ffffff", math.ceil(st.crafts - 1e-9), st.name),
             sub = mats(st.spell, plan.line) .. learn,
             range = ("%d-%d"):format(st.from, st.to),

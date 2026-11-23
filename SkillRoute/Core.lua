@@ -848,6 +848,27 @@ function Core.Plan(line, target)
   return plan
 end
 
+-- Open a known recipe in the profession window. Returns true if the client could.
+function Core.IsRecipeKnown(line, spell)
+  local saved = Core.Char().known[line]
+  if saved and saved[spell] then return true end
+  local isKnown = IsPlayerSpell or IsSpellKnown
+  return isKnown and isKnown(spell) or false
+end
+
+function Core.OpenRecipe(spell)
+  local T = C_TradeSkillUI
+  if T and T.OpenRecipe then
+    local ok = pcall(T.OpenRecipe, spell)
+    if ok then return true end
+  end
+  if T and T.SetSelectedRecipeID then
+    local ok = pcall(T.SetSelectedRecipeID, spell)
+    if ok then return true end
+  end
+  return false
+end
+
 -- Send the shopping list to Auctionator as a shopping list (exact names, amounts).
 -- Vendor items (thread, dyes, vendor patterns/tools) are left out: not on the AH.
 function Core.CanExportToAuctionator()

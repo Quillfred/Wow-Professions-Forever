@@ -398,6 +398,17 @@ do
   Auctionator.API.v1.CreateShoppingList, Auctionator.API.v1.ConvertToSearchString = nil, nil
 end
 
+-- click a known recipe -> opens it; unknown -> waypoint
+do
+  local opened
+  C_TradeSkillUI.OpenRecipe = function(id) opened = id end
+  assert(Core.IsRecipeKnown(197, 3848), "Double-stitched Woolen Shoulders known (IsPlayerSpell stub)")
+  assert(Core.OpenRecipe(3848) and opened == 3848, "OpenRecipe called")
+  assert(not Core.IsRecipeKnown(197, 8762), "Silk Headband not known")
+  C_TradeSkillUI.OpenRecipe = nil
+  assert(not Core.OpenRecipe(3848), "no API: reports it couldn't")
+end
+
 -- /sr check runs and reports; errors are caught, not thrown
 do
   local out = {}
