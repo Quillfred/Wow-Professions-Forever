@@ -1124,6 +1124,9 @@ function Core.Plan(line, target)
   table.sort(ownedList)
   key = key .. ":" .. table.concat(ownedList, ",")
   for _, f in ipairs(Core.FactionsFor(line)) do key = key .. ":" .. f .. "=" .. tostring(Core.Standing(f)) end
+  -- specialisations you have (they unlock recipes): part of the cache key
+  local isKnown = IsPlayerSpell or IsSpellKnown
+  for id in pairs(Data.specNames or {}) do if isKnown and isKnown(id) then key = key .. ":spec" .. id end end
   local cached = patternCache[line]
   local plan = Planner.Plan({
     recipes = recipes, items = Data.items, tools = Data.tools,
@@ -1142,6 +1145,7 @@ function Core.Plan(line, target)
     fixedUnlocks = cached and cached.key == key and cached.set or nil,
     skip = Core.Skips(line), ahFresh = Core.AHFresh, ownedPatterns = ownedPatterns,
     questOK = questsForFaction(recipes),
+    hasSpec = function(id) local k = IsPlayerSpell or IsSpellKnown; return k and k(id) or false end,
   })
   if not (cached and cached.key == key) then
     local set = {}

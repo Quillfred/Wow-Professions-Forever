@@ -242,6 +242,26 @@ for line, prof in pairs(D.professions) do
   end
 end
 
+-- specialisation recipes: never without the spec; with it, they can be used
+do
+  local bs = D.professions[164].recipes
+  local function usesSpec(pl, id)
+    for _, st in ipairs(pl.steps) do if st.spell and bs[st.spell].spec == id then return true end end
+  end
+  local none = P.Plan({ recipes = bs, items = items, tools = D.tools, hasTool = function() return true end,
+    skill = 200, target = 300, maxSkill = 300, known = {}, trainer = {}, price = price })
+  check(not usesSpec(none, 9788), "no Armorsmith recipe without the specialisation")
+  local nAvail, nSpec = 0, 0
+  for sp, r in pairs(bs) do
+    if r.spec == 9788 then
+      nSpec = nSpec + 1
+      if P.LearnAt(sp, r, { known = {}, trainer = {}, hasSpec = function(id) return id == 9788 end }) then nAvail = nAvail + 1 end
+      check(P.LearnAt(sp, r, { known = {}, trainer = {} }) == nil or r.src == "a", "spec recipe not learnable without the spec: " .. r.n)
+    end
+  end
+  check(nSpec > 0 and nAvail > 0, ("Armorsmith recipes learnable with the spec (%d of %d)"):format(nAvail, nSpec))
+end
+
 -- every NPC has a name, not its ID (ATT lists some quest givers over two lines)
 do
   local bad = {}

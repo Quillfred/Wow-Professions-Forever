@@ -2,6 +2,30 @@
 
 A WoW Forever addon that plans the cheapest way to level a crafting profession.
 
+## Getting started
+1. **Install:** put the `SkillRoute` folder in `World of Warcraft/_classic_/Interface/AddOns/`
+   (whichever game folder Forever uses). [Auctionator](https://www.curseforge.com/wow/addons/auctionator)
+   is strongly recommended: prices come from your Auctionator scans. TomTom is optional
+   (better waypoints).
+2. **Scan the auction house** once with Auctionator, so SkillRoute has prices.
+3. **Open your profession window**: SkillRoute opens next to it (or type `/sr`, or click
+   the minimap button). Pick the profession with the arrows and set your target skill.
+4. **Read the route top to bottom.** Each row is a step: how many to craft, from what,
+   and where the recipe comes from. Rank-ups (train, book or quest) appear where you
+   need them.
+   - **Hover** a step for details: cost per craft, the skill levels where it's orange,
+     yellow and green, why it was picked, where to learn it and what to do with what you
+     make.
+   - **Click** opens the recipe (if you know it) or sets a waypoint; **right-click** skips
+     a recipe you can't get and re-plans without it.
+5. **Shopping list** (button at the top) is everything to buy, with what you already
+   have (bags, bank, alts) taken off. With the auction house open, **Buy** on a step puts
+   its reagents in an Auctionator list and opens the Shopping tab.
+6. **Options** (button, or right-click the minimap button): safety margin, resale share,
+   how much a craft's time is worth, alts, estimates. `/sr help` lists the commands;
+   `/sr check` checks everything works.
+
+
 - **Recipe data comes from the Forever client itself** (build in `SkillRoute/Data.lua`),
   not from Classic. Forever moved many skill-up ranges, which is why Classic-based
   guides and addons disagree.

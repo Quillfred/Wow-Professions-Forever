@@ -408,10 +408,14 @@ local function routeRows(plan)
       local r = Data.professions[plan.line].recipes[st.spell]
       local learn = ""
       local trainerLoc, exact, questLoc
-      if st.learn == "trainer" or st.learn == "trainer?" then
+      local specName = r.spec and Data.specNames and Data.specNames[r.spec]
+      if (st.learn == "trainer" or st.learn == "trainer?") and not specName then
         trainerLoc, exact = Core.NearestRecipeTrainer(plan.line, st.spell, r.learn or r.y)
       end
-      if st.learn == "trainer" then
+      if st.learn == "trainer" and specName then
+        learn = "  |cffffd100Learn at your " .. specName .. " trainer"
+                .. (st.learnCost and (" (" .. money(st.learnCost, YELLOW) .. ")") or "") .. "|r"
+      elseif st.learn == "trainer" then
         learn = "  |cffffd100Learn at " .. (trainerLoc and trainerLoc.npc or "trainer")
                 .. (st.learnCost and (" (" .. money(st.learnCost, YELLOW) .. ")") or "") .. "|r"
       elseif st.learn == "pattern" then
@@ -490,6 +494,8 @@ local function routeRows(plan)
         sub("travel", travel(ql))
         if questLoc.skill > 0 then sub("needs", ("skill %d"):format(questLoc.skill)) end
         note("A quest counts as 1g of effort when choosing recipes (time, sometimes materials); not added to what you spend.")
+      elseif st.learn == "trainer" and specName then
+        row("Recipe", ("Learn at your %s trainer%s"):format(specName, st.learnCost and (", " .. money(st.learnCost)) or ""))
       elseif st.learn == "trainer" then
         row("Recipe", ("Learn at %s%s"):format(trainerLoc and trainerLoc.npc or "your trainer",
           st.learnCost and (", " .. money(st.learnCost)) or ""))
@@ -534,6 +540,7 @@ local function routeRows(plan)
           end
         end
       end
+      if specName then row("Needs", specName .. " |cff9d9d9d(your specialisation)|r") end
       for _, u in ipairs(st.tools or {}) do
         row("Needs", u.name .. " |cff9d9d9d(in your bags)|r")
         sub("", u.craftSpell and "craft one first (on the shopping list)" or ("buy one, " .. money(u.price)))
@@ -736,6 +743,19 @@ local function refresh()
   if plan.mismatch and plan.mismatch > 0 then
     warn[#warn + 1] = ("|cffff4040%d recipe colours differ from the data: update SkillRoute|r"):format(plan.mismatch)
   end
+  -- the first rank this route passes that your character level is too low for
+  if not plan.gather then
+    for cap = plan.max, plan.target - 1, 75 do
+      local stepN = ({ [75] = 2, [150] = 3, [225] = 4 })[cap]
+      local need, mine
+      if stepN then need, mine = Core.RankLevelShort(plan.line, stepN) end -- (not "x and f()": keeps one value)
+      if need then
+        warn[#warn + 1] = ("|cffff4040Past %d needs character level %d (you're %d): the route stops at %d until then.|r")
+          :format(cap, need, mine, cap)
+        break
+      end
+    end
+  end
   info:SetText(("Skill %d/%d  ->  %d   -   %s%s"):format(plan.skill, plan.max, plan.target, src,
     #warn > 0 and ("\n" .. table.concat(warn, "\n")) or ""))
 
@@ -877,7 +897,19 @@ end
 -- with it. Opened by hand (/sr, Route button) it stays until you close it.
 local autoOpened = false
 
+-- once per account: how to use the window, in chat
+local function firstRunTips()
+  SkillRouteDB = SkillRouteDB or {}
+  if SkillRouteDB.tipsShown then return end
+  SkillRouteDB.tipsShown = true
+  local t = "|cff33ccffSkillRoute:|r "
+  print(t .. "the route lists each step top to bottom. |cffffd100Hover|r a step for details, |cffffd100click|r to open the recipe or set a waypoint, |cffffd100right-click|r to skip a recipe you can't get.")
+  print(t .. "|cffffd100Shopping list|r (top right) is what to buy, minus what you have. Prices come from your Auctionator scans: scan the AH first.")
+  print(t .. "|cffffd100Options|r for margins and settings; |cffffd100/sr help|r for commands, |cffffd100/sr check|r if something looks wrong.")
+end
+
 function UI.Toggle(line)
+  firstRunTips()
   if not frame then build() end
   if line then state.line = line end
   if frame:IsShown() and not line then
@@ -889,6 +921,7 @@ function UI.Toggle(line)
 end
 
 function UI.AutoOpen(line)
+  firstRunTips()
   if not frame then build() end
   state.line = line
   if frame:IsShown() then

@@ -17,6 +17,13 @@ PROFESSIONS = {171: "Alchemy", 164: "Blacksmithing", 333: "Enchanting", 202: "En
 TABLES = ["SkillLineAbility", "SpellReagents", "SpellName", "SpellEffect",
           "ItemSparse", "ItemEffect", "ItemXItemEffect", "SpellCooldowns",
           "SpellTotems", "TotemCategory", "Faction", "TaxiNodes", "TaxiPath", "TaxiPathNode", "Item"]
+# specialisations (ATT constant -> the spec's spell in Forever's SpellName table)
+SPEC_SPELL = {"ARMORSMITH": 9788, "WEAPONSMITH": 9787, "MASTER_AXESMITH": 17041, "MASTER_HAMMERSMITH": 17040,
+              "MASTER_SWORDSMITH": 17039, "DRAGONSCALE_LEATHERWORKING": 10656, "ELEMENTAL_LEATHERWORKING": 10658,
+              "TRIBAL_LEATHERWORKING": 10660, "GNOMISH_ENGINEERING": 20219, "GOBLIN_ENGINEERING": 20222}
+SPEC_NAME = {9788: "Armorsmith", 9787: "Weaponsmith", 17041: "Master Axesmith", 17040: "Master Hammersmith",
+             17039: "Master Swordsmith", 10656: "Dragonscale Leatherworking", 10658: "Elemental Leatherworking",
+             10660: "Tribal Leatherworking", 20219: "Gnomish Engineer", 20222: "Goblin Engineer"}
 FLY_SPEED = 32      # yards/second on a flight path
 FLY_OVERHEAD = 10   # seconds: take-off, landing
 # Not trainer recipes even though no item teaches them (quest rewards etc.). Only
@@ -292,9 +299,7 @@ def main():
         w_learn = w[0] if (w and w[0] is not None) else None
         if src != "a" and av:
             how = av["how"]
-            if av["spec"]:
-                src, origin = "x", ["Specialization"]  # needs a specialisation: only if known
-            elif "T" in how:
+            if "T" in how:
                 if src != "T":
                     cost = None  # Wowhead's fee belongs to Wowhead's source
                 src = "T"
@@ -348,11 +353,16 @@ def main():
         used_items.update(pats)
         if o:
             used_items.add(o[0])
+        # a specialisation recipe (Armorsmith, Dragonscale...): usable only with that spec,
+        # whose spell the game knows (IsPlayerSpell)
+        spec_id = SPEC_SPELL.get(av["spec"]) if (av and av.get("spec") and src != "a") else None
         fix = checks.get("recipeFixes", {}).get(str(s))
         if fix:
             learn = fix.get("learn", learn)
             cost = fix.get("tc", cost)
         fields = [f"n={lua_str(names[s])}", f"y={y}", f"g={g}", f'src="{src}"']
+        if spec_id:
+            fields.append(f"spec={spec_id}")
         if learn is not None:
             fields.append(f"learn={learn}")
         if cost:
@@ -612,7 +622,9 @@ def main():
         for key in sorted(npc_rows):  # Classic key = the ID; ATT keys = -(ID*10 + side)
             if key == int(k) or (key < 0 and -key // 10 == int(k)):
                 note_rows.append(f"[{key}]={lua_str(v)}")
-    lines += ["  },", "  -- character level to learn a rank (crafting and secondary professions)",
+    lines += ["  },", "  -- specialisations: [spec spell] = name (recipes carry spec = <spell>)",
+              "  specNames = {" + ",".join(f"[{k}]={lua_str(v)}" for k, v in sorted(SPEC_NAME.items())) + "},"]
+    lines += ["  -- character level to learn a rank (crafting and secondary professions)",
               "  rankLevel = {" + ",".join(f"[{k}]={v}" for k, v in sorted(lv.items())) + "},",
               "  -- notes shown with an NPC (e.g. inside a dungeon)",
               "  npcNotes = {" + ",".join(note_rows) + "},"]

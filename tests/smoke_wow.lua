@@ -846,6 +846,17 @@ do
   prices[pick] = nil
 end
 
+-- first-time tips: printed once per account
+do
+  assert(SkillRouteDB.tipsShown, "first-run tips were shown when the window first opened")
+  local said = 0
+  local realPrint = print
+  _G.print = function() said = said + 1 end
+  UI.Toggle(197); UI.Toggle()
+  _G.print = realPrint
+  assert(said == 0, "tips only once")
+end
+
 -- step tooltips: what to do with what the step makes (same advice as the shopping list)
 do
   local saved = { GetProfessions, GetProfessionInfo }
@@ -896,6 +907,12 @@ do
   end
   UI.Toggle()
   assert(warn, "Artisan row warns about character level 35")
+  local top
+  for _, t in ipairs(texts) do
+    local v = rawget(t, "text")
+    if type(v) == "string" and v:find("Past 225 needs character level 35", 1, true) then top = v end
+  end
+  assert(top, "the header says where your level stops the route")
   print("rank level warning: " .. warn:gsub("|c%x%x%x%x%x%x%x%x", ""):gsub("|r", ""))
   GetProfessions, GetProfessionInfo, _G.UnitLevel = saved[1], saved[2], saved[3]
 end

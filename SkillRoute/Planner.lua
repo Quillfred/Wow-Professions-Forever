@@ -38,6 +38,8 @@ end
 -- a vendor pattern this plan buys (ctx.unlocked["p:<spell>"]).
 function Planner.LearnAt(spell, r, ctx)
   if ctx.known[spell] or r.src == "a" then return 0, "known" end
+  -- a specialisation recipe: only with that spec (ctx.hasSpec; none given = no spec)
+  if r.spec and not (ctx.hasSpec and ctx.hasSpec(r.spec)) then return nil end
   local t = ctx.trainer[spell]
   if t then return t.req or 0, "trainer" end
   if r.src == "T" then return r.learn or r.y, "trainer" end
@@ -165,7 +167,8 @@ local function findUnlocks(ctx, unit)
       -- Vendor patterns at their vendor price, and any pattern (drops too) that
       -- Auctionator has seen on the auction house. Never on an estimated price:
       -- untradeable patterns have no AH price, so they never show up here.
-      if r.pat and not ctx.known[spell] and not r.cd then
+      if r.pat and not ctx.known[spell] and not r.cd
+         and not (r.spec and not (ctx.hasSpec and ctx.hasSpec(r.spec))) then -- no spec: pattern useless
         local isVendor = r.from and r.from:find("Vendor")
         local best, bestItem, bestVia, bestInfo
         for _, it in ipairs(r.pat) do

@@ -120,13 +120,13 @@ def read_sources(db_dir):
                 how = "p"
             else:
                 how = "T"
-            d = out.setdefault(str(spell), {"how": [], "items": [], "spec": False})
+            d = out.setdefault(str(spell), {"how": [], "items": [], "spec": None})
             if how not in d["how"]:
                 d["how"].append(how)
             if item and how == "p" and item not in d["items"]:
                 d["items"].append(item)
             if m.group(4):
-                d["spec"] = True
+                d["spec"] = m.group(4)  # e.g. ARMORSMITH, DRAGONSCALE_LEATHERWORKING
     return out
 
 
