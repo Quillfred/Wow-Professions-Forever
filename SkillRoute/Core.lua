@@ -385,9 +385,19 @@ Core.PlayerWorld = playerWorld
 -- Errors: never leave the window blank or spam chat. The last error is kept for
 -- /sr check and shown once per session.
 local shownError = false
+-- this copy's version (the .toc), to tell an old saved error from a current one
+function Core.Version()
+  local get = (C_AddOns and C_AddOns.GetAddOnMetadata) or GetAddOnMetadata
+  local ok, v = pcall(get or error, addonName, "Version")
+  return ok and v or "?"
+end
 function Core.ReportError(where, err)
   local msg = ("%s: %s"):format(where, tostring(err))
-  if SkillRouteDB then SkillRouteDB.lastError = msg end
+  if SkillRouteDB then
+    SkillRouteDB.lastError = msg
+    SkillRouteDB.lastErrorVersion = Core.Version()
+    SkillRouteDB.lastErrorTime = time and time() or nil
+  end
   if not shownError then
     shownError = true
     print("|cffff4040SkillRoute hit an error|r (" .. msg .. "). Type /sr check and send a screenshot.")
@@ -1177,6 +1187,10 @@ local f = CreateFrame("Frame")
 local function onEvent(_, ev, arg1)
   if ev == "ADDON_LOADED" and arg1 == addonName then
     db()
+    -- an error saved by an older version is about code that's gone: drop it
+    if SkillRouteDB.lastError and SkillRouteDB.lastErrorVersion ~= Core.Version() then
+      SkillRouteDB.lastError, SkillRouteDB.lastErrorVersion, SkillRouteDB.lastErrorTime = nil, nil, nil
+    end
   elseif ev == "PLAYER_LOGIN" then
     local api = Auctionator and Auctionator.API and Auctionator.API.v1
     if api and api.RegisterForDBUpdate then

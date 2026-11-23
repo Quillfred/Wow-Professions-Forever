@@ -183,6 +183,18 @@ local evf
 for _, f in ipairs(frames) do local e = rawget(f, "events"); if e and e.TRADE_SKILL_SHOW then evf = f end end
 assert(evf and evf.events.TRADE_SKILL_CLOSE, "events registered")
 local function fire(ev, ...) evf.OnEvent(evf, ev, ...) end
+-- an error saved by an older version is dropped on load; a current one is kept, with
+-- its version, and /sr check shows it
+_G.C_AddOns = { GetAddOnMetadata = function(_, k) if k == "Version" then return "9.9.9" end end }
+SkillRouteDB.lastError, SkillRouteDB.lastErrorVersion = "MERCHANT_SHOW: old", "0.23.1"
+fire("ADDON_LOADED", "SkillRoute")
+assert(SkillRouteDB.lastError == nil, "an older version's error is cleared on load")
+Core.ReportError("TEST", "boom")
+assert(SkillRouteDB.lastErrorVersion == "9.9.9", "error tagged with the version")
+fire("ADDON_LOADED", "SkillRoute")
+assert(SkillRouteDB.lastError == "TEST: boom", "a current version's error is kept")
+SkillRouteDB.lastError, SkillRouteDB.lastErrorVersion, SkillRouteDB.lastErrorTime = nil, nil, nil
+_G.C_AddOns = nil
 assert(not UI.IsShown())
 fire("TRADE_SKILL_SHOW"); assert(UI.IsShown(), "opens with the profession window")
 fire("TRADE_SKILL_CLOSE"); assert(not UI.IsShown(), "closes with it when it opened itself")

@@ -88,7 +88,10 @@ function Core.Check()
   end
 
   local err = SkillRouteDB and SkillRouteDB.lastError
-  line(err and ("|cffff4040last error:|r " .. err) or (OK .. " no errors recorded"))
+  local when = SkillRouteDB and SkillRouteDB.lastErrorTime and date and date("%Y-%m-%d %H:%M", SkillRouteDB.lastErrorTime)
+  line(err and ("|cffff4040last error|r (v%s%s): %s"):format(SkillRouteDB.lastErrorVersion or "?",
+         when and (", " .. when) or "", err)
+       or (OK .. " no errors recorded (v" .. Core.Version() .. ")"))
   line(missing == 0 and "everything SkillRoute can use is available."
        or ("%d feature(s) above are missing: those parts do less, the rest works."):format(missing))
 end
