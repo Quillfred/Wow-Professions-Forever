@@ -558,6 +558,37 @@ function Planner.PlanOnce(ctx, credit)
     end
   end
 
+  -- Why this recipe beat the next best at the step's first point: the gold gap per point
+  -- (materials after crediting/resale, plus trainer fees spread over the points), and what
+  -- decided it when it wasn't simply cheaper materials:
+  --   reliable: dearer per craft, but fewer crafts per point;  feeds: what it makes is used
+  --   later (credited);  resale: your resale setting;  fee: the other needs a trainer fee;
+  --   time: your craft's-time setting;  sticky: kept the next step's recipe (within 3%).
+  local function whyThis(c, ca, s)
+    local po, pa = Planner.Chance(c.r, s, ctx.bonus), Planner.Chance(ca.r, s, ctx.bonus)
+    local gro, gra = reagentCost(c.r, unit) or c.cost, reagentCost(ca.r, unit) or ca.cost
+    local go, ga = gro / po, gra / pa       -- materials per point, before credit/resale
+    local no, na = c.cost / po, ca.cost / pa -- after credit/resale
+    local so, sa = sur[c.spell] or 0, sur[ca.spell] or 0
+    local to_ = (c.cost + perCraft) / po + so  -- what the planner compared
+    local ta = (ca.cost + perCraft) / pa + sa
+    local eps = 1e-9
+    local because
+    if to_ > ta + eps then
+      because = "sticky"                      -- kept the next step's recipe, within 3%
+    elseif no + so > na + sa + eps then
+      because = "time"                        -- dearer in gold: your craft's-time setting won it
+    elseif no > na + eps then
+      because = "fee"                         -- dearer before fees: the other's trainer fee
+    elseif go > ga + eps then
+      because = (c.r.out and (credit[c.r.out] or 0) > 0) and "feeds" or (ctx.resale and ctx.resale > 0) and "resale" or nil
+    elseif gro > gra + eps then
+      because = "reliable"                    -- dearer per craft, fewer crafts per point
+    end
+    return { name = ca.r.n, perPoint = na + sa, gap = (na + sa) - (no + so), because = because,
+             craftsOurs = 1 / po, craftsAlt = 1 / pa }
+  end
+
   -- Group consecutive points into steps.
   local steps, gaps, gapPoints, usedUnlocks = {}, {}, 0, {}
   local s = from
@@ -609,6 +640,8 @@ function Planner.PlanOnce(ctx, credit)
         end)() or nil,
         grossCost = (reagentCost(c.r, unit) or 0) * crafts, -- materials, before crediting
         alt = a and { name = cands[a.k].r.n, perPoint = a.c, ours = c.cost / Planner.Chance(c.r, s, ctx.bonus) },
+        why = a and whyThis(c, cands[a.k], s) or nil,
+        only = not a or nil, -- no other recipe you can get covers these points
       }
       s = e
     end

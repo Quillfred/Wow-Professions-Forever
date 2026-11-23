@@ -224,6 +224,24 @@ for line, prof in pairs(D.professions) do
   end
 end
 
+-- "Why this one": the gap is never negative unless the reason says so (kept the next
+-- step's recipe, or your craft's-time setting); every step has a why, an only-option,
+-- or is a gap
+for line, prof in pairs(D.professions) do
+  if not prof.gather then
+    local pl = plan(line, 1, 300)
+    for _, st in ipairs(pl.steps) do
+      if not st.gap then
+        check(st.why or st.only, prof.name .. ": " .. tostring(st.name) .. " has no why")
+        if st.why then
+          check(st.why.gap >= -1e-6 or st.why.because == "sticky" or st.why.because == "time",
+            ("%s: %s is dearer than %s but says %s"):format(prof.name, st.name, st.why.name, tostring(st.why.because)))
+        end
+      end
+    end
+  end
+end
+
 -- every NPC has a name, not its ID (ATT lists some quest givers over two lines)
 do
   local bad = {}

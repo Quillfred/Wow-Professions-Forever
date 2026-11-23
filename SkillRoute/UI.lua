@@ -454,15 +454,31 @@ local function routeRows(plan)
         sub("", ("last skill-up at each colour; no more from %d"):format(r.g))
       end
       local sv = st.learn == "pattern" and st.unlock and st.unlock.savesShown
+      local w = st.why
+      local points = st.to - st.from
       if sv then
         row("Why this one", "the pattern pays off")
         sub("saves", money(sv) .. " over the route, price included")
-      elseif st.alt then
-        row("Why this one", "cheapest here")
-      elseif st.learn == "pattern" then
-        row("Why this one", "no trainer recipe covers this range")
+      elseif w and w.gap >= 1 then
+        row("Why this one", "cheapest here, saves " .. money(w.gap) .. " / point")
+      elseif w then
+        row("Why this one", "about as cheap as the next best")
+      elseif st.only then
+        row("Why this one", "only option here")
+        sub("", ("no other recipe you can get covers %d-%d"):format(st.from, st.to))
       end
-      if st.alt then sub("next best", ("%s, %s / point"):format(st.alt.name, money(st.alt.perPoint))) end
+      if w then
+        sub("next best", ("%s, %s / point"):format(w.name, money(w.perPoint)))
+        if not sv and w.gap >= 1 and points > 1 then sub("over this step", "~" .. money(w.gap * points)) end
+        local because = w.because == "reliable" and ("skills up more reliably (%.1f vs %.1f crafts per point)"):format(w.craftsOurs, w.craftsAlt)
+          or w.because == "feeds" and "what it makes is used by later steps"
+          or w.because == "resale" and ("sells back well (your %d%% resale setting)"):format((SkillRouteDB.settings and SkillRouteDB.settings.resale) or 0)
+          or w.because == "fee" and "the next best needs a trainer fee"
+          or w.because == "time" and "fewer crafts (your craft's-time setting)"
+          or w.because == "sticky" and "keeps going with the next step's recipe (within 3%)"
+          or nil
+        sub("because", because)
+      end
       gap()
       -- where the recipe comes from
       local waypoint = trainerLoc
