@@ -3670,6 +3670,8 @@ SkillRouteData = {
     [16051]={"Schematic: Thorium Shells",5000,nil},
     [16052]={"Schematic: Voice Amplification Modulator",5000,nil},
     [16053]={"Schematic: Master Engineer's Goggles",5000,nil},
+    [16072]={"Expert Cookbook",2500,10000},
+    [16084]={"Expert First Aid - Under Wraps",2500,10000},
     [16110]={"Recipe: Monster Omelet",3000,12000},
     [16111]={"Recipe: Spiced Chili Crab",3000,12000},
     [16112]={"Manual: Heavy Silk Bandage",550,2200},
@@ -5771,6 +5773,8 @@ SkillRouteData = {
     [16046]={"AH","Xizzer Fizzbolt, Kor'gar","Xizzer Fizzbolt, Kor'gar"},
     [16047]={"AH","Xizzer Fizzbolt, Kor'gar","Xizzer Fizzbolt, Kor'gar"},
     [16050]={"AH","Xizzer Fizzbolt","Xizzer Fizzbolt"},
+    [16072]={"AH","Shandrina","Wulan"},
+    [16084]={"AH","Deneb Walker","Balai Lok'Wein"},
     [16110]={"AH","Malygen, Himmik","Bale, Himmik"},
     [16111]={"AH","Kriggon Talsone","Banalash, Uthok"},
     [16112]={"AH","Deneb Walker","Balai Lok'Wein"},
@@ -6106,6 +6110,8 @@ SkillRouteData = {
     [16046]={-111853,-2605653},
     [16047]={-111853,-2605653},
     [16050]={-111853},
+    [16072]={-120332,-39551},
+    [16084]={-134762,-28051},
     [16110]={-28062,-28031,-111873},
     [16111]={-43051,-9892,-11492},
     [16112]={-134762,-28051},
@@ -6274,6 +6280,16 @@ SkillRouteData = {
     [276991]={-322873},
     [277716]={-42251},
   },
+  -- rank-up books: [skillLine] = {[rank] = {itemIDs}} (rank 3 Expert, 4 Artisan)
+  rankBooks = {
+    [129]={[3]={16084}},
+    [185]={[3]={16072}},
+  },
+  -- rank-up quests: [skillLine] = {[rank] = {{questID, title, skill needed, {giver npcs}}}}
+  rankQuests = {
+    [129]={[4]={{6622,"Triage",225,{12920}},{6624,"Triage",225,{12939}}}},
+    [185]={[4]={{6610,"Clamlette Surprise",225,{8125}}}},
+  },
   -- [npc] = {name, faction, map, worldX, worldY, continentUiMap, contX, contY, zone, zoneX, zoneY, zoneUiMap}
   -- (zoneUiMap set = exact, from ATT; else Classic spawn, zone resolved by the game)
   npcs = {
@@ -6431,6 +6447,7 @@ SkillRouteData = {
     [-39601]={"Ulthaan","A",1,2113.0,-1183.3,1414,49.59,43.56,"Ashenvale",50.0,66.6,1440},
     [-39581]={"Lardan","A",1,2758.7,-306.8,1414,47.21,40.93,"Ashenvale",34.8,49.8,1440},
     [-39561]={"Harklan Moongrove","A",1,2097.6,-1229.5,1414,49.72,43.62,"Ashenvale",50.8,67.0,1440},
+    [-39551]={"Shandrina","A",1,2093.8,-1154.5,1414,49.51,43.64,"Ashenvale",49.5,67.1,1440},
     [-39541]={"Dalria","A",1,2670.3,-324.1,1414,47.26,41.29,"Ashenvale",35.1,52.1,1440},
     [-38812]={"Grimtak","H",1,306.7,-4669.7,1414,59.07,50.92,"Durotar",51.2,42.6,1411},
     [-36832]={"Kiknikle","H",1,-995.4,-1612.8,1414,50.76,56.23,"The Barrens",41.8,38.6,1413},
@@ -6679,6 +6696,7 @@ SkillRouteData = {
     [7869]={"Brumn Winterhoof","H",0,-1215.5,-1884.3,1415,50.81,37.0,nil,nil,nil},
     [7870]={"Caryssia Moonhunter","A",1,-4523.6,-772.9,1414,48.48,70.61,nil,nil,nil},
     [7949]={"Xylinnia Starshine","A",1,-4417.0,3249.0,1414,37.55,70.18,"Feralas",31.6,44.2},
+    [8125]={"Dirge Quikcleave","AH",1,-7168.3,-3850.3,1414,56.84,81.39,"Tanaris",52.6,28.1},
     [8128]={"Pikkle","AH",1,-7167.7,-3743.1,1414,56.55,81.39,"Tanaris",51.1,28.1},
     [8144]={"Kulleg Stonehorn","H",1,-4360.9,266.1,1414,45.65,69.95,nil,nil,nil},
     [8146]={"Ruw","H",1,-4374.4,161.1,1414,45.94,70.0,nil,nil,nil},
@@ -6712,6 +6730,8 @@ SkillRouteData = {
     [11084]={"Tarn","H",1,-1146.5,74.9,1414,46.17,56.85,nil,nil,nil},
     [12025]={"Malvor","AH",1,7768.6,-2429.7,1414,52.98,20.51,nil,nil,nil},
     [12030]={"Malux","H",1,-1638.0,3188.7,1414,37.71,58.85,"Desolace",23.2,69.7},
+    [12920]={"Doctor Gregory Victor","H",0,-1018.8,-3509.5,1415,55.42,36.16,nil,nil,nil},
+    [12939]={"Doctor Gustaf VanHowzen","A",1,-3747.3,-4532.2,1414,58.69,67.45,nil,nil,nil},
     [12944]={"Lokhtos Darkbargainer","AH",230,912.5,-185.9,nil,nil,nil,nil,nil,nil},
     [13420]={"Penney Copperpinch","AH",1,1657.5,-4426.9,1414,58.41,45.42,nil,nil,nil},
     [13429]={"Nardstrum Copperpinch","AH",0,1629.2,218.5,1415,44.83,24.88,nil,nil,nil},

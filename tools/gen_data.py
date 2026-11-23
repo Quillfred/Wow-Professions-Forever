@@ -124,8 +124,13 @@ def main():
             reagents[s] = [(i, c) for i, c in lst if i > 0 and c > 0]
 
     creates, learn_spell, rank1 = {}, {}, {}
+    rank_step, rank_learn = {}, {}  # rank-up spells (effect 118) and the spells that teach them
     for r in rows(p["SpellEffect"]):
         s = int(r["SpellID"])
+        if r["Effect"] == "118":
+            rank_step[s] = (int(r["EffectMiscValue_0"]), int(float(r["EffectBasePointsF"] or 0)))
+        elif r["Effect"] == SPELL_EFFECT_LEARN_SPELL:
+            rank_learn[s] = int(r["EffectTriggerSpell"])
         # the Apprentice rank spell of each profession (effect 118, step 1): its name is
         # the profession's name in the player's language, for matching at runtime
         if r["Effect"] == "118" and float(r["EffectBasePointsF"] or 0) == 1:
@@ -139,7 +144,13 @@ def main():
     for r in rows(p["ItemXItemEffect"]):
         effect_items.setdefault(int(r["ItemEffectID"]), []).append(int(r["ItemID"]))
     taught_by = {}  # recipe spell -> [pattern item ids]
+    rank_books = {}  # (line, rank) -> items that teach the rank (Expert First Aid - Under Wraps)
     for r in rows(p["ItemEffect"]):
+        sp = int(r["SpellID"])
+        tgt = sp if sp in rank_step else rank_learn.get(sp)
+        if tgt in rank_step:
+            for it in effect_items.get(int(r["ID"]), []):
+                rank_books.setdefault(rank_step[tgt], set()).add(it)
         s = int(r["SpellID"])
         target = s if (s in abil and r["TriggerType"] == ITEM_TRIGGER_ON_LEARN) else learn_spell.get(s)
         if target:
@@ -184,6 +195,13 @@ def main():
     tool_items = {}
 
     used_items, vendor_patterns, used_factions = set(), set(), set()
+    GATHER_LINES = {186, 182, 393}
+    for (line, st), its in rank_books.items():
+        if line in PROFESSIONS or line in GATHER_LINES:
+            for it in its:
+                if it in items and items[it]["Display_lang"]:
+                    used_items.add(it)
+                    vendor_patterns.add(it)  # vendor price + vendor lists, like patterns
     out = {sl: [] for sl in PROFESSIONS}
     for s, a in sorted(abil.items()):
         if s not in reagents or s not in names:
@@ -376,6 +394,29 @@ def main():
     lines += ["  },", "  -- [patternItem] = {who vendors sell it to \"A\"|\"H\"|\"AH\", Alliance vendors, Horde vendors}",
               "  patternVendors = {"] + pv_lines
     lines += ["  },", "  -- [patternItem] = {npc keys of vendors selling it}", "  vendorNpcs = {"] + vend_lines
+    # ranks no trainer teaches: books (vendors above) and quests
+    lines += ["  },", "  -- rank-up books: [skillLine] = {[rank] = {itemIDs}} (rank 3 Expert, 4 Artisan)", "  rankBooks = {"]
+    for line in sorted({l for l, _ in rank_books}):
+        if line not in PROFESSIONS and line not in GATHER_LINES:
+            continue
+        parts = []
+        for (l, st), its in sorted(rank_books.items()):
+            ok = [i for i in sorted(its) if i in used_items]
+            if l == line and ok:
+                parts.append(f"[{st}]={{{','.join(map(str, ok))}}}")
+        if parts:
+            lines.append(f"    [{line}]={{{','.join(parts)}}},")
+    lines += ["  },", "  -- rank-up quests: [skillLine] = {[rank] = {{questID, title, skill needed, {giver npcs}}}}",
+              "  rankQuests = {"]
+    for line, ranks in sorted(npcdata.get("rankQuests", {}).items()):
+        parts = []
+        for st, qs in sorted(ranks.items()):
+            qrows = []
+            for q in qs:
+                givers = [k for k in (classic_npc(g) for g in q["givers"]) if k is not None]
+                qrows.append("{%d,%s,%d,{%s}}" % (q["q"], lua_str(q["t"]), q["skill"], ",".join(map(str, givers))))
+            parts.append(f"[{st}]={{{','.join(qrows)}}}")
+        lines.append(f"    [{line}]={{{','.join(parts)}}},")
     lines += ["  },", "  -- [npc] = {name, faction, map, worldX, worldY, continentUiMap, contX, contY, zone, zoneX, zoneY, zoneUiMap}",
               "  -- (zoneUiMap set = exact, from ATT; else Classic spawn, zone resolved by the game)",
               "  npcs = {"]

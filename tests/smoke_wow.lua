@@ -495,6 +495,28 @@ do
   SkillRouteDB.settings.margin = nil
 end
 
+-- First Aid: Expert from the book (Horde vendor), Artisan from the "Triage" quest
+do
+  assert(not Core.NearestTrainer(129, 3), "no trainer teaches Expert First Aid")
+  local book = Core.RankBook(129, 3)
+  assert(book and book.name == "Expert First Aid - Under Wraps" and book.loc and book.loc.npc == "Balai Lok'Wein",
+    "Horde: book from Balai Lok'Wein, got " .. tostring(book and book.loc and book.loc.npc))
+  local q = Core.RankQuest(129, 4)
+  assert(q and q.title == "Triage" and q.loc.npc == "Doctor Gregory Victor" and q.skill == 225, "Horde: Triage from Doctor Gregory Victor")
+  print(("First Aid (Horde): Expert -> buy %s from %s, %s; Artisan -> quest %s from %s"):format(
+    book.name, book.loc.npc, Core.Where(book.loc), q.title, q.loc.npc))
+  -- the window row
+  local saved = { GetProfessions, GetProfessionInfo }
+  GetProfessions = function() return 1 end
+  GetProfessionInfo = function() return "First Aid", 0, 150, 150, 0, 0, 129 end
+  UI.Toggle(129)
+  local row
+  for _, t in ipairs(texts) do local v = rawget(t, "text"); if type(v) == "string" and v:find("Buy Expert First Aid", 1, true) then row = v end end
+  assert(row, "window shows the book row")
+  UI.Toggle()
+  GetProfessions, GetProfessionInfo = saved[1], saved[2]
+end
+
 -- /sr check runs and reports; errors are caught, not thrown
 do
   local out = {}

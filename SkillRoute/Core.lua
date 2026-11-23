@@ -601,6 +601,7 @@ function Core.NearestNPC(ids)
   local loc = Core.NPCLocation(best)
   local copy = {}
   for k, v in pairs(loc) do copy[k] = v end
+  copy.id = best
   copy.travel = bestD < math.huge and bestD or nil
   copy.via = bestHow
   return copy
@@ -640,6 +641,32 @@ function Core.NearestRecipeTrainer(line, spell, learnAt)
     tier = L >= 225 and 4 or L >= 125 and 3 or L >= 50 and 2 or 1
   end
   return Core.NearestNPC(trainersTeaching(line, tier)), known
+end
+
+-- Ranks no trainer teaches. A book (Expert First Aid - Under Wraps): owned, or the
+-- nearest vendor of your faction. A quest (Artisan First Aid: "Triage"): the nearest
+-- giver of your faction.
+function Core.RankBook(line, rankStep)
+  local books = Data.rankBooks and Data.rankBooks[line] and Data.rankBooks[line][rankStep]
+  for _, item in ipairs(books or {}) do
+    local it = Data.items[item]
+    local owned = (Core.Have(item) or 0) > 0
+    local loc = not owned and Core.NearestVendor(item) or nil
+    if owned or loc then
+      return { item = item, name = it and it[1] or ("item " .. item), price = it and it[3], owned = owned, loc = loc }
+    end
+  end
+end
+
+function Core.RankQuest(line, rankStep)
+  local quests = Data.rankQuests and Data.rankQuests[line] and Data.rankQuests[line][rankStep]
+  local ids, byGiver = {}, {}
+  for _, q in ipairs(quests or {}) do
+    for _, g in ipairs(q[4]) do ids[#ids + 1] = g; byGiver[g] = q end
+  end
+  local loc = Core.NearestNPC(ids)
+  local q = loc and byGiver[loc.id]
+  if q then return { quest = q[1], title = q[2], skill = q[3], loc = loc } end
 end
 
 function Core.NearestVendor(item)

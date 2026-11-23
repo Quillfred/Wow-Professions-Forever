@@ -178,13 +178,41 @@ local function routeRows(plan)
       else
         tip[1] = "No trainer known. Talk to one once and SkillRoute will remember where they are."
       end
-      if loc and Core.TravelText(loc) then tip[#tip + 1] = Core.TravelText(loc) .. "." end
-      if loc then tip[#tip + 1] = "|cff808080Click: set a waypoint (TomTom).|r" end
-      add({ icon = "Interface\\Icons\\INV_Misc_Book_09",
-            text = ("|cffffd100Train %s|r"):format(rank) .. (loc and (" at " .. loc.npc) or " at your trainer"),
-            sub = ("Needed to go past %d"):format(trained)
-                  .. (where and ("  -  " .. where) or ("  -  |cff808080no %s trainer known|r"):format(rank)),
-            range = tostring(trained), tipTitle = ("Train %s"):format(rank), tip = tip, waypoint = loc })
+      -- no trainer teaches it: a book (Expert First Aid) or a quest (Artisan: "Triage")
+      local book = not loc and Core.RankBook(plan.line, RANK_STEP[rank])
+      local quest = not loc and not book and Core.RankQuest(plan.line, RANK_STEP[rank])
+      if book then
+        local bl = book.loc
+        tip = { book.owned and ("You have %s: use it to learn %s."):format(book.name, rank)
+                or ("No trainer teaches %s %s: it comes from this book, sold by %s (nearest for your faction)."):format(
+                     rank, Data.professions[plan.line].name, bl.npc) }
+        if bl and Core.TravelText(bl) then tip[#tip + 1] = Core.TravelText(bl) .. "." end
+        if bl then tip[#tip + 1] = "|cff808080Click: set a waypoint (TomTom).|r" end
+        add({ icon = "Interface\\Icons\\INV_Misc_Book_09", item = book.item,
+              text = ("|cffffd100%s %s|r"):format(book.owned and "Read" or "Buy", book.name),
+              sub = ("Teaches %s, needed past %d"):format(rank, trained)
+                    .. (bl and ("  -  from %s, %s"):format(bl.npc, Core.Where(bl) or "?") or "  -  in your bags"),
+              range = tostring(trained), right = (not book.owned and book.price) and money(book.price) or nil,
+              tipTitle = book.name, tip = tip, waypoint = bl })
+      elseif quest then
+        local ql = quest.loc
+        tip = { ("No trainer teaches %s %s: it's the reward of the quest \"%s\" (needs skill %d)."):format(
+                  rank, Data.professions[plan.line].name, quest.title, quest.skill) }
+        if Core.TravelText(ql) then tip[#tip + 1] = Core.TravelText(ql) .. "." end
+        tip[#tip + 1] = "|cff808080Click: set a waypoint (TomTom).|r"
+        add({ icon = "Interface\\Icons\\INV_Misc_Note_01",
+              text = ("|cffffd100Quest \"%s\"|r for %s"):format(quest.title, rank),
+              sub = ("Needs skill %d  -  from %s, %s"):format(quest.skill, ql.npc, Core.Where(ql) or "?"),
+              range = tostring(trained), tipTitle = quest.title, tip = tip, waypoint = ql })
+      else
+        if loc and Core.TravelText(loc) then tip[#tip + 1] = Core.TravelText(loc) .. "." end
+        if loc then tip[#tip + 1] = "|cff808080Click: set a waypoint (TomTom).|r" end
+        add({ icon = "Interface\\Icons\\INV_Misc_Book_09",
+              text = ("|cffffd100Train %s|r"):format(rank) .. (loc and (" at " .. loc.npc) or " at your trainer"),
+              sub = ("Needed to go past %d"):format(trained)
+                    .. (where and ("  -  " .. where) or ("  -  |cff808080no %s trainer known|r"):format(rank)),
+              range = tostring(trained), tipTitle = ("Train %s"):format(rank), tip = tip, waypoint = loc })
+      end
       trained = trained + 75
     end
     -- get each tool (rod, hammer...) right before the first step that needs it

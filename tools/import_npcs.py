@@ -137,6 +137,27 @@ def main():
                 vendors.setdefault(str(it), []).append(entry)
                 wanted.add(entry)
 
+    # Ranks taught by a quest (Artisan First Aid: "Triage"): quests whose reward spell
+    # is a rank-up, and who gives them
+    qc = columns(sqlgz, "quest_template")
+    QE, QT, QRS, QRC, QSV = (qc.index(k) for k in ("entry", "Title", "RewSpell", "RewSpellCast", "RequiredSkillValue"))
+    rank_quests = {}
+    for r in sql_rows(sqlgz, "quest_template"):
+        for sp in (r[QRS], r[QRC]):
+            if sp and int(sp) in step:
+                line, st = step[int(sp)]
+                rank_quests[int(r[QE])] = (line, st, r[QT], int(r[QSV] or 0))
+                break
+    quest_givers = {}
+    for r in sql_rows(sqlgz, "creature_questrelation"):
+        if int(r[1]) in rank_quests:
+            quest_givers.setdefault(int(r[1]), []).append(int(r[0]))
+            wanted.add(int(r[0]))
+    rq = {}
+    for q, (line, st, title, skill) in rank_quests.items():
+        rq.setdefault(str(line), {}).setdefault(str(st), []).append(
+            {"q": q, "t": title, "skill": skill, "givers": sorted(quest_givers.get(q, []))})
+
     check = {int(a) for a in sys.argv[4:]}  # extra NPC IDs: print their zone/coords to verify
     # A trainer's rank is its title: Journeyman 2, Expert 3, Artisan 4, Master 5 (new in
     # Forever). In Forever a trainer teaches rank-ups only up to the rank below its own
@@ -201,7 +222,7 @@ def main():
                              "r": [float(a[f"Region_{i}"]) for i in (0, 1, 3, 4)],
                              "u": [float(a[k]) for k in ("UiMin_0", "UiMin_1", "UiMax_0", "UiMax_1")]}
 
-    out = {"transports": transports, "continents": conts,
+    out = {"transports": transports, "continents": conts, "rankQuests": rq,
            "recipes": {str(rc): sorted(e for e in es if str(e) in npcs)
                        for rc, es in recipe_trainers.items() if any(str(e) in npcs for e in es)},
            "npcs": npcs,
