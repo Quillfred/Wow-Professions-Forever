@@ -2,7 +2,7 @@
 SkillRouteData = {
   build = "1.60.1.71037",
   professions = {
-  [171] = { name = "Alchemy", recipes = {
+  [171] = { name = "Alchemy", spell = 2259, recipes = {
     [2329]={n="Elixir of Minor Strength",y=55,g=95,src="T",learn=15,tc=52,out=2454,r={2449,1,765,1,3371,1}},
     [2331]={n="Minor Mana Potion",y=65,g=105,src="T",learn=25,tc=100,out=2455,r={785,1,2447,1,3371,1}},
     [2332]={n="Minor Rejuvenation Potion",y=70,g=110,src="T",learn=40,tc=150,out=2456,r={785,2,2447,1,3371,1}},
@@ -176,7 +176,7 @@ SkillRouteData = {
     [1263005]={n="Fermenter",y=140,g=140,src="p",learn=140,from="Drop",out=279970,r={3372,1,3356,1,2452,1},pat={273085}},
     [1317279]={n="Transmute: Legionite",y=275,g=290,src="p",learn=275,from="Drop",out=251290,r={251291,1,248819,1},pat={284871},cd=169200,tool={12}},
   }},
-  [164] = { name = "Blacksmithing", recipes = {
+  [164] = { name = "Blacksmithing", spell = 2018, recipes = {
     [2660]={n="Rough Sharpening Stone",y=15,g=55,src="a",out=2862,r={2835,1}},
     [2661]={n="Copper Chain Belt",y=70,g=110,src="T",learn=30,tc=100,out=2851,r={2840,6},tool={162}},
     [2662]={n="Copper Chain Pants",y=50,g=90,src="T",learn=15,tc=50,out=2852,r={2840,4},tool={162}},
@@ -546,7 +546,7 @@ SkillRouteData = {
     [1317963]={n="Mithril Blacksmith Hammer",y=200,g=205,src="p",learn=195,from="Vendor",out=285280,r={3860,10,3577,2,7910,1},pat={285290}},
     [1317964]={n="Arcanite Blacksmith Hammer",y=275,g=280,src="p",learn=270,from="Vendor",out=285281,r={11371,4,12360,1,12361,1},pat={285291}},
   }},
-  [333] = { name = "Enchanting", recipes = {
+  [333] = { name = "Enchanting", spell = 7411, recipes = {
     [7418]={n="Enchant Bracer - Inferior Stamina",y=20,g=25,src="a",r={247786,1},tool={373}},
     [7420]={n="Enchant Chest - Inferior Stamina",y=70,g=110,src="T",learn=15,tc=50,r={10940,1},tool={373}},
     [7421]={n="Runed Copper Rod",y=5,g=10,src="a",out=6218,r={6217,1,247786,1}},
@@ -735,7 +735,7 @@ SkillRouteData = {
     [1294054]={n="Enchant Gloves - Lotus Claw",y=295,g=300,src="p",learn=295,from="Vendor",r={248822,1,14343,2,16204,12,16202,4},pat={274424},tool={377}},
     [1328948]={n="Enchant Boots - Speed",y=280,g=300,src="p",learn=280,from="Vendor",r={11178,2,11176,8,11175,2,12361,1},pat={289560},tool={376}},
   }},
-  [202] = { name = "Engineering", recipes = {
+  [202] = { name = "Engineering", spell = 4036, recipes = {
     [3918]={n="Rough Blasting Powder",y=20,g=40,src="a",out=4357,r={2835,1}},
     [3919]={n="Rough Dynamite",y=30,g=60,src="a",out=4358,outN=2,r={4357,1,2589,1}},
     [3920]={n="Crafted Light Shot",y=30,g=60,src="a",out=8067,outN=200,r={4357,1,2840,1}},
@@ -971,7 +971,7 @@ SkillRouteData = {
     [1319164]={n="Large White Rocket Cluster",y=275,g=285,src="p",learn=275,out=21719,outN=5,r={15992,1,8170,1},pat={286086}},
     [1319165]={n="Large Yellow Rocket Cluster",y=275,g=285,src="p",learn=275,out=21720,outN=5,r={15992,1,8170,1},pat={286087}},
   }},
-  [165] = { name = "Leatherworking", recipes = {
+  [165] = { name = "Leatherworking", spell = 2108, recipes = {
     [2149]={n="Handstitched Leather Boots",y=40,g=70,src="a",out=2302,r={2318,2,2320,1}},
     [2152]={n="Light Armor Kit",y=30,g=60,src="a",out=2304,r={2318,1}},
     [2153]={n="Handstitched Leather Pants",y=45,g=75,src="T",learn=15,tc=50,out=2303,r={2318,4,2320,1}},
@@ -1442,7 +1442,7 @@ SkillRouteData = {
     [1301539]={n="Azure Windraveled Drapes",y=185,g=190,src="p",learn=175,from="Vendor",out=277053,r={4234,12,4236,2,8343,1,6260,3},pat={276989},rep={276989,2740,4}},
     [1302604]={n="Light Leather Reagent Bag",y=40,g=50,src="p",learn=30,from="Quest/Vendor",out=277715,r={2318,8,4231,1,2320,3},pat={277716}},
   }},
-  [197] = { name = "Tailoring", recipes = {
+  [197] = { name = "Tailoring", spell = 3908, recipes = {
     [2385]={n="Brown Linen Vest",y=45,g=70,src="T",learn=10,tc=50,out=2568,r={2996,1,2320,1}},
     [2386]={n="Linen Boots",y=65,g=100,src="T",learn=40,tc=200,out=2569,r={2996,3,2320,1,2318,1}},
     [2387]={n="Linen Cloak",y=35,g=60,src="a",out=2570,r={2996,1,2320,1}},
@@ -1845,7 +1845,7 @@ SkillRouteData = {
     [1301540]={n="Azure Stormsewn Cowl",y=185,g=190,src="p",learn=175,from="Vendor",out=277054,r={4305,7,11134,2,8343,1,6260,4},pat={276990},rep={276990,2740,4}},
     [1301541]={n="Azure Stormsewn Epaulets",y=185,g=190,src="p",learn=175,from="Vendor",out=277055,r={4305,5,11134,1,8343,1,6260,3},pat={276991},rep={276991,2740,4}},
   }},
-  [185] = { name = "Cooking", recipes = {
+  [185] = { name = "Cooking", spell = 2550, recipes = {
     [818]={n="Basic Campfire",y=25,g=75,src="t",r={4470,1},cd=300,tool={-4471}},
     [2538]={n="Charred Wolf Meat",y=45,g=85,src="a",out=2679,r={2672,1}},
     [2539]={n="Spiced Wolf Meat",y=50,g=90,src="T",learn=10,tc=52,out=2680,r={2672,1,2678,1}},
@@ -1974,7 +1974,7 @@ SkillRouteData = {
     [1295834]={n="Plain Ol' Paletusk",y=200,g=230,src="p",learn=185,from="Quest/Vendor",out=274976,r={769,2,2678,1},pat={274977}},
     [1319313]={n="Plated Armorfish",y=245,g=255,src="p",learn=225,from="Drop",out=286152,r={13890,1,3713,1},pat={286153}},
   }},
-  [129] = { name = "First Aid", recipes = {
+  [129] = { name = "First Aid", spell = 3273, recipes = {
     [3275]={n="Linen Bandage",y=30,g=60,src="a",out=1251,r={2589,1}},
     [3276]={n="Heavy Linen Bandage",y=50,g=100,src="T",learn=40,tc=105,out=2581,r={2589,2}},
     [3277]={n="Wool Bandage",y=80,g=150,src="T",learn=80,tc=250,out=3530,r={2592,1}},
@@ -2004,9 +2004,9 @@ SkillRouteData = {
     [1259349]={n="Surgical Tourniquet",y=280,g=340,src="p",learn=280,from="Drop",out=255722,r={8170,2,14047,2,8343,2},pat={255730}},
     [1262996]={n="Toxin Study",y=140,g=140,src="p",learn=140,from="Drop",out=279940,r={6452,1,8544,2,4470,2},pat={273105}},
   }},
-  [186] = { name = "Mining", recipes = {}, gather = true },
-  [182] = { name = "Herbalism", recipes = {}, gather = true },
-  [393] = { name = "Skinning", recipes = {}, gather = true },
+  [186] = { name = "Mining", spell = 2575, recipes = {}, gather = true },
+  [182] = { name = "Herbalism", spell = 2366, recipes = {}, gather = true },
+  [393] = { name = "Skinning", spell = 8613, recipes = {}, gather = true },
   },
   -- [itemID] = {name, vendorSellPrice, vendorBuyPrice-or-nil (trade-supply reagents)}
   items = {

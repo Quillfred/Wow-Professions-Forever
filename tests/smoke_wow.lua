@@ -444,6 +444,27 @@ do
   GetProfessions, GetProfessionInfo = saved[1], saved[2]
 end
 
+-- another language: German names still match (profession via its rank spell,
+-- recipes via the item they make, rank-ups via the skill they need)
+do
+  local tailorSpell = SkillRouteData.professions[197].spell
+  assert(tailorSpell, "profession rank spell in the data")
+  _G.GetSpellInfo = function(id) if id == tailorSpell then return "Schneiderei" end end
+  local saved = { GetNumTrainerServices, GetTrainerServiceInfo, GetTrainerServiceSkillReq, GetTrainerServiceItemLink, npcName }
+  npcName = "Ausbilder"
+  _G.GetNumTrainerServices = function() return 2 end
+  _G.GetTrainerServiceInfo = function(i) if i == 1 then return "Erdene Weste" end return "Schneiderei", "Experte" end
+  _G.GetTrainerServiceSkillReq = function(i) return "Schneiderei", i == 1 and 140 or 125, true end
+  _G.GetTrainerServiceItemLink = function(i) if i == 1 then return "|Hitem:7051::|h" end end
+  SkillRouteDB.trainer[197][8764] = nil
+  Core.ScanTrainer()
+  assert(SkillRouteDB.trainer[197][8764] and SkillRouteDB.trainer[197][8764].req == 140, "German recipe matched by its item")
+  assert(SkillRouteDB.places.trainers[197].Ausbilder.ranks.Expert, "German rank-up recognised from its skill requirement")
+  GetNumTrainerServices, GetTrainerServiceInfo, GetTrainerServiceSkillReq, GetTrainerServiceItemLink, npcName =
+    saved[1], saved[2], saved[3], saved[4], saved[5]
+  _G.GetSpellInfo = nil
+end
+
 -- /sr check runs and reports; errors are caught, not thrown
 do
   local out = {}

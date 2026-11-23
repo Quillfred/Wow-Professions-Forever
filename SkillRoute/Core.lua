@@ -32,8 +32,25 @@ function Core.Char()
 end
 
 -- Professions ------------------------------------------------------------------
+-- Profession names -> skill line. English from the data, plus the player's language:
+-- each profession's Apprentice rank spell is named after it ("Schneiderei").
 local nameToLine = {}
 for line, p in pairs(Data.professions) do nameToLine[p.name] = line end
+local localized = false
+local function localizeNames()
+  if localized then return end
+  for line, p in pairs(Data.professions) do
+    local n = p.spell and ((C_Spell and C_Spell.GetSpellName and C_Spell.GetSpellName(p.spell))
+                           or (GetSpellInfo and GetSpellInfo(p.spell)))
+    if n and n ~= "" then
+      rawset(nameToLine, n, line)
+      localized = true -- done once spell names are available; retried until then
+    end
+  end
+end
+setmetatable(nameToLine, { __index = function(t, k) -- localize on first miss
+  if not localized then localizeNames(); return rawget(t, k) end
+end })
 
 -- Returns {[skillLine] = {rank=, max=}} for the crafting professions this character has.
 function Core.Skills()
@@ -127,7 +144,21 @@ local function itemIdFromLink(link)
   return link and tonumber(link:match("item:(%d+)"))
 end
 
--- name -> {spell,...} per profession, built on first use
+-- output item -> {spell,...} per profession (language-independent match first)
+local byOut = {}
+local function recipesMaking(line, item)
+  local idx = byOut[line]
+  if not idx then
+    idx = {}
+    for spell, r in pairs(Data.professions[line].recipes) do
+      if r.out then idx[r.out] = idx[r.out] or {}; table.insert(idx[r.out], spell) end
+    end
+    byOut[line] = idx
+  end
+  return idx[item]
+end
+
+-- name -> {spell,...} per profession, built on first use (English names: fallback)
 local byName = {}
 local function recipesNamed(line, name)
   local idx = byName[line]
@@ -154,9 +185,9 @@ function Core.ScanTrainer()
     local name = GetTrainerServiceInfo(i)
     local skillName, req = GetTrainerServiceSkillReq(i)
     local line = skillName and nameToLine[skillName]
-    local spells = line and name and recipesNamed(line, name)
+    local out = line and GetTrainerServiceItemLink and itemIdFromLink(GetTrainerServiceItemLink(i))
+    local spells = line and ((out and recipesMaking(line, out)) or (name and recipesNamed(line, name)))
     if spells then
-      local out = GetTrainerServiceItemLink and itemIdFromLink(GetTrainerServiceItemLink(i))
       local recipes = Data.professions[line].recipes
       local match, matchScore = nil, -1
       for _, spell in ipairs(spells) do -- same name can exist twice (e.g. Earthen Vest)
@@ -242,9 +273,17 @@ recordTrainer = function()
   for i = 1, GetNumTrainerServices() do
     local name, sub = GetTrainerServiceInfo(i)
     local line = name and nameToLine[name]
-    if line and sub and RANK_TEXT[sub] then -- a rank-up, e.g. "Tailoring" / "Expert"
-      lines[line] = lines[line] or {}
-      lines[line][sub] = true
+    if line and sub and sub ~= "" then -- a rank-up, e.g. "Tailoring" / "Expert"
+      local rank = RANK_TEXT[sub] and sub
+      if not rank then -- other languages: from the skill the rank-up needs
+        local _, req = GetTrainerServiceSkillReq(i)
+        req = req or 0
+        rank = req >= 200 and "Artisan" or req >= 125 and "Expert" or req >= 50 and "Journeyman" or nil
+      end
+      if rank then
+        lines[line] = lines[line] or {}
+        lines[line][rank] = true
+      end
     end
     local skillName = GetTrainerServiceSkillReq and GetTrainerServiceSkillReq(i)
     local l2 = skillName and nameToLine[skillName]

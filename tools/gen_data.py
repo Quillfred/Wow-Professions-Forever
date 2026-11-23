@@ -123,9 +123,13 @@ def main():
             lst = [(int(r[f"Reagent_{i}"]), int(r[f"ReagentCount_{i}"])) for i in range(8)]
             reagents[s] = [(i, c) for i, c in lst if i > 0 and c > 0]
 
-    creates, learn_spell = {}, {}
+    creates, learn_spell, rank1 = {}, {}, {}
     for r in rows(p["SpellEffect"]):
         s = int(r["SpellID"])
+        # the Apprentice rank spell of each profession (effect 118, step 1): its name is
+        # the profession's name in the player's language, for matching at runtime
+        if r["Effect"] == "118" and float(r["EffectBasePointsF"] or 0) == 1:
+            rank1.setdefault(int(r["EffectMiscValue_0"]), s)
         if r["Effect"] == SPELL_EFFECT_CREATE_ITEM and s in abil and int(r["EffectItemType"]) > 0:
             creates[s] = (int(r["EffectItemType"]), max(1, int(float(r["EffectBasePointsF"]))))
         elif r["Effect"] == SPELL_EFFECT_LEARN_SPELL and int(r["EffectTriggerSpell"]) in abil:
@@ -260,9 +264,11 @@ def main():
              + (" + Wowhead learn levels/sources" if wowhead else "") + ". Do not edit.",
              "SkillRouteData = {", f'  build = "{build}",', "  professions = {"]
     for sl, name in PROFESSIONS.items():
-        lines += [f'  [{sl}] = {{ name = {lua_str(name)}, recipes = {{'] + out[sl] + ["  }},"]
+        sp = f", spell = {rank1[sl]}" if sl in rank1 else ""
+        lines += [f'  [{sl}] = {{ name = {lua_str(name)}{sp}, recipes = {{'] + out[sl] + ["  }},"]
     for sl, name in GATHER.items():  # gathering: no recipes, a zone route instead
-        lines.append(f'  [{sl}] = {{ name = {lua_str(name)}, recipes = {{}}, gather = true }},')
+        sp = f", spell = {rank1[sl]}" if sl in rank1 else ""
+        lines.append(f'  [{sl}] = {{ name = {lua_str(name)}{sp}, recipes = {{}}, gather = true }},')
     lines += ["  },", "  -- [itemID] = {name, vendorSellPrice, vendorBuyPrice-or-nil (trade-supply reagents)}",
               "  items = {"]
     for i in sorted(used_items):
