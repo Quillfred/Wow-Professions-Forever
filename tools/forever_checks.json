@@ -703,6 +703,15 @@
  },
  "npcNotes": {
   "_about": "shown with the NPC",
-  "11073": "inside Uldaman (dungeon), behind trash"
+  "11073": "inside Uldaman (level 42-52 dungeon): appears after you clear ~10 scorpids near her; level 42 elite",
+  "11074": "up a narrow, near-hidden path from 48.5, 58.4 (a downed tree points to it)"
+ },
+ "recipeFixes": {
+  "_about": "per-recipe fixes from Wowhead Forever data (follow-up check 2026-11-23)",
+  "439134": {
+   "tc": 3000,
+   "learn": 175,
+   "why": "Greater Mystic Wand: 30s at Hgarth / Kitta Firewind / Annora, skill 175"
+  }
  }
 }

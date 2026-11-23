@@ -348,6 +348,10 @@ def main():
         used_items.update(pats)
         if o:
             used_items.add(o[0])
+        fix = checks.get("recipeFixes", {}).get(str(s))
+        if fix:
+            learn = fix.get("learn", learn)
+            cost = fix.get("tc", cost)
         fields = [f"n={lua_str(names[s])}", f"y={y}", f"g={g}", f'src="{src}"']
         if learn is not None:
             fields.append(f"learn={learn}")

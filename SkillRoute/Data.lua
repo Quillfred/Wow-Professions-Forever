@@ -676,7 +676,7 @@ SkillRouteData = {
     [430409]={n="Blackfathom Mana Oil",y=100,g=120,src="p",out=211848,r={3372,1,10939,1,10940,5},pat={211849},tool={374}},
     [435481]={n="Enchant Weapon - Dismantle",y=200,g=235,src="p",learn=225,r={11174,4,5637,2,11177,2},pat={215129},tool={375}},
     [435903]={n="Enchant Chest - Retricutioner",y=200,g=240,src="p",learn=225,r={11177,1,11176,2},pat={215138},tool={375}},
-    [439134]={n="Greater Mystic Wand",y=195,g=235,src="T",learn=195,out=217287,r={11291,1,11135,1,11137,1},tool={375}},
+    [439134]={n="Greater Mystic Wand",y=195,g=235,src="T",learn=175,tc=3000,out=217287,r={11291,1,11135,1,11137,1},tool={375}},
     [439156]={n="Sigil of Innovation",y=225,g=230,src="p",learn=225,out=217308,r={11137,5},pat={215141},tool={375}},
     [446243]={n="Sigil of Living Dreams",y=250,g=260,src="x",out=221028,r={11176,5},tool={376}},
     [448624]={n="Scroll of Spatial Mending",y=120,g=160,src="p",learn=120,out=220792,r={4470,1,10940,4},pat={223163},tool={374}},
@@ -6348,7 +6348,7 @@ SkillRouteData = {
   -- character level to learn a rank (crafting and secondary professions)
   rankLevel = {[2]=10,[3]=20,[4]=35},
   -- notes shown with an NPC (e.g. inside a dungeon)
-  npcNotes = {[11073]="inside Uldaman (dungeon), behind trash"},
+  npcNotes = {[11073]="inside Uldaman (level 42-52 dungeon): appears after you clear ~10 scorpids near her; level 42 elite",[-110742]="up a narrow, near-hidden path from 48.5, 58.4 (a downed tree points to it)"},
   -- rank-ups no trainer teaches in Forever (ATT): [skillLine] = {[rank] = "B" book | "Q" quest}
   rankSource = {
     [129]={[3]="B",[4]="Q"},

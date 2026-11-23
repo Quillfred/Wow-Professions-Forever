@@ -220,8 +220,9 @@ local function routeRows(plan)
         tip[1] = ("You talked to %s here.%s"):format(p.npc, n > 1 and (" %d trainers known."):format(n) or "")
       elseif loc and rank ~= "Journeyman" then
         tip[1] = ("Nearest trainer for your faction who teaches %s %s. Forever trainers teach only the rank below their own title,"
-                  .. " and offer nothing until your skill reaches it (Journeyman 50, Expert 125, Artisan 200).")
-                  :format(rank, Data.professions[plan.line].name)
+                  .. " and offer nothing until your skill reaches it (Journeyman 50, Expert 125, Artisan 200%s).")
+                  :format(rank, Data.professions[plan.line].name,
+                          rank == "Artisan" and "; some guides say 225 for the Artisan rank itself: try at 200" or "")
       elseif loc then
         tip[1] = ("Nearest trainer for your faction who teaches %s %s (an Artisan or Master trainer for Expert:"
                   .. " Forever trainers teach up to the rank below their own). Classic NPC data; Forever may differ.")
@@ -487,8 +488,10 @@ ahWhy = function(item, long) -- long: with the vendors' names (tooltips)
   local me = mine == "Alliance" and "A" or mine == "Horde" and "H" or nil
   if pv and me and not pv[1]:find(me, 1, true) then
     local other = me == "H" and pv[2] or pv[3]
-    return (" |cff808080(only %s vendors sell it%s)|r"):format(me == "H" and "Alliance" or "Horde",
-      long and other ~= "" and (": " .. other) or "")
+    if not long then return (" |cff808080(only %s vendors sell it)|r"):format(me == "H" and "Alliance" or "Horde") end
+    return (" |cff808080(only %s vendors sell it%s. Auction houses are per faction: buy it when someone lists it on yours, or at a"
+      .. " neutral one - Booty Bay, Gadgetzan, Everlook - which takes a 15%% cut.)|r"):format(
+      me == "H" and "Alliance" or "Horde", other ~= "" and (": " .. other) or "")
   end
   local it = Data.items[item]
   if it and it[3] then return (" |cff808080(cheaper than the vendor's %s)|r"):format(money(it[3])) end
