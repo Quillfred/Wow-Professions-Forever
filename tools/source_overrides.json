@@ -1,5 +1,5 @@
 {
-  "_about": "Recipes where Wowhead's WoW Forever spell page (checked 2026-11-23) beats AllTheThings on how the recipe is learned. Listed spells skip ATT's source; Wowhead's is used. Evidence: Wowhead 'Taught by' data plus Forever players' 2026 comments where noted.",
+  "_about": "Recipes where Wowhead's WoW Forever spell page (checked 2026-11-23) beats AllTheThings on how the recipe is learned. Listed spells skip ATT's source; Wowhead's is used. Evidence: Wowhead 'Taught by' data plus Forever players' 2026 comments where noted. Also: patterns ATT calls unreleased whose source content Wowhead/wiki show as live in Forever (item-page check 2026-11-23).",
   "1252239": "Protector's Chain Shirt: Drop (Plans #251342); players: not at trainers, dropped in Ragefire Chasm",
   "1252240": "Acolyte's Chain Shirt: Drop (Plans #251343)",
   "1252241": "Crusader's Chain Shirt: Drop (Plans #251344)",
@@ -16,5 +16,23 @@
   "1252292": "Shining Mithril Helm: Drop (Plans #251395, Naga Explorer)",
   "1251744": "Greater Mender's Potion: Quest reward (Recipe #250991, Badlands Reagent Run II)",
   "1230171": "Sharpening Wheel: Trainer (10 NPCs)",
-  "4508": "Minor Discolored Healing Potion: Trainer (Odd Child, Apothecary Renferrel) and Recipe #4597"
+  "4508": "Minor Discolored Healing Potion: Trainer (Odd Child, Apothecary Renferrel) and Recipe #4597",
+  "17560": "Transmute: Fire to Earth: ATT says unreleased; Wowhead Forever item 13483 (checked 2026-11-23): Blackrock Depths vendor Plugger Spazzring (BRD live in Forever). Medium confidence: no 2026 player report yet",
+  "23801": "Enchant Bracer - Mana Regeneration: ATT says unreleased; Wowhead Forever item 19446 (checked 2026-11-23): Argent Dawn quartermasters, Honored (vendors edited for Forever). Medium confidence: no 2026 player report yet",
+  "23799": "Enchant Weapon - Strength: ATT says unreleased; Wowhead Forever item 19444 (checked 2026-11-23): Lokhtos Darkbargainer, BRD, Thorium Brotherhood Friendly. Medium confidence: no 2026 player report yet",
+  "25127": "Lesser Mana Oil: ATT says unreleased; Wowhead Forever item 20754 (checked 2026-11-23): Lokhtos Darkbargainer (BRD) / Kania (Silithus). Medium confidence: no 2026 player report yet",
+  "25128": "Wizard Oil: ATT says unreleased; Wowhead Forever item 20755 (checked 2026-11-23): Lokhtos Darkbargainer (BRD) / Kania (Silithus). Medium confidence: no 2026 player report yet",
+  "23079": "Major Recombobulator: ATT says unreleased; Wowhead Forever item 18655 (checked 2026-11-23): Gordok Tribute chest, Dire Maul (DM live in Forever). Medium confidence: no 2026 player report yet",
+  "22922": "Mongoose Boots: ATT says unreleased; Wowhead Forever item 18515 (checked 2026-11-23): Knot Thimblejack's Cache, Dire Maul. Medium confidence: no 2026 player report yet",
+  "22923": "Swift Flight Bracers: ATT says unreleased; Wowhead Forever item 18516 (checked 2026-11-23): Knot Thimblejack's Cache, Dire Maul. Medium confidence: no 2026 player report yet",
+  "22866": "Belt of the Archmage: ATT says unreleased; Wowhead Forever item 18414 (checked 2026-11-23): Knot Thimblejack's Cache, Dire Maul. Medium confidence: no 2026 player report yet",
+  "27660": "Big Bag of Enchantment: ATT says unreleased; Wowhead Forever item 22309 (checked 2026-11-23): Magister Kalendris, Dire Maul. Medium confidence: no 2026 player report yet",
+  "27724": "Cenarion Herb Bag: ATT says unreleased; Wowhead Forever item 22310 (checked 2026-11-23): Mishta, Silithus, Cenarion Circle Friendly (vendor edited for Forever). Medium confidence: no 2026 player report yet",
+  "22870": "Cloak of Warding: ATT says unreleased; Wowhead Forever item 18418 (checked 2026-11-23): Knot Thimblejack's Cache, Dire Maul. Medium confidence: no 2026 player report yet",
+  "27659": "Enchanted Runecloth Bag: ATT says unreleased; Wowhead Forever item 22308 (checked 2026-11-23): Lokhtos Darkbargainer (BRD) / Kania (Silithus). Medium confidence: no 2026 player report yet",
+  "22867": "Felcloth Gloves: ATT says unreleased; Wowhead Forever item 18415 (checked 2026-11-23): Knot Thimblejack's Cache, Dire Maul. Medium confidence: no 2026 player report yet",
+  "22868": "Inferno Gloves: ATT says unreleased; Wowhead Forever item 18416 (checked 2026-11-23): Knot Thimblejack's Cache, Dire Maul. Medium confidence: no 2026 player report yet",
+  "22869": "Mooncloth Gloves: ATT says unreleased; Wowhead Forever item 18417 (checked 2026-11-23): Knot Thimblejack's Cache, Dire Maul. Medium confidence: no 2026 player report yet",
+  "22902": "Mooncloth Robe: ATT says unreleased; Wowhead Forever item 18487 (checked 2026-11-23): Wildspawn Hellcaller drop / Shen'dralar Provisioner, Dire Maul. Medium confidence: no 2026 player report yet",
+  "27725": "Satchel of Cenarius: ATT says unreleased; Wowhead Forever item 22312 (checked 2026-11-23): Mishta, Silithus, Cenarion Circle Revered. Medium confidence: no 2026 player report yet"
 }
