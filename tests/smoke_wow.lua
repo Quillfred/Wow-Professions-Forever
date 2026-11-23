@@ -384,6 +384,19 @@ do
   local j3 = toMagar()
   assert(j3.via[1]:find("^hearthstone to Orgrimmar %(ready in 2 min%)"), "short cooldown: wait for the hearth: " .. tostring(j3.via[1]))
   print("hearth 2 min left: " .. Core.TravelText(j3))
+  -- an errand in town: hearth bound to Thunder Bluff and ready, standing in Undercity:
+  -- Flint and Tinder from Undercity's own vendor, not "hearth to Thunder Bluff"
+  cdStart = 0
+  _G.GetBindLocation = function() return "Thunder Bluff" end
+  local kuruk = SkillRouteData.npcs[8362] -- bound at the inn: you land right by Kuruk
+  local savedBind = Core.Char().bind
+  Core.Char().bind = { map = kuruk[3], x = kuruk[4] + 5, y = kuruk[5], name = "Thunder Bluff" }
+  local fl = Core.NearestVendor(4471)
+  Core.Char().bind = savedBind
+  assert(fl and not (fl.via and fl.via[1] and fl.via[1]:find("^hearthstone")),
+    "no hearthstone for a vendor in town: " .. tostring(fl and fl.npc) .. " " .. tostring(fl and fl.via and fl.via[1]))
+  print("flint and tinder from Undercity, hearth to Thunder Bluff ready: " .. fl.npc .. ", " .. tostring(Core.TravelText(fl)))
+  _G.GetBindLocation = function() return "Orgrimmar" end
   -- mage with Teleport: Orgrimmar and a rune
   _G.UnitClass = function() return "Mage", "MAGE" end
   _G.IsPlayerSpell = function(id) return id == 3567 or id == 3848 end

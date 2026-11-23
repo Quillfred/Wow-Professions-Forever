@@ -440,12 +440,15 @@ end
 
 -- Hearthstone and mage teleports -------------------------------------------------
 -- Used as a first leg from where you stand. The hearthstone counts with its cooldown:
--- ready = the 10 s cast; on cooldown = the time left + the cast, so it only wins
--- when nothing else is faster. Its destination: where you were standing when you
+-- ready = the 10 s cast; on cooldown = the time left + the cast; plus HEARTH_COST, so
+-- it only wins when it saves real time (not for a vendor across town). Its destination: where you were standing when you
 -- last bound it (recorded), else the flight master of the town GetBindLocation()
 -- names. Teleports: only for a mage who knows the spell and carries a Rune of
 -- Teleportation (another player's portal can't be planned).
 local HEARTHSTONE, RUNE_OF_TELEPORTATION, CAST = 6948, 17031, 10
+-- Using the hearthstone costs more than its cast: an hour of cooldown and you end up
+-- far from where you were. It's only worth it when it saves at least this much.
+local HEARTH_COST = 300
 local function itemCount(item) -- bags only
   local f = (C_Item and C_Item.GetItemCount) or GetItemCount
   return f and f(item) or 0
@@ -487,7 +490,7 @@ function Core.Shortcuts()
     else local n = townNode(bindName); if n then dest = { n[1], n[2], n[3] } end end
     if dest then
       local left = cooldownLeft(HEARTHSTONE)
-      out[#out + 1] = { dest[1], dest[2], dest[3], left + CAST,
+      out[#out + 1] = { dest[1], dest[2], dest[3], left + CAST + HEARTH_COST,
         ("hearthstone to %s%s"):format(bindName or "?", left > 0 and (" (ready in %d min)"):format(math.ceil(left / 60)) or "") }
     end
   end
