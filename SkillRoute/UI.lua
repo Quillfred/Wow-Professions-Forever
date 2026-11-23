@@ -57,9 +57,13 @@ end
 local ACTION_SHORT = { ah = "list the %d %s on the AH", de = "disenchant the %d %s", vendor = "sell the %d %s to a vendor" }
 local function afterCrafting(item, n)
   local ench = Core.Skills()[333]
-  local a = Core.ItemAdvice(item, ench and ench.rank)
+  local a = Core.ItemAdvice(item, ench and ench.rank, n, ench and Core.EnchantingNeeds() or nil)
   local parts = { a.ah and ("AH " .. money(a.ah) .. " after the 5% cut") or "AH: no fresh price" }
-  if a.de then parts[#parts + 1] = "disenchant ~" .. money(a.de)
+  if a.de then
+    local used = {}
+    for _, u in ipairs(a.deUsed or {}) do used[#used + 1] = u.units .. " " .. itemName(u.item) end
+    parts[#parts + 1] = "disenchant ~" .. money(a.de)
+      .. (#used > 0 and (" (counting " .. table.concat(used, ", ") .. " your Enchanting route needs at what you'd pay)") or "")
   elseif not (Data.disenchant and Data.disenchant.of and Data.disenchant.of[item]) then parts[#parts + 1] = "can't be disenchanted"
   elseif not ench then parts[#parts + 1] = "disenchant: needs Enchanting"
   elseif a.deSkill and ench.rank < a.deSkill then parts[#parts + 1] = ("disenchant needs Enchanting %d"):format(a.deSkill)
@@ -513,7 +517,7 @@ local function craftedRows(plan, add)
     local a = x.advice
     local parts = {}
     parts[#parts + 1] = a.ah and ("AH " .. money(a.ah)) or "AH: no fresh price"
-    if a.de then parts[#parts + 1] = "disenchant ~" .. money(a.de)
+    if a.de then parts[#parts + 1] = "disenchant ~" .. money(a.de) .. ((a.deUsed and #a.deUsed > 0) and " (Enchanting route needs the results)" or "")
     elseif a.deSkill and a.deSkill > 0 then parts[#parts + 1] = ("disenchant needs %d"):format(a.deSkill) end
     parts[#parts + 1] = "vendor " .. money(a.vendor)
     local tip = { "Each: " .. table.concat(parts, ", ") .. "." }

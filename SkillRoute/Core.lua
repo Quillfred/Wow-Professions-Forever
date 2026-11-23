@@ -1070,7 +1070,10 @@ end
 -- Any input change, an Auctionator scan, or reopening the window searches again.
 Core.dataVersion = 0
 local patternCache = {}
-function Core.InvalidatePatterns() patternCache = {} end
+-- bumped whenever SkillRoute re-plans anyway (prices, bags, recipes): Enchanting's
+-- needs for the disenchant advice are recomputed after that
+local needsCache, needsVersion = nil, 0
+function Core.InvalidatePatterns() patternCache = {}; needsVersion = needsVersion + 1 end
 
 function Core.Plan(line, target)
   local s = Core.Skills()[line]
@@ -1302,7 +1305,28 @@ local function freshAH(item)
   local ok, v = pcall(api.GetAuctionPriceByItemID, CALLER, item)
   if ok and v and v > 0 and Core.AHFresh(item) then return v end
 end
-function Core.ItemAdvice(item, enchantSkill)
+-- What your Enchanting route still has to buy: { [item] = units }. One Enchanting plan
+-- (to your Enchanting target) per change of prices, bags or recipes, not per tooltip.
+function Core.EnchantingNeeds()
+  if not Core.Skills()[333] then return nil end
+  if needsCache and needsCache.version == needsVersion then return needsCache.needs end
+  local c = Core.Char()
+  local ok, plan = pcall(Core.Plan, 333, (c.targets and c.targets[333]) or 300)
+  local needs = {}
+  if ok and plan and plan.shopping then
+    for _, b in ipairs(plan.shopping.buy) do
+      if b.buy and b.buy > 0 and not b.farm then needs[b.item] = (needs[b.item] or 0) + b.buy end
+    end
+  end
+  needsCache = { version = needsVersion, needs = needs }
+  return needs
+end
+
+-- n = how many of the item (the batch: results add up), needs = Core.EnchantingNeeds():
+-- disenchant results your Enchanting route still has to buy count at what you'd pay for
+-- them (no AH cut), up to the amount it needs; the rest at their AH price minus the cut.
+function Core.ItemAdvice(item, enchantSkill, n, needs)
+  n = math.max(1, n or 1)
   local it = Data.items[item]
   local a = { vendor = it and it[2] or 0 }
   local p = freshAH(item)
@@ -1312,13 +1336,22 @@ function Core.ItemAdvice(item, enchantSkill)
     a.deSkill = d[1] and d[2]
     local loot = Data.disenchant.loot[d[1]]
     if loot and enchantSkill and enchantSkill >= d[2] then
-      local ev, ok = 0, true
+      local ev, ok, used = 0, true, nil
       for i = 1, #loot, 4 do
-        local mp = freshAH(loot[i])
+        local mat = loot[i]
+        local mp = freshAH(mat)
         if not mp then ok = false; break end
-        ev = ev + loot[i + 1] / 100 * (loot[i + 2] + loot[i + 3]) / 2 * mp * 0.95
+        local total = n * loot[i + 1] / 100 * (loot[i + 2] + loot[i + 3]) / 2 -- expected units from the batch
+        local need = needs and needs[mat] or 0
+        local own = math.min(total, need)
+        local buyPrice = math.min(mp, (Data.items[mat] and Data.items[mat][3]) or mp)
+        ev = ev + own * buyPrice + (total - own) * mp * 0.95
+        if own >= 0.5 then
+          used = used or {}
+          used[#used + 1] = { item = mat, units = math.floor(own + 0.5) }
+        end
       end
-      if ok then a.de, a.deLoot = math.floor(ev), loot end
+      if ok then a.de, a.deLoot, a.deUsed = math.floor(ev / n), loot, used end
     end
   end
   local best, bestV = "vendor", a.vendor
@@ -1357,10 +1390,16 @@ function Core.CraftedAdvice(plan)
     end
   end
   local ench = Core.Skills()[333]
+  local needs = {}
+  for k, v in pairs(ench and Core.EnchantingNeeds() or {}) do needs[k] = v end
   local out = {}
   for id in pairs(counts) do
-    local a = Core.ItemAdvice(id, ench and ench.rank)
-    if a.ah or a.de then out[#out + 1] = { item = id, count = itemCount(id), advice = a } end
+    local n = itemCount(id)
+    local a = Core.ItemAdvice(id, ench and ench.rank, n, needs)
+    if a.best == "de" then -- these results go to Enchanting: later items can't count them again
+      for _, u in ipairs(a.deUsed or {}) do needs[u.item] = math.max(0, (needs[u.item] or 0) - u.units) end
+    end
+    if a.ah or a.de then out[#out + 1] = { item = id, count = n, advice = a } end
   end
   table.sort(out, function(x, y) return x.advice.bestValue * x.count > y.advice.bestValue * y.count end)
   return out
@@ -1420,6 +1459,7 @@ end
 -- Change notification: coalesce bursts of events into one re-plan.
 local pending = false
 function Core.Changed()
+  needsVersion = needsVersion + 1 -- prices, bags or recipes changed: re-plan Enchanting's needs
   if pending or not (ns.UI and ns.UI.IsShown()) then return end
   pending = true
   C_Timer.After(0.1, function() pending = false; ns.UI.Refresh() end)

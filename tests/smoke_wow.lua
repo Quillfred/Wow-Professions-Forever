@@ -779,6 +779,29 @@ do
   assert(Core.ItemAdvice(pick, 0).de == nil, "no disenchant without the skill")
   prices[pick] = 10000000
   assert(Core.ItemAdvice(pick, 130).best == "ah", "a high AH price wins")
+  -- results your Enchanting route still needs count at what you'd pay (no cut), up to the need
+  do
+    local n = 4
+    local mat = loot[1]
+    local total1 = n * loot[2] / 100 * (loot[3] + loot[4]) / 2
+    local half = math.floor(total1 / 2)
+    local withNeed = Core.ItemAdvice(pick, 130, n, { [mat] = half })
+    local expect = 0
+    for i = 1, #loot, 4 do
+      local t = n * loot[i + 1] / 100 * (loot[i + 2] + loot[i + 3]) / 2
+      local own = (loot[i] == mat) and math.min(t, half) or 0
+      local buy = math.min(1000, (SkillRouteData.items[loot[i]] and SkillRouteData.items[loot[i]][3]) or 1000)
+      expect = expect + own * buy + (t - own) * 1000 * 0.95
+    end
+    assert(withNeed.de == math.floor(expect / n), ("needed results at the buy price: %s vs %d"):format(tostring(withNeed.de), math.floor(expect / n)))
+    assert(withNeed.de > Core.ItemAdvice(pick, 130, n).de, "needed by Enchanting -> disenchanting is worth more")
+    assert(withNeed.deUsed and withNeed.deUsed[1].item == mat and withNeed.deUsed[1].units == half, "says what it counted")
+    -- a big enough need makes disenchanting beat the vendor
+    prices[pick] = nil
+    local big = Core.ItemAdvice(pick, 130, n, { [loot[1]] = 999, [loot[5] or 0] = 999, [loot[9] or 0] = 999 })
+    print(("disenchant for Enchanting: %d each (plain %d, vendor %d) -> %s"):format(big.de, Core.ItemAdvice(pick, 130, n).de, big.vendor, big.best))
+    prices[pick] = 1
+  end
   Auctionator.API.v1.GetAuctionAgeByItemID = function() return 5 end -- stale
   local stale = Core.ItemAdvice(pick, 130)
   assert(not stale.ah and not stale.de and stale.best == "vendor", "stale prices: no AH or disenchant advice")
@@ -795,6 +818,16 @@ do
     if i == 1 then return "Tailoring", 0, 110, 150, 0, 0, 197 end
     return "Enchanting", 0, 130, 150, 0, 0, 333
   end
+  local n1 = Core.EnchantingNeeds()
+  assert(type(n1) == "table" and Core.EnchantingNeeds() == n1, "Enchanting needs cached until something changes")
+  Core.InvalidatePatterns()
+  local t0 = os.clock()
+  assert(Core.EnchantingNeeds() ~= n1, "re-planned after a change")
+  local t1 = os.clock()
+  Core.Changed()
+  Core.EnchantingNeeds()
+  print(("enchanting needs: %.1f ms after a pattern change, %.1f ms after a price/bag change, 0 when cached"):format(
+    (t1 - t0) * 1000, (os.clock() - t1) * 1000))
   local list = Core.CraftedAdvice(Core.Plan(197, 150))
   assert(list[1] and list[1].item == pick and list[1].count == 3 and list[1].advice.best == "de", "crafted item advice from the bags")
   UI.Toggle(197); UI.SetMode("shopping")
