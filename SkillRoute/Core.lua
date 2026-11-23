@@ -1276,9 +1276,19 @@ function Core.AddStepToAuctionator(plan, st, remove)
   local ok, err = pcall(api.CreateShoppingList, addonName, listName, terms)
   if not ok then Core.ReportError("Auctionator step list", err); return false end
   local here = steps[key]
-  print(("SkillRoute: %s %s - Auctionator list \"%s\" now has %d item(s)%s."):format(
+  -- open Auctionator's Shopping tab on this step's reagents (its public search; the
+  -- quantities are on the list). Only with the AH open.
+  local searched = false
+  local search = api.MultiSearchExact or api.MultiSearch
+  if here and Core.ahOpen and search then
+    local names = {}
+    for _, x in ipairs(here.items) do names[#names + 1] = x.name end
+    searched = pcall(search, addonName, names)
+  end
+  print(("SkillRoute: %s %s - Auctionator list \"%s\" now has %d item(s)%s.%s"):format(
     remove and "removed" or "added", st.name, listName, #terms,
-    here and (": " .. table.concat((function() local t = {} for _, x in ipairs(here.items) do t[#t + 1] = x.qty .. " " .. x.name end return t end)(), ", ")) or ""))
+    here and (": " .. table.concat((function() local t = {} for _, x in ipairs(here.items) do t[#t + 1] = x.qty .. " " .. x.name end return t end)(), ", ")) or "",
+    searched and " Searching them in Auctionator's Shopping tab." or ""))
   return true
 end
 

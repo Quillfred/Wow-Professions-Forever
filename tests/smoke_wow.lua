@@ -729,7 +729,10 @@ do
   assert(#expect > 0, "the step has something to buy")
   local said
   _G.print = function(m) said = m end
+  local searchedFor
+  api.MultiSearchExact = function(_, names) searchedFor = names end
   btnRow.buyBtn.OnClick(btnRow.buyBtn, "LeftButton")
+  assert(searchedFor and #searchedFor == #expect, "Buy also opens Auctionator's Shopping tab on the step's reagents")
   local name = "SkillRoute First Aid (steps)"
   assert(lists[name] and #lists[name] == #expect, "list created with the step's reagents")
   local qty1 = lists[name][1]
@@ -746,6 +749,7 @@ do
   local got = tonumber(qty1:match(";(%d+)$"))
   assert(#expect ~= 1 or got == want - (Core.Have(r.r[1]) or 0) - (Core.HaveOnAlts(r.r[1]) or 0),
     ("quantity %s vs %d"):format(tostring(got), want))
+  api.MultiSearchExact = nil
   fire("AUCTION_HOUSE_CLOSED")
   assert(not Core.ahOpen and not btnRow.buyBtn.shown, "buttons hidden once the AH closes")
   UI.Toggle()
