@@ -233,6 +233,20 @@ def main():
     out = {sl: [] for sl in PROFESSIONS}
     att_decided = {}
     supply_priced = 0
+    # corrections from checking the Classic data against Wowhead's Forever pages
+    cpath = os.path.join(os.path.dirname(os.path.abspath(__file__)), "forever_checks.json")
+    checks = json.load(open(cpath, encoding="utf-8")) if os.path.exists(cpath) else {}
+    ck_vend = checks.get("vendors", {}).get("remove", {})
+    no_vendor_price = set(checks.get("vendors", {}).get("noVendorPrice", []))
+    ck_train = {int(k): v for k, v in checks.get("trainers", {}).get("set", {}).items()}
+    ck_de = {tuple(b): loot for b, loot, _ in checks.get("disenchant", {}).get("set", [])}
+    ck_farm = checks.get("farm", {})
+    ck_gather = checks.get("gather", {}).get("zones", {})
+    ck_skin = checks.get("skinning", {}).get("remove", {})
+
+    def vendor_ok(item, npc):  # a vendor the Forever check found doesn't sell it
+        rm = ck_vend.get(str(item))
+        return not (rm == "all" or (rm and npc in rm))
     recipe_quests = {}  # recipe spell -> ATT quests that teach it
     # items that teach something (patterns, rank books): vendor handling of their own
     teaching_items = {it for its in taught_by.values() for it in its} | {it for its in rank_books.values() for it in its}
@@ -397,6 +411,10 @@ def main():
                 if best is None or sub != -1:
                     best = key
         if best:
+            for (bc, bq, blo, bhi), oloot in ck_de.items():
+                if bc == cs[0] and bq == q and blo <= lvl <= bhi:
+                    best = str(9000 + bc * 1000 + bq * 100 + blo)  # Forever-observed bracket
+                    de["loot"][best] = oloot
             skill = 1 if lvl <= 20 else min(300, 25 * ((lvl - 16) // 5))
             de_of[sp_out] = (best, skill)
     for key in {k for k, _ in de_of.values()}:
@@ -412,7 +430,7 @@ def main():
         sup_sides = {c for e, lim in npcdata.get("supplies", {}).get(str(i), []) if not lim
                      for c in npcdata["npcs"].get(str(e), {}).get("side", "")}
         vendor = (r["Display_lang"] in VENDOR or i in vendor_patterns
-                  or ({"A", "H"} <= sup_sides and i not in teaching_items))
+                  or ({"A", "H"} <= sup_sides and i not in teaching_items)) and i not in no_vendor_price
         if vendor and not (r["Display_lang"] in VENDOR or i in vendor_patterns):
             supply_priced += 1
         buy = r["BuyPrice"] if vendor and int(r["BuyPrice"]) > 0 else "nil"
@@ -481,8 +499,12 @@ def main():
         for e, rank in npcdata["trainers"].get(str(line), {}).items():
             # Classic fallback: a trainer titled rank R teaches tier R-1 (ATT confirms:
             # Magar <Expert> teaches JOURNEYMAN, Josef <Artisan> EXPERT, Master ARTISAN)
+            # Forever trainers teach every rank up to that one (Wowhead Forever: Expert-titled
+            # trainers teach Apprentice + Journeyman; gathering trainers Apprentice-Artisan)
             if int(e) not in att_ids and rank >= 2 and classic_npc(int(e)) is not None:
-                entries[int(e)] = 1 << (min(rank, 5) - 2)
+                mask = ck_train.get(int(e), (1 << (min(rank, 5) - 1)) - 1)
+                if mask:
+                    entries[int(e)] = mask
         if entries:
             tr_lines.append(f"    [{line}]={{" + ",".join(f"[{k}]={m}" for k, m in sorted(entries.items())) + "},")
     lines += ["  },", "  -- trainers: [skillLine] = {[npc] = tiers taught, bits 1 Apprentice 2 Journeyman 4 Expert 8 Artisan}",
@@ -499,7 +521,8 @@ def main():
     for i in sorted(vendor_patterns):
         keys = [att_npc(k) for k, _ in att["vendors"].get(str(i), []) if k in att["npcs"]]
         if not keys:
-            keys = [k for k in (classic_npc(e) for e in npcdata["vendors"].get(str(i), [])) if k is not None]
+            keys = [k for k in (classic_npc(e) for e in npcdata["vendors"].get(str(i), []) if vendor_ok(i, e))
+                    if k is not None]
         if not keys:
             continue
         vend_lines.append(f"    [{i}]={{{','.join(map(str, keys))}}},")
@@ -515,8 +538,8 @@ def main():
     for i in sorted(used_items - set(vendor_patterns) - teaching_items):
         keys = [att_npc(k) for k, lim in att["vendors"].get(str(i), []) if k in att["npcs"] and not lim]
         if not keys:
-            keys = [k for k in (classic_npc(e) for e, lim in npcdata.get("supplies", {}).get(str(i), []) if not lim)
-                    if k is not None]
+            keys = [k for k in (classic_npc(e) for e, lim in npcdata.get("supplies", {}).get(str(i), [])
+                                if not lim and vendor_ok(i, e)) if k is not None]
         if keys:
             vend_lines.append(f"    [{i}]={{{','.join(map(str, keys))}}},")
             supply_items += 1
@@ -634,7 +657,8 @@ def main():
             continue
         rows_ = []
         for nd in nodes:
-            top = sorted(nd["zones"].items(), key=lambda kv: -kv[1])[:6]
+            zs = ck_gather.get(nd["n"], nd["zones"])  # Forever spawn points where checked
+            top = sorted(zs.items(), key=lambda kv: -kv[1])[:6]
             rows_.append("{%s,%d,{%s}%s}" % (lua_str(nd["n"]), nd["req"],
                                               ",".join(f"{lua_str(z)},{round(c)}" for z, c in top),
                                               ",true" if nd["n"] in RARE_NODES else ""))
@@ -644,11 +668,18 @@ def main():
     farm = json.load(open(fpath, encoding="utf-8")) if os.path.exists(fpath) else {}
     lines += ["  },", "  -- farm: [item] = {{\"m\", mob, zone, drop%, minLvl, maxLvl} | {\"f\", zone, catch%, fishing level}, ...}",
               "  farm = {"]
+    fish_level = {z: lv for z, lv in gather.get("fishing", [])}
     for it, d in sorted(farm.items(), key=lambda kv: int(kv[0])):
         if int(it) not in used_items:
             continue
-        srcs = [f"{{\"m\",{lua_str(m[0])},{lua_str(m[1])},{m[2]},{m[3]},{m[4]}}}" for m in d["mobs"]]
-        srcs += [f"{{\"f\",{lua_str(f[0])},{f[1]},{f[2]}}}" for f in d["fish"]]
+        rm = ck_farm.get("removeMobs", {}).get(it)
+        mobs = [] if rm == "all" else [m for m in d["mobs"]
+                                       if not (rm and (m[0] in rm or ("zone:" + m[1]) in rm))]
+        fish = d["fish"]
+        if it in ck_farm.get("fish", {}):  # Forever catch shares (relative), up to 100%
+            fish = [[z, min(100.0, c), fish_level.get(z, 0)] for z, c in ck_farm["fish"][it].items()]
+        srcs = [f"{{\"m\",{lua_str(m[0])},{lua_str(m[1])},{m[2]},{m[3]},{m[4]}}}" for m in mobs]
+        srcs += [f"{{\"f\",{lua_str(f[0])},{f[1]},{f[2]}}}" for f in fish]
         if srcs:
             lines.append(f"    [{it}]={{{','.join(srcs)}}},")
     spath = os.path.join(os.path.dirname(os.path.abspath(__file__)), "zone_sides.json")
@@ -668,6 +699,12 @@ def main():
     skin = json.load(open(kpath, encoding="utf-8")) if os.path.exists(kpath) else {}
     lines += ["  -- skinZones: [zone] = {first beast level, skinnable spawns at it, at the next level, ...}",
               "  skinZones = {"]
+    for z, gone in ck_skin.items():  # levels with no beasts in Forever
+        if z in skin:
+            for lv in gone:
+                k = lv - skin[z][0] + 1
+                if 1 <= k < len(skin[z]):
+                    skin[z][k] = 0
     for z, v in sorted(skin.items()):
         lines.append(f"    [{lua_str(z)}]={{{v[0]},{','.join(str(round(c)) for c in v[1:])}}},")
     lines += ["  },", "  -- fishing: {zone, fishing level} (you lose fish below level + 95)", "  fishing = {"]

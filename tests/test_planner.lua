@@ -224,6 +224,24 @@ for line, prof in pairs(D.professions) do
   end
 end
 
+-- the Forever check (tools/forever_checks.json) is applied to the data
+do
+  check(not (D.trainers[165] or {})[7866], "leatherworking specialization trainer 7866 teaches no rank in Forever")
+  check((D.trainers[356] or {})[14740] == 3, "Katoom the Angler: Apprentice + Journeyman only")
+  check((D.trainers[171] or {})[11042] == 7, "Sylvanna Forestmoon also teaches Expert Alchemy")
+  check(D.items[858] and D.items[858][3] == nil, "Lesser Healing Potion: no vendor price (limited stock everywhere)")
+  check(D.items[6887] and D.items[6887][3] == nil and not D.vendorNpcs[6887], "Spotted Yellowtail: no vendor")
+  check(not D.farm[3821], "Goldthorn: no mob drops it in Forever")
+  local ok = true
+  for _, s in ipairs(D.farm[2924] or {}) do if s[3] ~= "Loch Modan" then ok = false end end
+  check(ok, "Crocolisk Meat: Loch Modan only")
+  local g = D.gather[186][1]
+  check(g[1] == "Copper Vein" and g[3][1] == "Zephras Isle", "Copper Vein: Forever spawn counts (Zephras Isle leads)")
+  local found = false
+  for item, v in pairs(D.disenchant.of) do if v[1] == 13256 then found = true end end
+  check(found and D.disenchant.loot[13256][1] == 16204, "green armor 56-60: Forever-observed disenchant (no shard)")
+end
+
 -- every step in every profession: its tools are owned or acquired by the plan, in time
 for line, prof in pairs(D.professions) do
   local pl = plan(line, 1, 300)

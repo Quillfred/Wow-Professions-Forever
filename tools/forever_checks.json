@@ -1,0 +1,688 @@
+{
+ "_about": "Corrections from checking SkillRoute's Classic-database data against Wowhead's WoW Forever pages (445 pages, 2026-11-23; report in tools/forever-classic-check-2026-11-23.md). gen_data.py applies them on every rebuild. Wowhead Forever data is Forever-observed (Forever-only NPCs/zones, disenchant counts up to 92k).",
+ "vendors": {
+  "_about": "item -> vendor NPC IDs that don't sell it in Forever ('all' = no vendor sells it). 'noVendorPrice' = stop treating it as vendor-bought.",
+  "remove": {
+   "5956": [
+    1148
+   ],
+   "4384": "all",
+   "18256": [
+    1148,
+    2225
+   ],
+   "858": "all",
+   "3385": "all",
+   "4605": [
+    2803
+   ],
+   "14341": [
+    989,
+    1148,
+    2225,
+    1286
+   ],
+   "6887": "all"
+  },
+  "noVendorPrice": [
+   858,
+   3385,
+   6887,
+   4384
+  ],
+  "why": {
+   "858": "every Forever vendor has stock 3",
+   "3385": "every Forever vendor has stock 3-4",
+   "6887": "no vendor sells it",
+   "4384": "no vendor sells it (craft only)"
+  }
+ },
+ "trainers": {
+  "_about": "Classic trainer NPC -> tiers taught in Forever (bits: 1 Apprentice, 2 Journeyman, 4 Expert, 8 Artisan); 0 = no rank (remove).",
+  "set": {
+   "7866": 0,
+   "7867": 0,
+   "7868": 0,
+   "7869": 0,
+   "7870": 0,
+   "14740": 3,
+   "11042": 7
+  },
+  "why": {
+   "7866-7870": "leatherworking specialization trainers: teach no rank in Forever",
+   "14740": "Katoom the Angler: only Apprentice and Journeyman Fishing",
+   "11042": "Sylvanna Forestmoon also teaches Expert Alchemy (125)"
+  }
+ },
+ "disenchant": {
+  "_about": "Forever-observed results per bracket [class, quality, minLvl, maxLvl] -> [[item, chance%, min, max], ...]. Classic had a shard here (none in tens of thousands of Forever disenchants) or other essences.",
+  "set": [
+   [
+    [
+     2,
+     2,
+     21,
+     25
+    ],
+    [
+     [
+      10939,
+      75,
+      1,
+      2
+     ],
+     [
+      10940,
+      15,
+      2,
+      6
+     ],
+     [
+      10978,
+      9,
+      1,
+      1
+     ]
+    ],
+    "16 items, 549 disenchants: Greater Magic Essence, not Lesser Astral"
+   ],
+   [
+    [
+     2,
+     2,
+     26,
+     30
+    ],
+    [
+     [
+      10939,
+      75,
+      1,
+      2
+     ],
+     [
+      11083,
+      19,
+      1,
+      2
+     ],
+     [
+      11084,
+      5,
+      1,
+      1
+     ]
+    ],
+    "small sample: Greater Magic Essence, not Greater Astral"
+   ],
+   [
+    [
+     2,
+     2,
+     56,
+     60
+    ],
+    [
+     [
+      16203,
+      75,
+      1,
+      2
+     ],
+     [
+      16204,
+      22,
+      1,
+      2
+     ]
+    ],
+    "no shard in 16,594 disenchants"
+   ],
+   [
+    [
+     2,
+     2,
+     61,
+     99
+    ],
+    [
+     [
+      16203,
+      75,
+      2,
+      3
+     ],
+     [
+      16204,
+      22,
+      2,
+      5
+     ]
+    ],
+    "no shard in 4,726 disenchants"
+   ],
+   [
+    [
+     4,
+     2,
+     16,
+     20
+    ],
+    [
+     [
+      10940,
+      73,
+      2,
+      3
+     ],
+     [
+      10939,
+      22,
+      1,
+      2
+     ]
+    ],
+    "no shard in 3,804 disenchants"
+   ],
+   [
+    [
+     4,
+     2,
+     56,
+     60
+    ],
+    [
+     [
+      16204,
+      75,
+      1,
+      3
+     ],
+     [
+      16203,
+      22,
+      1,
+      2
+     ]
+    ],
+    "no shard in 92,222 disenchants"
+   ],
+   [
+    [
+     4,
+     2,
+     61,
+     99
+    ],
+    [
+     [
+      16204,
+      75,
+      2,
+      5
+     ],
+     [
+      16203,
+      22,
+      2,
+      4
+     ]
+    ],
+    "no shard in 31,981 disenchants"
+   ]
+  ]
+ },
+ "farm": {
+  "_about": "Cooking ingredients: mob sources that don't drop it in Forever (by name; 'zone:<Zone>' = every mob there; 'all' = every mob), and Forever fishing zones (Wowhead catch shares, relative).",
+  "removeMobs": {
+   "1468": [
+    "Murloc Warrior",
+    "Murloc Minor Oracle",
+    "Murloc Oracle"
+   ],
+   "2596": [
+    "Malgin Barleybrew"
+   ],
+   "2924": [
+    "zone:Wetlands",
+    "Dreadmaw Crocolisk",
+    "zone:Stranglethorn Vale",
+    "zone:Swamp of Sorrows",
+    "zone:Dustwallow Marsh"
+   ],
+   "3173": [
+    "Elder Ashenvale Bear",
+    "Vicious Gray Bear"
+   ],
+   "3821": "all",
+   "4603": [
+    "Great Shark"
+   ],
+   "4655": "all",
+   "5503": "all",
+   "5504": "all",
+   "13465": "all"
+  },
+  "fish": {
+   "4603": {
+    "Azshara": 37.0,
+    "Tanaris": 35.0,
+    "The Hinterlands": 22.0,
+    "Swamp of Sorrows": 17.0,
+    "Dustwallow Marsh": 12.0,
+    "Stranglethorn Vale": 12.0
+   },
+   "6291": {
+    "Dun Morogh": 63.0,
+    "Elwynn Forest": 63.0,
+    "Zephras Isle": 62.0,
+    "Mulgore": 62.0,
+    "Tirisfal Glades": 48.0,
+    "Teldrassil": 30.5
+   },
+   "6303": {
+    "Durotar": 55.0,
+    "Teldrassil": 51.0,
+    "The Barrens": 15.0,
+    "Darkshore": 14.5,
+    "Westfall": 11.0
+   },
+   "6308": {
+    "Shen'dralas": 68.0,
+    "Redridge Mountains": 62.5,
+    "Duskwood": 59.0,
+    "Ashenvale": 43.0,
+    "Stonetalon Mountains": 43.0,
+    "Thousand Needles": 39.0
+   },
+   "6317": {
+    "Loch Modan": 22.0
+   },
+   "6361": {
+    "Wetlands": 46.0,
+    "The Barrens": 23.5,
+    "Darkshore": 21.0,
+    "Westfall": 15.0,
+    "Ashenvale": 15.0,
+    "Hillsbrad Foothills": 13.0
+   },
+   "6362": {
+    "Swamp of Sorrows": 47.0,
+    "Dustwallow Marsh": 34.0,
+    "Stranglethorn Vale": 33.0,
+    "Riverglades": 23.0,
+    "Desolace": 11.0,
+    "Azshara": 9.0
+   },
+   "6522": {
+    "The Barrens": 14.7,
+    "Blasted Lands": 12.0
+   },
+   "8365": {
+    "Thousand Needles": 73.0,
+    "Arathi Highlands": 63.0,
+    "Desolace": 47.0,
+    "Alterac Mountains": 33.0,
+    "Dustwallow Marsh": 24.0
+   },
+   "13754": {
+    "Azshara": 11.9,
+    "Tanaris": 8.3,
+    "The Hinterlands": 6.5,
+    "Feralas": 1.2
+   },
+   "13755": {
+    "Tanaris": 8.8,
+    "Azshara": 7.5,
+    "The Hinterlands": 6.1,
+    "Feralas": 1.0
+   },
+   "13758": {
+    "Un'Goro Crater": 61.0,
+    "Moonglade": 53.0,
+    "Western Plaguelands": 47.0,
+    "Feralas": 42.5,
+    "The Hinterlands": 30.0
+   },
+   "13759": {
+    "Felwood": 28.0,
+    "Winterspring": 25.0,
+    "Un'Goro Crater": 23.0,
+    "Deadwind Pass": 19.0,
+    "Moonglade": 16.0,
+    "Mount Hyjal": 13.0
+   },
+   "13760": {
+    "Eastern Plaguelands": 40.0,
+    "Western Plaguelands": 25.5,
+    "Silithus": 22.0,
+    "Mount Hyjal": 19.0,
+    "Felwood": 18.0
+   },
+   "13888": {
+    "Azshara": 2.1
+   },
+   "13889": {
+    "Eastern Plaguelands": 46.0,
+    "Deadwind Pass": 42.0,
+    "Mount Hyjal": 42.0,
+    "Winterspring": 40.0
+   },
+   "13890": {
+    "Deadwind Pass": 25.0,
+    "Winterspring": 24.0,
+    "Mount Hyjal": 14.0,
+    "Silithus": 11.0,
+    "Eastern Plaguelands": 7.0
+   },
+   "13893": {
+    "Azshara": 0.5
+   }
+  }
+ },
+ "gather": {
+  "_about": "Node -> Forever spawn points per zone (Wowhead object map). Replaces the Classic zone counts. Felwood shows no herb nodes on Wowhead (unconfirmed in game).",
+  "zones": {
+   "Copper Vein": {
+    "Zephras Isle": 335.0,
+    "Mulgore": 267.0,
+    "The Barrens": 210.0,
+    "Dun Morogh": 194.0,
+    "Elwynn Forest": 188.0,
+    "Tirisfal Glades": 177.0,
+    "Redridge Mountains": 175.0,
+    "Westfall": 127.0,
+    "Loch Modan": 162.0,
+    "Durotar": 174.0,
+    "Silverpine Forest": 101.0
+   },
+   "Tin Vein": {
+    "Redridge Mountains": 166.0,
+    "Ashenvale": 109.0,
+    "The Barrens": 103.0,
+    "Loch Modan": 95.0,
+    "Wetlands": 88.0,
+    "Duskwood": 86.0,
+    "Hillsbrad Foothills": 84.0
+   },
+   "Silver Vein": {
+    "Arathi Highlands": 150.0,
+    "Thousand Needles": 144.0,
+    "The Barrens": 124.0,
+    "Hillsbrad Foothills": 96.0,
+    "Stranglethorn Vale": 88.0,
+    "Redridge Mountains": 74.0
+   },
+   "Iron Deposit": {
+    "Riverglades": 173.0,
+    "Arathi Highlands": 145.0,
+    "Desolace": 131.0,
+    "Stranglethorn Vale": 123.0,
+    "Thousand Needles": 116.0,
+    "Alterac Mountains": 105.0,
+    "Badlands": 95.0
+   },
+   "Gold Vein": {
+    "Arathi Highlands": 125.0,
+    "Stranglethorn Vale": 113.0,
+    "Badlands": 111.0,
+    "Tanaris": 89.0,
+    "The Hinterlands": 82.0,
+    "Thousand Needles": 81.0,
+    "Alterac Mountains": 65.0
+   },
+   "Mithril Deposit": {
+    "The Hinterlands": 122.0,
+    "Tanaris": 91.0,
+    "Azshara": 84.0,
+    "Desolace": 84.0,
+    "Badlands": 81.0,
+    "Searing Gorge": 70.0,
+    "Stranglethorn Vale": 61.0
+   },
+   "Dark Iron Deposit": {
+    "Burning Steppes": 116.0,
+    "Searing Gorge": 82.0
+   },
+   "Truesilver Deposit": {
+    "Winterspring": 114.0,
+    "The Hinterlands": 96.0,
+    "Burning Steppes": 91.0,
+    "Eastern Plaguelands": 85.0,
+    "Un'Goro Crater": 83.0,
+    "Azshara": 80.0,
+    "Tanaris": 79.0
+   },
+   "Small Thorium Vein": {
+    "Un'Goro Crater": 57.0,
+    "Silithus": 54.0,
+    "Burning Steppes": 52.0,
+    "Winterspring": 47.0,
+    "Western Plaguelands": 42.0,
+    "Eastern Plaguelands": 37.0,
+    "Blasted Lands": 32.0
+   },
+   "Rich Thorium Vein": {
+    "Mount Hyjal": 87.0,
+    "Winterspring": 66.0,
+    "Eastern Plaguelands": 64.0,
+    "Azshara": 57.0,
+    "Burning Steppes": 33.0,
+    "Un'Goro Crater": 23.0
+   },
+   "Peacebloom": {
+    "Zephras Isle": 302.0,
+    "Mulgore": 186.0,
+    "Tirisfal Glades": 117.0,
+    "Durotar": 116.0,
+    "Teldrassil": 111.0,
+    "Dun Morogh": 106.0,
+    "Elwynn Forest": 86.0
+   },
+   "Silverleaf": {
+    "Zephras Isle": 263.0,
+    "Mulgore": 230.0,
+    "Tirisfal Glades": 149.0,
+    "Elwynn Forest": 140.0,
+    "Teldrassil": 130.0,
+    "Dun Morogh": 114.0,
+    "Durotar": 100.0
+   },
+   "Earthroot": {
+    "Zephras Isle": 141.0,
+    "Mulgore": 113.0,
+    "Redridge Mountains": 104.0,
+    "Tirisfal Glades": 81.0,
+    "Teldrassil": 72.0,
+    "Dun Morogh": 71.0,
+    "Elwynn Forest": 65.0
+   },
+   "Mageroyal": {
+    "Redridge Mountains": 94.0,
+    "Silverpine Forest": 90.0,
+    "Loch Modan": 81.0,
+    "Westfall": 75.0,
+    "Darkshore": 67.0,
+    "Wetlands": 55.0,
+    "Ashenvale": 49.0
+   },
+   "Briarthorn": {
+    "Redridge Mountains": 139.0,
+    "Silverpine Forest": 100.0,
+    "Duskwood": 95.0,
+    "Westfall": 88.0,
+    "Hillsbrad Foothills": 82.0,
+    "Wetlands": 77.0,
+    "Ashenvale": 72.0
+   },
+   "Stranglekelp": {
+    "Wetlands": 107.0,
+    "Stranglethorn Vale": 106.0,
+    "Ashenvale": 77.0,
+    "Westfall": 74.0,
+    "Desolace": 68.0,
+    "Darkshore": 59.0,
+    "The Barrens": 51.0
+   },
+   "Bruiseweed": {
+    "Redridge Mountains": 101.0,
+    "Stonetalon Mountains": 101.0,
+    "Ashenvale": 77.0,
+    "Duskwood": 72.0,
+    "Hillsbrad Foothills": 71.0,
+    "Wetlands": 67.0,
+    "Westfall": 61.0
+   },
+   "Wild Steelbloom": {
+    "Stranglethorn Vale": 89.0,
+    "Stonetalon Mountains": 85.0,
+    "Arathi Highlands": 69.0,
+    "Wetlands": 49.0,
+    "Thousand Needles": 44.0,
+    "Hillsbrad Foothills": 42.0,
+    "The Barrens": 29.0
+   },
+   "Grave Moss": {
+    "Desolace": 37.0,
+    "Duskwood": 35.0,
+    "Shen'dralas": 11.0,
+    "Wetlands": 8.0,
+    "The Barrens": 4.0,
+    "Arathi Highlands": 4.0,
+    "Eastern Plaguelands": 4.0
+   },
+   "Kingsblood": {
+    "Stranglethorn Vale": 118.0,
+    "Wetlands": 96.0,
+    "Ashenvale": 86.0,
+    "Hillsbrad Foothills": 85.0,
+    "Stonetalon Mountains": 82.0,
+    "Alterac Mountains": 64.0,
+    "Arathi Highlands": 62.0
+   },
+   "Liferoot": {
+    "Dustwallow Marsh": 85.0,
+    "Stranglethorn Vale": 82.0,
+    "Swamp of Sorrows": 75.0,
+    "Wetlands": 70.0,
+    "Alterac Mountains": 44.0,
+    "Desolace": 37.0,
+    "Ashenvale": 34.0
+   },
+   "Fadeleaf": {
+    "Dustwallow Marsh": 53.0,
+    "Alterac Mountains": 45.0,
+    "Stranglethorn Vale": 43.0,
+    "Arathi Highlands": 40.0,
+    "Swamp of Sorrows": 38.0,
+    "Badlands": 21.0,
+    "The Hinterlands": 15.0
+   },
+   "Goldthorn": {
+    "Stranglethorn Vale": 127.0,
+    "Feralas": 106.0,
+    "Arathi Highlands": 76.0,
+    "Dustwallow Marsh": 73.0,
+    "Swamp of Sorrows": 63.0,
+    "Alterac Mountains": 56.0,
+    "The Hinterlands": 44.0
+   },
+   "Khadgar's Whisker": {
+    "Stranglethorn Vale": 109.0,
+    "Feralas": 88.0,
+    "Arathi Highlands": 60.0,
+    "Dustwallow Marsh": 58.0,
+    "Swamp of Sorrows": 56.0,
+    "Alterac Mountains": 46.0,
+    "Badlands": 32.0
+   },
+   "Wintersbite": {
+    "Alterac Mountains": 43.0
+   },
+   "Firebloom": {
+    "Searing Gorge": 116.0,
+    "Tanaris": 114.0,
+    "Blasted Lands": 30.0,
+    "Badlands": 25.0
+   },
+   "Purple Lotus": {
+    "Azshara": 86.0,
+    "The Hinterlands": 78.0,
+    "Feralas": 74.0,
+    "Tanaris": 48.0,
+    "Stranglethorn Vale": 32.0,
+    "Ashenvale": 19.0,
+    "Badlands": 6.0
+   },
+   "Arthas' Tears": {
+    "Eastern Plaguelands": 60.0,
+    "Western Plaguelands": 49.0
+   },
+   "Sungrass": {
+    "Feralas": 107.0,
+    "Azshara": 87.0,
+    "The Hinterlands": 84.0,
+    "Un'Goro Crater": 52.0,
+    "Western Plaguelands": 42.0,
+    "Eastern Plaguelands": 35.0,
+    "Blasted Lands": 24.0
+   },
+   "Blindweed": {
+    "Swamp of Sorrows": 176.0,
+    "Un'Goro Crater": 20.0
+   },
+   "Ghost Mushroom": {
+    "The Hinterlands": 44.0,
+    "Desolace": 8.0
+   },
+   "Gromsblood": {
+    "Blasted Lands": 42.0,
+    "Desolace": 21.0,
+    "Ashenvale": 13.0
+   },
+   "Golden Sansam": {
+    "Azshara": 80.0,
+    "Un'Goro Crater": 65.0,
+    "Eastern Plaguelands": 32.0,
+    "Burning Steppes": 24.0,
+    "The Hinterlands": 22.0,
+    "Silithus": 19.0,
+    "Feralas": 16.0
+   },
+   "Dreamfoil": {
+    "Azshara": 90.0,
+    "Eastern Plaguelands": 71.0,
+    "Un'Goro Crater": 64.0,
+    "Burning Steppes": 38.0,
+    "Western Plaguelands": 37.0,
+    "Silithus": 37.0
+   },
+   "Mountain Silversage": {
+    "Winterspring": 87.0,
+    "Eastern Plaguelands": 64.0,
+    "Azshara": 59.0,
+    "Un'Goro Crater": 53.0,
+    "Burning Steppes": 44.0,
+    "Silithus": 31.0,
+    "Western Plaguelands": 20.0
+   },
+   "Plaguebloom": {
+    "Eastern Plaguelands": 166.0,
+    "Western Plaguelands": 88.0
+   },
+   "Icecap": {
+    "Winterspring": 170.0
+   }
+  }
+ },
+ "skinning": {
+  "_about": "zone -> beast levels with no beasts in Forever",
+  "remove": {
+   "Duskwood": [
+    28,
+    29,
+    30
+   ]
+  }
+ }
+}

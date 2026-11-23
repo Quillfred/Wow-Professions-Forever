@@ -156,5 +156,8 @@ lua5.1 tests/smoke_wow.lua      # whole addon against a fake WoW API
 - cMaNGOS Classic database (github.com/cmangos/classic-db, GPL v3) for what AllTheThings
   doesn't have: other vendors/trainers and NPC positions, vendors of reagents and tools
   (unlimited stock, no reputation, not holiday-only), boats/zeppelins, herb/ore
-  spawns, fishing loot, mob drops for farming, and skinnable beasts — Classic data, so
-  Forever may differ.
+  spawns, fishing loot, mob drops for farming, and skinnable beasts — Classic data,
+  checked against Wowhead's Forever pages (445 pages, 2026-11-23): the corrections are
+  in tools/forever_checks.json (applied on every rebuild), the report in
+  tools/forever-classic-check-2026-11-23.md. Herb/ore zones, fishing zones and
+  disenchant results now use Forever's own observed data.
