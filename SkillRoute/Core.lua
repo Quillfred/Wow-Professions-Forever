@@ -341,6 +341,20 @@ local function playerWorld()
   end
 end
 
+Core.PlayerWorld = playerWorld
+
+-- Errors: never leave the window blank or spam chat. The last error is kept for
+-- /sr check and shown once per session.
+local shownError = false
+function Core.ReportError(where, err)
+  local msg = ("%s: %s"):format(where, tostring(err))
+  if SkillRouteDB then SkillRouteDB.lastError = msg end
+  if not shownError then
+    shownError = true
+    print("|cffff4040SkillRoute hit an error|r (" .. msg .. "). Type /sr check and send a screenshot.")
+  end
+end
+
 local function walk(ax, ay, bx, by) return math.sqrt((ax - bx) ^ 2 + (ay - by) ^ 2) / RUN end
 
 -- Flight points this character knows: recorded when a flight map is open (the map
@@ -843,7 +857,7 @@ end
 
 -- Events -------------------------------------------------------------------------
 local f = CreateFrame("Frame")
-f:SetScript("OnEvent", function(_, ev, arg1)
+local function onEvent(_, ev, arg1)
   if ev == "ADDON_LOADED" and arg1 == addonName then
     db()
   elseif ev == "PLAYER_LOGIN" then
@@ -879,6 +893,10 @@ f:SetScript("OnEvent", function(_, ev, arg1)
   else -- skill or bag change
     Core.Changed()
   end
+end
+f:SetScript("OnEvent", function(self, ev, ...)
+  local ok, err = pcall(onEvent, self, ev, ...)
+  if not ok then Core.ReportError(ev, err) end
 end)
 for _, ev in ipairs({ "ADDON_LOADED", "PLAYER_LOGIN", "TRADE_SKILL_SHOW", "TRADE_SKILL_LIST_UPDATE",
                       "NEW_RECIPE_LEARNED", "TRAINER_SHOW", "TRAINER_UPDATE", "SKILL_LINES_CHANGED", "MERCHANT_SHOW",

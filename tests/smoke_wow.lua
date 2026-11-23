@@ -64,7 +64,7 @@ _G.C_TradeSkillUI = {
 _G.TradeSkillFrame = stubObj()
 
 local ns = {}
-for _, f in ipairs({ "Data", "Planner", "Core", "UI" }) do
+for _, f in ipairs({ "Data", "Planner", "Core", "UI", "Check" }) do
   local chunk = assert(loadfile("SkillRoute/" .. f .. ".lua"))
   chunk("SkillRoute", ns)
 end
@@ -380,5 +380,28 @@ do
   local cached = (os.clock() - t0) * 1000 / 20
   print(("travel graph, every flight point known (%d flights): first %.1f ms, cached %.2f ms per lookup (%s)"):format(
     #SkillRouteData.taxi.flights, first, cached, e and e.npc or "?"))
+end
+-- /sr check runs and reports; errors are caught, not thrown
+do
+  local out = {}
+  local realPrint = print
+  _G.print = function(s) out[#out + 1] = tostring(s) end
+  SlashCmdList.SKILLROUTE("check")
+  _G.print = realPrint
+  assert(#out > 20, "check printed a report")
+  local joined = table.concat(out, "\n")
+  assert(joined:find("Auctionator prices", 1, true) and joined:find("plan Tailoring", 1, true), "report covers APIs and a live plan")
+  -- a failing refresh shows a message instead of erroring
+  local savedPlan = Core.Plan
+  Core.Plan = function() error("boom") end
+  local realPrint2 = print
+  _G.print = function() end
+  UI.Toggle(197)
+  _G.print = realPrint2
+  Core.Plan = savedPlan
+  assert(SkillRouteDB.lastError and SkillRouteDB.lastError:find("boom"), "error recorded")
+  UI.Toggle()
+  SkillRouteDB.lastError = nil
+  realPrint(("check: %d lines, e.g. %s"):format(#out, out[2]:gsub("|c%x%x%x%x%x%x%x%x", ""):gsub("|r", "")))
 end
 print("SMOKE TEST PASSED")

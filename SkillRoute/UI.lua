@@ -340,7 +340,7 @@ local function shoppingRows(plan)
   return n
 end
 
-function UI.Refresh()
+local function refresh()
   if not (frame and frame:IsShown()) then return end
   local mine, c = lines()
   if #mine == 0 then
@@ -389,6 +389,17 @@ function UI.Refresh()
   footer:SetText(("Buy for |cffffffff%s|r%s   |cff808080planned in %s|r"):format(money(plan.total, "ffffff"),
     plan.estimated and " |cffff8040(includes estimates)|r" or "",
     plan.ms and ("%.1f ms"):format(plan.ms) or "?"))
+end
+
+function UI.Refresh()
+  local ok, err = pcall(refresh)
+  if not ok then
+    Core.ReportError("window", err)
+    if info then
+      info:SetText("|cffff4040SkillRoute couldn't plan: " .. tostring(err) .. "|r\nType /sr check and send a screenshot.")
+    end
+    for _, r in ipairs(rows) do r:Hide() end
+  end
 end
 
 function UI.IsShown() return frame and frame:IsShown() end
@@ -540,6 +551,9 @@ SlashCmdList.SKILLROUTE = function(msg)
     settings.estimate = (arg == "on")
     Core.InvalidatePatterns()
     print("SkillRoute: price estimates for items with no AH price are " .. (settings.estimate and "ON (marked in orange)" or "OFF (those recipes are skipped)"))
+  elseif cmd == "check" then
+    Core.Check()
+    return
   elseif cmd == "unskip" then
     Core.ClearSkips()
     print("SkillRoute: all skipped recipes are back in the plan.")
@@ -552,7 +566,7 @@ SlashCmdList.SKILLROUTE = function(msg)
     print("SkillRoute: open with the profession window is " .. (settings.auto and "ON" or "OFF"))
     return
   elseif cmd == "help" then
-    print("SkillRoute: /sr - open/close   /sr auto on|off   /sr overtime <pct>   /sr estimate on|off   /sr cdmats on|off   /sr unskip   (right-click a step to skip it)")
+    print("SkillRoute: /sr - open/close   /sr check   /sr auto on|off   /sr overtime <pct>   /sr estimate on|off   /sr cdmats on|off   /sr unskip   (right-click a step to skip it)")
     return
   else
     UI.Toggle()
