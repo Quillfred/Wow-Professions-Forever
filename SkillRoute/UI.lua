@@ -441,7 +441,18 @@ local function routeRows(plan)
       local function gap() tip[#tip + 1] = { gap = true } end
       local function travel(loc) local t = Core.TravelText(loc); return t and t:gsub("^about ", "~"):gsub(" away", "") end
       row("Per craft", money(st.perCraft) .. (st.est and " |cffff8040(estimated)|r" or ""))
-      row("Skill-ups", ("until %d |cff9d9d9d(yellow from %d)|r"):format(r.g, r.y))
+      -- the last skill at which the recipe is each colour (Planner.Color: green from the
+      -- midpoint of yellow and grey)
+      do
+        local greenFrom = math.floor((r.y + r.g) / 2)
+        local learnAt = math.min(r.learn or r.y, r.y)
+        local bands = {}
+        if r.y - 1 >= learnAt then bands[#bands + 1] = ("|cff%sorange to %d|r"):format(COLORS.orange, r.y - 1) end
+        if greenFrom - 1 >= r.y then bands[#bands + 1] = ("|cff%syellow to %d|r"):format(COLORS.yellow, greenFrom - 1) end
+        if r.g - 1 >= greenFrom then bands[#bands + 1] = ("|cff%sgreen to %d|r"):format(COLORS.green, r.g - 1) end
+        row("Skill-ups", table.concat(bands, " · "))
+        sub("", ("grey from %d (no more skill-ups)"):format(r.g))
+      end
       local sv = st.learn == "pattern" and st.unlock and st.unlock.savesShown
       if sv then
         row("Why this one", "the pattern pays off")
