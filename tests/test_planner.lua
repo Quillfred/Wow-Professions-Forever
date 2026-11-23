@@ -389,6 +389,20 @@ for _, st in ipairs(noFee.steps) do if st.learn == "trainer" then learnedNo = le
 check(learned <= learnedNo, "counting fees never learns more recipes")
 print(("trainer fees 110-200: %d recipes learned (%d ignoring fees), fees %.0fc"):format(learned, learnedNo, feePlan.fees))
 
+-- 10l. resale: never treated as profit; route cost only goes down or equal in the choice
+local base = P.Plan(ctxFor(110, 200))
+local sell = P.Plan(ctxFor(110, 200, nil, { resale = 0.5 }))
+local back = 0
+for _, st in ipairs(sell.steps) do
+  if st.spell then
+    check(st.perCraft >= 1, st.name .. ": resale never makes a craft profit in the choice")
+    back = back + (st.resale or 0)
+  end
+end
+check(back > 0, "resale reported")
+check(sell.expected <= base.expected + 1e-6, "counting resale never makes the chosen route dearer")
+print(("resale 50%%: route %.0fc -> %.0fc to buy, ~%.0fc back from sales"):format(base.total, sell.total, back))
+
 -- 11. reputation patterns: only with the standing they need
 local function repPlan(standing)
   return P.Plan({ recipes = T, items = items, tools = D.tools, hasTool = function() return false end,

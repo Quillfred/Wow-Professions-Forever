@@ -263,6 +263,9 @@ local function routeRows(plan)
       if st.credited then
         tip[#tip + 1] = ("These crafts use about %s of materials. Later steps use the %s they make and include that cost, so it isn't counted twice.")
           :format(money(st.grossCost), itemName(r.out))
+      elseif st.resale then
+        tip[#tip + 1] = ("Selling what you make on the AH brings back about %s (at your /sr resale share, after the AH cut).")
+          :format(money(st.resale))
       elseif st.vendorBack > 0 then
         tip[#tip + 1] = ("Vendoring the results gives back about %s (not counted)."):format(money(st.vendorBack))
       end
@@ -409,7 +412,12 @@ local function refresh()
   modeBtn:SetText(state.mode == "route" and "Shopping list" or "Route")
   if state.mode == "route" then hRange:Show() else hRange:Hide() end
   footer:SetText(("Buy for |cffffffff%s|r%s%s   |cff808080planned in %s|r"):format(money(plan.total, "ffffff"),
-    (plan.fees or 0) > 0 and (" + |cffffffff" .. money(plan.fees, "ffffff") .. "|r training") or "",
+    ((plan.fees or 0) > 0 and (" + |cffffffff" .. money(plan.fees, "ffffff") .. "|r training") or "")
+    .. (function()
+      local back = 0
+      for _, st in ipairs(plan.steps) do back = back + (st.resale or 0) end
+      return back > 0 and ("  |cff40bf40(~%s back from sales)|r"):format(money(back, "40bf40")) or ""
+    end)(),
     plan.estimated and " |cffff8040(includes estimates)|r" or "",
     plan.ms and ("%.1f ms"):format(plan.ms) or "?"))
 end
@@ -588,6 +596,15 @@ SlashCmdList.SKILLROUTE = function(msg)
     else
       print("SkillRoute: /sr craftcost <copper>  (what a craft's time is worth to you; 0 = only gold matters)")
     end
+  elseif cmd == "resale" and settings then
+    local v = tonumber(arg)
+    if v and v >= 0 and v <= 100 then
+      settings.resale = v
+      print(v == 0 and "SkillRoute: crafted items are not counted as sold."
+        or ("SkillRoute: crafted items count as sold on the AH for %d%% of their price (minus the 5%% cut)."):format(v))
+    else
+      print("SkillRoute: /sr resale <0-100>  (0 = off; e.g. 50 to count half the AH price - selling many lowers it)")
+    end
   elseif cmd == "alts" and settings then
     settings.alts = (arg ~= "off")
     print("SkillRoute: materials on your other characters are " .. (settings.alts and "counted (Syndicator/DataStore)" or "not counted"))
@@ -618,7 +635,7 @@ SlashCmdList.SKILLROUTE = function(msg)
     print("SkillRoute: open with the profession window is " .. (settings.auto and "ON" or "OFF"))
     return
   elseif cmd == "help" then
-    print("SkillRoute: /sr - open/close   /sr check   /sr auto on|off   /sr overtime <pct>   /sr estimate on|off   /sr cdmats on|off   /sr margin <50-99>   /sr craftcost <copper>   /sr alts on|off   /sr ah   /sr unskip   (right-click a step to skip it)")
+    print("SkillRoute: /sr - open/close   /sr check   /sr auto on|off   /sr overtime <pct>   /sr estimate on|off   /sr cdmats on|off   /sr margin <50-99>   /sr craftcost <copper>   /sr alts on|off   /sr resale <pct>   /sr ah   /sr unskip   (right-click a step to skip it)")
     return
   else
     UI.Toggle()

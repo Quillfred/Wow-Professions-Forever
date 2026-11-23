@@ -138,7 +138,13 @@ local function craftCostFn(ctx, unit, credit)
     if share and share > 0 then
       local v = unit(r.out)
       if v then c = c - share * v * (r.outN or 1) end
+    elseif ctx.resale and ctx.resale > 0 and r.out then
+      -- optional: sell the product on the AH (a share of its price, minus the 5% cut)
+      local v, est = ctx.price(r.out)
+      if v and not est then c = c - ctx.resale * 0.95 * v * (r.outN or 1) end
     end
+    -- floor: a recipe that pays for itself counts as nearly free, never as profit
+    -- (profit per point would grow as the skill-up chance falls)
     if c < PER_CRAFT then c = PER_CRAFT end
     memo[spell] = { c = c, est = est }
     return c, est
@@ -311,6 +317,7 @@ end
   haveAlts = function(itemID) -> count on your other characters (optional)
   hasTool = function(toolKey) -> bool       (optional)
   craftValue = copper per craft for your time (optional; affects the choice, not the total)
+  resale = 0..1, share of the AH price crafted items are expected to sell for (optional)
   z = safety margin in standard deviations for the shopping list (optional, 0 = expected)
   avoidMats = {[itemID]=true}               (optional; recipes using these are left out)
   skip = {[spell]=true}                     (optional; recipes you marked unavailable)
@@ -556,12 +563,17 @@ function Planner.PlanOnce(ctx, credit)
       else learnCost = (ctx.trainer[c.spell] and ctx.trainer[c.spell].cost) or c.r.tc end
       steps[#steps + 1] = {
         spell = c.spell, name = c.r.n, from = s, to = e, crafts = crafts, var = var,
-        cost = c.cost * crafts, perCraft = c.cost, est = c.est,
+        cost = ((ctx.resale and ctx.resale > 0) and (reagentCost(c.r, unit) or c.cost) or c.cost) * crafts,
+        perCraft = c.cost, est = c.est,
         learn = (c.how ~= "known") and c.how or nil, learnCost = learnCost,
         unlock = c.how == "pattern" and ctx.unlocked[pkey] or nil, tools = tools,
         color = Planner.Color(c.r, s),
         vendorBack = c.r.out and ctx.items[c.r.out] and ctx.items[c.r.out][2] * (c.r.outN or 1) * crafts or 0,
         credited = c.r.out and (credit[c.r.out] or 0) > 0 or false,
+        resale = (ctx.resale and ctx.resale > 0 and c.r.out and not ((credit[c.r.out] or 0) > 0)) and (function()
+          local v, est = ctx.price(c.r.out)
+          return (v and not est) and ctx.resale * 0.95 * v * (c.r.outN or 1) * crafts or nil
+        end)() or nil,
         grossCost = (reagentCost(c.r, unit) or 0) * crafts, -- materials, before crediting
         alt = a and { name = cands[a.k].r.n, perPoint = a.c, ours = c.cost / Planner.Chance(c.r, s, ctx.bonus) },
       }
