@@ -232,6 +232,10 @@ def main():
                 rank_source[(line, st)] = "B"
     out = {sl: [] for sl in PROFESSIONS}
     att_decided = {}
+    # recipes where Wowhead's Forever page was checked and beats ATT on the source
+    opath = os.path.join(os.path.dirname(os.path.abspath(__file__)), "source_overrides.json")
+    wh_first = {k for k in (json.load(open(opath, encoding="utf-8")) if os.path.exists(opath) else {})
+                if not k.startswith("_")}
     for s, a in sorted(abil.items()):
         if s not in reagents or s not in names:
             continue  # not a craft (no reagents) -> nothing to plan
@@ -263,8 +267,9 @@ def main():
             origin = w and w[1]
         # AllTheThings' Forever lists decide where they have an answer; the Wowhead and
         # Classic-based choice above stays for recipes ATT doesn't list (or lists as unknown)
-        av = att.get("sources", {}).get(str(s))
+        av = None if str(s) in wh_first else att.get("sources", {}).get(str(s))
         a_learn = att.get("learnAt", {}).get(str(s))
+        w_learn = w[0] if (w and w[0] is not None) else None
         if src != "a" and av:
             how = av["how"]
             if av["spec"]:
@@ -273,14 +278,16 @@ def main():
                 if src != "T":
                     cost = None  # Wowhead's fee belongs to Wowhead's source
                 src = "T"
-                learn = a_learn if a_learn is not None else (w[0] if (w and w[0] is not None) else y)
+                learn = w_learn if w_learn is not None else (a_learn if a_learn is not None else y)
                 if w and "Trainer" in w[1]:
                     cost = w[2]
                 origin = None
             elif "p" in how:
                 pats = sorted(set(pats) | {i for i in av["items"] if i in items})
                 src = "p"
-                if a_learn is not None:
+                if w_learn is not None:
+                    learn = w_learn
+                elif a_learn is not None:
                     learn = a_learn
                 elif learn is None:
                     ranks = [int(items[i]["RequiredSkillRank"]) for i in pats
@@ -289,12 +296,19 @@ def main():
             elif "Q" in how:
                 src, origin = "x", ["Quest"]
             elif "u" in how:
-                src, origin = "x", ["Not in Forever yet"]
+                # ATT: not released yet. Wowhead lists sources for these (data-mined), so
+                # allow the pattern only when it's really on your AH: no vendor, no drop hint
+                if pats:
+                    src, origin = "p", ["Not confirmed in Forever"]
+                    if learn is None:
+                        learn = w_learn if w_learn is not None else a_learn
+                else:
+                    src, origin = "x", ["Not in Forever yet"]
             att_decided[src] = att_decided.get(src, 0) + 1
         elif src in ("t", "x") and str(s) in att["recipeTier"] and s not in NOT_TRAINER:
             src, learn, origin = "T", y, None  # ATT lists it under a Forever trainer's tier
-        elif src != "a" and a_learn is not None and src in ("T", "p"):
-            learn = a_learn
+        elif src != "a" and a_learn is not None and src in ("T", "p") and w_learn is None:
+            learn = a_learn  # Wowhead's learn level first (checked on Forever pages), ATT if none
         if (learn if learn is not None else y) >= MAX_SKILL:
             continue
         o = creates.get(s)

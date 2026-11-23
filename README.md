@@ -136,8 +136,11 @@ lua5.1 tests/smoke_wow.lua      # whole addon against a fake WoW API
   released yet), learn levels, how each rank is learned (trainer, book or quest, with the
   quest giver), trainers and the recipe tier each teaches, pattern vendors, and exact
   Forever coordinates.
-- Wowhead (exported by hand): trainer costs, plus sources and learn levels for recipes
-  AllTheThings doesn't list.
+- Wowhead (exported by hand): learn levels (its "Requires (N)", checked on Forever
+  pages: ATT's numbers were often the yellow level), trainer costs, and sources for
+  recipes AllTheThings doesn't list or where Wowhead's Forever page was checked and
+  wins (tools/source_overrides.json, with the evidence). Recipes ATT calls unreleased
+  are used only if their pattern is really on your auction house.
 - cMaNGOS Classic database (github.com/cmangos/classic-db, GPL v3) for what AllTheThings
   doesn't have: other vendors/trainers and NPC positions, boats/zeppelins, herb/ore
   spawns, fishing loot, mob drops for farming, and skinnable beasts — Classic data, so
