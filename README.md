@@ -53,8 +53,9 @@ Copy the `SkillRoute` folder into `World of Warcraft/_forever_/Interface/AddOns/
   "on the AH" if Auctionator saw one today or yesterday.
 
 **Where to go:** "Train Expert" rows and "Buy pattern from ..." steps name the trainer /
-vendor for your faction that is quickest to reach (running, plus the boats and zeppelins
-your faction can use; flight paths aren't counted), with zone and map coordinates (Classic NPC data;
+vendor for your faction that is quickest to reach (running, the boats and zeppelins your
+faction can use, and the flight paths you know — open any flight master's map once so
+SkillRoute can see which ones), with zone and map coordinates (Classic NPC data;
 the zone is resolved by the game's own map, so it matches your map). **Click** the
 row to set a waypoint: TomTom if installed, else the game's map pin, else the
 coordinates in chat.
@@ -91,7 +92,7 @@ lua5.1 tests/smoke_wow.lua      # whole addon against a fake WoW API
 ```
 
 ## Data sources
-- Recipes, reagents, skill thresholds, tools, cooldowns, factions: WoW Forever client
+- Recipes, reagents, skill thresholds, tools, cooldowns, factions, flight paths: WoW Forever client
   tables via wago.tools.
 - Learn levels, sources and trainer costs: Wowhead (exported by hand).
 - Trainers (and the recipe tier each teaches), pattern vendors and their exact Forever

@@ -16,7 +16,9 @@ PROFESSIONS = {171: "Alchemy", 164: "Blacksmithing", 333: "Enchanting", 202: "En
                165: "Leatherworking", 197: "Tailoring", 185: "Cooking", 129: "First Aid"}
 TABLES = ["SkillLineAbility", "SpellReagents", "SpellName", "SpellEffect",
           "ItemSparse", "ItemEffect", "ItemXItemEffect", "SpellCooldowns",
-          "SpellTotems", "TotemCategory", "Faction"]
+          "SpellTotems", "TotemCategory", "Faction", "TaxiNodes", "TaxiPath", "TaxiPathNode"]
+FLY_SPEED = 32      # yards/second on a flight path
+FLY_OVERHEAD = 10   # seconds: take-off, landing
 # Not trainer recipes even though no item teaches them (quest rewards etc.). Only
 # used when the player knows them.
 NOT_TRAINER = {22813, 22815, 19435,  # Gordok Ogre Suits (quest), Mooncloth Boots (quest)
@@ -375,8 +377,41 @@ def main():
               "  continents = {"]
     for m, c in sorted(npcdata.get("continents", {}).items()):
         lines.append(f"    [{m}]={{{c['ui']},{','.join(str(round(v, 3)) for v in c['r'] + c['u'])}}},")
+    # Flight paths (Forever client): flight masters and the direct flights between
+    # them; a flight's time = length of its route / FLY_SPEED. MountCreatureID_0 is the
+    # Horde mount, _1 the Alliance one (a node without a mount for a side isn't theirs).
+    taxi_nodes = {}
+    for r in rows(p["TaxiNodes"]):
+        cont = int(r["ContinentID"])
+        side = ("A" if int(r["MountCreatureID_1"]) else "") + ("H" if int(r["MountCreatureID_0"]) else "")
+        if cont in (0, 1) and side:
+            taxi_nodes[int(r["ID"])] = (cont, float(r["Pos_0"]), float(r["Pos_1"]), side, r["Name_lang"])
+    route = {}
+    for r in rows(p["TaxiPathNode"]):
+        route.setdefault(int(r["PathID"]), []).append((int(r["NodeIndex"]), int(r["ContinentID"]),
+                                                        float(r["Loc_0"]), float(r["Loc_1"])))
+    flights, used_taxi = [], set()
+    for r in rows(p["TaxiPath"]):
+        a, b, pid = int(r["FromTaxiNode"]), int(r["ToTaxiNode"]), int(r["ID"])
+        pts = sorted(route.get(pid, []))
+        if a not in taxi_nodes or b not in taxi_nodes or len(pts) < 2:
+            continue
+        length = sum(((p2[2] - p1[2]) ** 2 + (p2[3] - p1[3]) ** 2) ** 0.5
+                     for p1, p2 in zip(pts, pts[1:]) if p1[1] == p2[1])
+        flights.append((a, b, round(length / FLY_SPEED + FLY_OVERHEAD)))
+        used_taxi.update((a, b))
+    lines += ["  },", "  -- flight paths: nodes [id] = {map, worldX, worldY, \"A\"|\"H\"|\"AH\", name};",
+              "  -- flights {from, to, seconds}. Only flight points the character knows are used.",
+              "  taxi = { nodes = {"]
+    for i in sorted(used_taxi):
+        m, x, y, sd, nm = taxi_nodes[i]
+        lines.append(f"    [{i}]={{{m},{round(x)},{round(y)},\"{sd}\",{lua_str(nm)}}},")
+    lines += ["  }, flights = {"]
+    for k in range(0, len(flights), 8):
+        lines.append("    " + ",".join("{%d,%d,%d}" % f for f in flights[k:k + 8]) + ",")
+    lines += ["  } },"]
     factions = {int(r["ID"]): r["Name_lang"] for r in rows(p["Faction"])}
-    lines += ["  },", "  factions = {"]
+    lines += ["  factions = {"]
     for f in sorted(used_factions):
         lines.append(f"    [{f}]={lua_str(factions.get(f, str(f)))},")
     lines += ["  },", "}", ""]

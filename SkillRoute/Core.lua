@@ -343,41 +343,105 @@ end
 
 local function walk(ax, ay, bx, by) return math.sqrt((ax - bx) ^ 2 + (ay - by) ^ 2) / RUN end
 
--- seconds from you to every boat/zeppelin stop (Dijkstra over ~16 stops)
+-- Flight points this character knows: recorded when a flight map is open (the map
+-- shows known and unknown ones). Only these are used for travel.
+local taxiVersion = 0
+function Core.KnownTaxi()
+  local c = Core.Char()
+  c.taxi = c.taxi or {}
+  return c.taxi
+end
+
+function Core.RecordTaxi()
+  local known, added = Core.KnownTaxi(), 0
+  local T = C_TaxiMap
+  if T and T.GetAllTaxiNodes and GetTaxiMapID then
+    local ok, nodes = pcall(T.GetAllTaxiNodes, GetTaxiMapID())
+    local unreachable = Enum and Enum.FlightPathState and Enum.FlightPathState.Unreachable or 2
+    for _, node in ipairs(ok and nodes or {}) do
+      if node.nodeID and node.state ~= unreachable and not known[node.nodeID] then
+        known[node.nodeID] = true; added = added + 1
+      end
+    end
+  elseif NumTaxiNodes and TaxiNodeName and TaxiNodeGetType then
+    local byName = {}
+    for id, n in pairs(Data.taxi and Data.taxi.nodes or {}) do byName[n[5]] = id end
+    for i = 1, NumTaxiNodes() do
+      local t = TaxiNodeGetType(i)
+      local id = byName[TaxiNodeName(i)]
+      if id and (t == "CURRENT" or t == "REACHABLE") and not known[id] then known[id] = true; added = added + 1 end
+    end
+  end
+  if added > 0 then taxiVersion = taxiVersion + 1; Core.Changed() end
+end
+
+-- Travel graph: boat/zeppelin stops and your known flight points (your faction's).
+-- Legs: run between any two points on the same continent; ride a boat/zeppelin
+-- (one full trip); fly a known flight path. Dijkstra from your position.
+local travelCache
 local function travelTable(pm, px, py)
   local letter = myLetter()
-  local stops, edges = {}, {}
+  local known = Core.KnownTaxi()
+  local key = table.concat({ pm, math.floor(px / 100), math.floor(py / 100), taxiVersion, tostring(letter) }, ":")
+  if travelCache and travelCache.key == key then return travelCache[1], travelCache[2], travelCache[3] end
+  local pts, adj = {}, {}
+  local function add(map, x, y) pts[#pts + 1] = { map, x, y }; adj[#pts] = {}; return #pts end
   for _, t in ipairs(Data.transports or {}) do
     if not letter or t[2]:find(letter, 1, true) then
-      local first = #stops + 1
-      for i = 4, #t do stops[#stops + 1] = t[i] end
-      for a = first, #stops do
-        for b = first, #stops do
-          if a ~= b then edges[#edges + 1] = { a, b, t[3], t[1] } end
+      local first = #pts + 1
+      for i = 4, #t do add(t[i][1], t[i][2], t[i][3]) end
+      for a = first, #pts do
+        for b = first, #pts do
+          if a ~= b then table.insert(adj[a], { b, t[3], "boat/zeppelin: " .. t[1] }) end
         end
       end
     end
   end
-  local dist, via, done = {}, {}, {}
-  for i, st in ipairs(stops) do
-    dist[i] = st[1] == pm and walk(px, py, st[2], st[3]) or math.huge
+  local taxiIdx = {}
+  for id, n in pairs(Data.taxi and Data.taxi.nodes or {}) do
+    if known[id] and (not letter or n[4]:find(letter, 1, true)) then
+      taxiIdx[id] = add(n[1], n[2], n[3])
+      pts[taxiIdx[id]].name = n[5]:match("^([^,]+)") or n[5]
+    end
   end
-  for _ = 1, #stops do
+  for _, f in ipairs(Data.taxi and Data.taxi.flights or {}) do
+    local a, b = taxiIdx[f[1]], taxiIdx[f[2]]
+    if a and b then table.insert(adj[a], { b, f[3], "flight" }) end
+  end
+  local N = #pts
+  local dist, via, done = {}, {}, {}
+  for i = 1, N do
+    dist[i] = pts[i][1] == pm and walk(px, py, pts[i][2], pts[i][3]) or math.huge
+  end
+  for _ = 1, N do
     local u, best = nil, math.huge
-    for i = 1, #stops do if not done[i] and dist[i] < best then u, best = i, dist[i] end end
+    for i = 1, N do if not done[i] and dist[i] < best then u, best = i, dist[i] end end
     if not u then break end
     done[u] = true
-    local function relax(v, c, name)
-      if dist[u] + c < dist[v] then dist[v] = dist[u] + c; via[v] = name or via[u] end
+    local pu = pts[u]
+    for v = 1, N do -- run to any point on the same continent
+      local pv = pts[v]
+      if not done[v] and pv[1] == pu[1] then
+        local c = dist[u] + walk(pu[2], pu[3], pv[2], pv[3])
+        if c < dist[v] then dist[v] = c; via[v] = via[u] end
+      end
     end
-    for v = 1, #stops do -- run between stops on the same continent
-      if not done[v] and stops[v][1] == stops[u][1] then relax(v, walk(stops[u][2], stops[u][3], stops[v][2], stops[v][3])) end
-    end
-    for _, e in ipairs(edges) do
-      if e[1] == u and not done[e[2]] then relax(e[2], e[3], e[4]) end
+    for _, e in ipairs(adj[u]) do
+      local v = e[1]
+      if not done[v] and dist[u] + e[2] < dist[v] then
+        dist[v] = dist[u] + e[2]
+        -- describe the route: consecutive flights collapse into "flight to <last stop>"
+        local legs = {}
+        for i, l in ipairs(via[u] or {}) do legs[i] = l end
+        local label = e[3] == "flight" and ("flight to " .. (pts[v].name or "?")) or e[3]
+        if e[3] == "flight" and legs[#legs] and legs[#legs]:find("^flight to ") then legs[#legs] = label
+        else legs[#legs + 1] = label end
+        via[v] = legs
+      end
     end
   end
-  return stops, dist, via
+  travelCache = { key = key, pts, dist, via }
+  return pts, dist, via
 end
 
 -- seconds from you to an NPC, and the first boat/zeppelin on the way (or nil)
@@ -420,7 +484,9 @@ end
 function Core.TravelText(loc)
   if not (loc and loc.travel) then return nil end
   local min = math.max(1, math.floor(loc.travel / 60 + 0.5))
-  return ("about %d min away%s"):format(min, loc.via and (" (by boat/zeppelin: " .. loc.via .. ")") or "")
+  local route = loc.via and #loc.via > 0 and (" (" .. table.concat(loc.via, ", then ") .. ")") or ""
+  local hint = next(Core.KnownTaxi()) == nil and " - flight paths not counted yet: open a flight master's map once" or ""
+  return ("about %d min away%s%s"):format(min, route, hint)
 end
 
 -- Trainers teach recipe tiers (bits: 1 Apprentice, 2 Journeyman, 4 Expert, 8 Artisan);
@@ -730,6 +796,8 @@ f:SetScript("OnEvent", function(_, ev, arg1)
     end
   elseif ev == "TRADE_SKILL_CLOSE" then
     if ns.UI then ns.UI.AutoClose() end
+  elseif ev == "TAXIMAP_OPENED" then
+    Core.RecordTaxi()
   elseif ev == "MERCHANT_SHOW" then
     Core.ScanMerchant()
   elseif ev == "TRAINER_SHOW" or ev == "TRAINER_UPDATE" then
@@ -740,6 +808,6 @@ f:SetScript("OnEvent", function(_, ev, arg1)
 end)
 for _, ev in ipairs({ "ADDON_LOADED", "PLAYER_LOGIN", "TRADE_SKILL_SHOW", "TRADE_SKILL_LIST_UPDATE",
                       "NEW_RECIPE_LEARNED", "TRAINER_SHOW", "TRAINER_UPDATE", "SKILL_LINES_CHANGED", "MERCHANT_SHOW",
-                      "BAG_UPDATE_DELAYED", "UPDATE_FACTION", "TRADE_SKILL_CLOSE" }) do
+                      "BAG_UPDATE_DELAYED", "UPDATE_FACTION", "TRADE_SKILL_CLOSE", "TAXIMAP_OPENED" }) do
   pcall(f.RegisterEvent, f, ev) -- an event this client lacks must not break the addon
 end

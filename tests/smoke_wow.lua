@@ -284,11 +284,29 @@ do
     return { GetXY = function() return 0.4723, 0.6181 end }
   end
   local e3 = Core.NearestTrainer(197, 3)
-  assert(e3 and e3.npc == "Josef Gregorian" and e3.via == "Orgrimmar and Undercity",
-    "Expert from Orgrimmar: Josef via zeppelin, got " .. tostring(e3 and e3.npc) .. " via " .. tostring(e3 and e3.via))
+  assert(e3 and e3.npc == "Josef Gregorian" and e3.via and e3.via[1] == "boat/zeppelin: Orgrimmar and Undercity",
+    "Expert from Orgrimmar: Josef via zeppelin, got " .. tostring(e3 and e3.npc))
   local e4 = Core.NearestTrainer(197, 4)
   assert(e4 and e4.npc == "Daryl Stack", "Artisan: Daryl Stack (Master)")
   print(("from Orgrimmar: Expert -> %s, %s; Artisan -> %s, %s"):format(e3.npc, Core.TravelText(e3), e4.npc, Core.TravelText(e4)))
+  -- flight paths: none known -> zeppelin + run; after recording known flight points the
+  -- Hillsbrad trip uses the Undercity -> Tarren Mill flight and gets shorter
+  local before = e4.travel
+  assert(e4.via and #e4.via == 1, "no flights known yet: zeppelin then run")
+  local T = SkillRouteData.taxi.nodes
+  local uc, tm
+  for id, n in pairs(T) do
+    if n[5]:find("^Undercity") then uc = id end
+    if n[5]:find("^Tarren Mill") then tm = id end
+  end
+  _G.GetTaxiMapID = function() return 1415 end
+  _G.C_TaxiMap = { GetAllTaxiNodes = function() return {
+    { nodeID = uc, state = 1 }, { nodeID = tm, state = 1 }, { nodeID = 999999, state = 2 } } end }
+  Core.RecordTaxi()
+  assert(Core.KnownTaxi()[uc] and Core.KnownTaxi()[tm] and not Core.KnownTaxi()[999999], "known flight points recorded")
+  local e4b = Core.NearestTrainer(197, 4)
+  assert(e4b.npc == "Daryl Stack" and e4b.travel < before, "flight makes Hillsbrad faster")
+  print(("Artisan with flights: %s, %s (was %.0f s, now %.0f s)"):format(e4b.npc, Core.TravelText(e4b), before, e4b.travel))
   local j2 = Core.NearestTrainer(197, 2)
   assert(j2 and j2.npc == "Magar", "Journeyman from Orgrimmar: Magar, got " .. tostring(j2 and j2.npc))
   C_Map.GetPlayerMapPosition = savedPos
@@ -298,5 +316,20 @@ do
   Core.Waypoint(loc)
   assert(got and got[1] == 1458 and math.abs(got[2] - 0.708) < 1e-9 and got[4] == loc.npc, "TomTom waypoint")
   _G.TomTom = nil
+end
+-- worst case timing: every flight point known, empty travel cache
+do
+  local known = Core.KnownTaxi()
+  for id in pairs(SkillRouteData.taxi.nodes) do known[id] = true end
+  _G.C_TaxiMap = { GetAllTaxiNodes = function() local t = {} for id in pairs(SkillRouteData.taxi.nodes) do t[#t + 1] = { nodeID = id, state = 1 } end return t end }
+  Core.RecordTaxi() -- bumps the version: cache invalid
+  local t0 = os.clock()
+  local e = Core.NearestTrainer(197, 4)
+  local first = (os.clock() - t0) * 1000
+  t0 = os.clock()
+  for _ = 1, 20 do Core.NearestTrainer(197, 3) end
+  local cached = (os.clock() - t0) * 1000 / 20
+  print(("travel graph, every flight point known (%d flights): first %.1f ms, cached %.2f ms per lookup (%s)"):format(
+    #SkillRouteData.taxi.flights, first, cached, e and e.npc or "?"))
 end
 print("SMOKE TEST PASSED")
