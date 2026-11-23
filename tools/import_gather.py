@@ -88,12 +88,24 @@ def main():
             nd["zones"] = {z: round(c, 1) for z, c in nd["zones"].items() if c >= 0.5}
     res = {line: sorted((x for x in d.values() if x["zones"]), key=lambda x: (x["req"], x["n"]))
            for line, d in out.items()}
+    # Fishing: each zone's fishing level (Classic skill_fishing_base_level), named with
+    # Forever's AreaTable; only top-level zones on the two continents.
+    area = {int(r["ID"]): r for r in csv.DictReader(open(tbl("AreaTable"), encoding="utf-8"))}
+    fish = []
+    for r in sql_rows(sqlgz, "skill_fishing_base_level"):
+        a = area.get(int(r[0]))
+        if a and a["ParentAreaID"] == "0" and a["ContinentID"] in ("0", "1") and a["AreaName_lang"]:
+            fish.append([a["AreaName_lang"], int(r[1])])
+    res["fishing"] = sorted(fish, key=lambda z: (z[1], z[0]))
     dst = os.path.join(os.path.dirname(os.path.abspath(__file__)), "gather.json")
     with open(dst, "w", encoding="utf-8") as f:
         json.dump(res, f, separators=(",", ":"), sort_keys=True)
     print(f"{kept} node spawns placed in zones ({dropped} left out: no zone in their pool) -> {os.path.relpath(dst)}")
     for line, lst in res.items():
-        print(" ", {"182": "Herbalism", "186": "Mining"}[line], ", ".join(f"{x['n']} {x['req']}" for x in lst))
+        if line == "fishing":
+            print("  Fishing zones:", ", ".join(f"{z} {s}" for z, s in lst))
+        else:
+            print(" ", {"182": "Herbalism", "186": "Mining"}[line], ", ".join(f"{x['n']} {x['req']}" for x in lst))
 
 
 if __name__ == "__main__":

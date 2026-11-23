@@ -30,7 +30,7 @@ fetch() { # table build [saved-as]
   curl -fsS --max-time 300 "https://wago.tools/db2/$1/csv?build=$2" -o "$out.part" && mv "$out.part" "$out"
 }
 pids=()
-for t in FactionTemplate SpellEffect UiMapAssignment UiMap TaxiPathNode Lock SpellName ItemEffect ItemXItemEffect; do
+for t in FactionTemplate SpellEffect UiMapAssignment UiMap TaxiPathNode Lock SpellName ItemEffect ItemXItemEffect AreaTable; do
   fetch "$t" "$BUILD" & pids+=($!)
 done
 fetch SpellEffect "$ERA" SpellEffect-era & pids+=($!)

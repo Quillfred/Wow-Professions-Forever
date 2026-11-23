@@ -419,6 +419,18 @@ check(#herb.gaps == 0, "herbalism 1-300 without gaps")
 local skin = P.GatherPlan({ skinning = true, skill = 120, target = 160 })
 check(skin.steps[1].name == "level 21-24 beasts", "skinning at 120: level 24 beasts (" .. skin.steps[1].name .. ")")
 
+-- 10n. fishing: catches follow the server rule, zones never lose fish
+check(P.FishChance(50) == 1 and math.abs(P.FishChance(100) - 0.5) < 1e-9 and math.abs(P.FishChance(300) - 0.1) < 1e-9, "fish skill-up chance")
+local fish = P.GatherPlan({ fishing = D.fishing, skill = 1, target = 300 })
+local catches, prev = 0, 0
+for _, st in ipairs(fish.steps) do
+  catches = catches + st.crafts
+  for k = 2, #st.zones, 2 do check(st.zones[k] + 95 <= st.from, "no fish lost in " .. st.zones[k - 1] .. " at " .. st.from) end
+end
+check(catches > 1000 and catches < 1600, ("1-300 catches plausible: %.0f"):format(catches))
+print(("fishing 1-300: ~%.0f catches; at 225: %s"):format(catches, (function()
+  for _, st in ipairs(fish.steps) do if st.from == 225 then local z = {} for k = 1, #st.zones, 2 do z[#z+1] = st.zones[k] end return table.concat(z, ", ") end end end)()))
+
 -- 11. reputation patterns: only with the standing they need
 local function repPlan(standing)
   return P.Plan({ recipes = T, items = items, tools = D.tools, hasTool = function() return false end,

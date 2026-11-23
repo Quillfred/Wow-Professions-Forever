@@ -19,7 +19,10 @@ A WoW Forever addon that plans the cheapest way to level a crafting profession.
 - **Gathering professions:** Mining and Herbalism get a route of which node to gather
   in which zones for each skill range (node skill from the client, spawns from Classic
   data); rare ores (Silver, Gold, Truesilver) are "when you see them". Skinning names
-  the beast levels to skin. Fishing isn't planned.
+  the beast levels to skin. Fishing: the catches needed per range (server rule: a point
+  per catch below 75, then 25 / (skill - 50)) and the zones where no fish get away.
+  Ranks no trainer teaches (Expert First Aid / Cooking / Fishing books, the Artisan
+  quests) show the book's vendor or the quest giver.
 - **All crafting professions:** Alchemy, Blacksmithing, Cooking, Enchanting,
   Engineering, First Aid, Leatherworking and Tailoring. The window shows the ones
   your character has; switch with the arrows.

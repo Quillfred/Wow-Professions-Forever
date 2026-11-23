@@ -908,6 +908,7 @@ function Core.Plan(line, target)
   if Data.professions[line].gather then -- Mining, Herbalism, Skinning: a zone route
     local t0g = debugprofilestop and debugprofilestop()
     local plan = Planner.GatherPlan({ nodes = Data.gather and Data.gather[line], skinning = line == 393,
+      fishing = line == 356 and Data.fishing or nil,
       skill = s.rank, target = target, maxSkill = s.max, bonus = db().settings.bonus or 0 })
     plan.ms = t0g and (debugprofilestop() - t0g)
     plan.skill, plan.max, plan.target, plan.line = s.rank, s.max, target, line

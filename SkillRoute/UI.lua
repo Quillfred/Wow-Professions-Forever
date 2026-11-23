@@ -245,16 +245,26 @@ local function routeRows(plan)
       for k = 1, #(st.zones or {}), 2 do
         if #zones < 3 then zones[#zones + 1] = ("%s (%d)"):format(st.zones[k], st.zones[k + 1]) end
       end
+      if st.fishing then
+        zones = {}
+        for k = 1, #(st.zones or {}), 2 do zones[#zones + 1] = st.zones[k] end
+      end
       add({ icon = st.skinning and "Interface\\Icons\\INV_Misc_Pelt_Wolf_01"
+                   or st.fishing and "Interface\\Icons\\Trade_Fishing"
                    or (plan.line == 186 and "Interface\\Icons\\Trade_Mining" or "Interface\\Icons\\Trade_Herbalism"),
             text = st.skinning and ("|cff%s~%d|r x skin %s"):format(COLORS[st.color] or "ffffff", math.ceil(st.crafts), st.name)
+                   or st.fishing and ("|cff%s~%d|r catches"):format(COLORS[st.color] or "ffffff", math.ceil(st.crafts - 1e-9))
                    or ("|cff%s~%d|r x %s"):format(COLORS[st.color] or "ffffff", math.ceil(st.crafts - 1e-9), st.name),
-            sub = st.skinning and "Skin the highest-level beasts you can: always a skill point."
+            sub = st.fishing and (#zones > 0 and ("No fish get away in: " .. table.concat(zones, ", "))
+                                  or "Fish in your starting zone's waters")
+                  or st.skinning and "Skin the highest-level beasts you can: always a skill point."
                   or ((#zones > 0 and ("Best zones: " .. table.concat(zones, ", ")) or "")
                       .. ((st.also and #st.also > 0) and ("  |cff40bf40+ " .. table.concat(st.also, ", ") .. " when you see it|r") or "")),
             range = ("%d-%d"):format(st.from, st.to),
             tipTitle = st.name,
-            tip = { st.skinning and "Beasts of level 21+ need 5 x their level in skill; younger ones less."
+            tip = { st.fishing and ("A catch gives a point %s. Below a zone's fishing level you hook nothing; until 95 above it some fish get away."):format(
+                      st.from < 75 and "every time below 75" or ("about 1 in %d times here"):format(math.ceil(1 / ns.Planner.FishChance(st.from))))
+                    or st.skinning and "Beasts of level 21+ need 5 x their level in skill; younger ones less."
                     or "Zones with the most spawns of this node (Classic spawn data). Gather anything orange or yellow on the way." } })
     elseif st.gap then
       add({ icon = "Interface\\Icons\\INV_Scroll_03",
@@ -457,7 +467,7 @@ local function refresh()
   if state.mode == "route" then hRange:Show() else hRange:Hide() end
   if plan.gather then
     footer:SetText(("Gathering route: about %d %s   |cff808080planned in %s|r"):format(math.ceil(plan.gathers or 0),
-      plan.line == 393 and "skins" or "nodes", plan.ms and ("%.1f ms"):format(plan.ms) or "?"))
+      plan.line == 393 and "skins" or plan.line == 356 and "catches" or "nodes", plan.ms and ("%.1f ms"):format(plan.ms) or "?"))
     return
   end
   footer:SetText(("Buy for |cffffffff%s|r%s%s   |cff808080planned in %s|r"):format(money(plan.total, "ffffff"),

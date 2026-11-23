@@ -717,10 +717,34 @@ local function skinLevel(s)
   return 10
 end
 
+-- Fishing (server rule, cMaNGOS): a catch gives a point always below 75, else with
+-- chance 25 / (skill - 50); you hook nothing below a zone's level and lose fish until
+-- level + 95. Route: the catches needed, and the highest zones where nothing escapes.
+function Planner.FishChance(s)
+  if s < 75 then return 1 end
+  return math.min(1, 25 / (s - 50))
+end
+
 function Planner.GatherPlan(ctx)
   local from, to = ctx.skill, ctx.target
   local steps, gaps, total = {}, {}, 0
-  if ctx.skinning then
+  if ctx.fishing then
+    local s = from
+    while s < to do
+      local e = math.min(to, (math.floor(s / 25) + 1) * 25)
+      local n = 0
+      for k = s, e - 1 do n = n + 1 / Planner.FishChance(k) end
+      local safe = {}
+      for _, z in ipairs(ctx.fishing) do if z[2] + 95 <= s then safe[#safe + 1] = z end end
+      table.sort(safe, function(a, b) if a[2] ~= b[2] then return a[2] > b[2] end return a[1] < b[1] end)
+      local zones = {}
+      for k = 1, math.min(3, #safe) do zones[#zones + 1] = safe[k][1]; zones[#zones + 1] = safe[k][2] end
+      steps[#steps + 1] = { gather = true, fishing = true, name = "fish", from = s, to = e, crafts = n,
+                            zones = zones, color = Planner.FishChance(s) >= 1 and "orange" or "yellow" }
+      total = total + n
+      s = e
+    end
+  elseif ctx.skinning then
     local s = from
     while s < to do
       local e = math.min(to, s + 15 - (s % 15))

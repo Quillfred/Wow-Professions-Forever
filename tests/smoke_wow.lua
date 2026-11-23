@@ -517,6 +517,24 @@ do
   GetProfessions, GetProfessionInfo = saved[1], saved[2]
 end
 
+-- Fishing: route + Expert book (Old Man Heming sells to both factions) + Artisan quest
+do
+  local book = Core.RankBook(356, 3)
+  assert(book and book.name:find("Expert Fishing") and book.loc and book.loc.npc == "Old Man Heming", "fishing book vendor")
+  local q = Core.RankQuest(356, 4)
+  assert(q and q.title == "Nat Pagle, Angler Extreme", "fishing Artisan quest")
+  local saved = { GetProfessions, GetProfessionInfo }
+  GetProfessions = function() return 1 end
+  GetProfessionInfo = function() return "Fishing", 0, 100, 150, 0, 0, 356 end
+  UI.Toggle(356)
+  local row
+  for _, t in ipairs(texts) do local v = rawget(t, "text"); if type(v) == "string" and v:find("catches", 1, true) and v:find("~") then row = v end end
+  assert(row, "fishing rows")
+  UI.Toggle()
+  GetProfessions, GetProfessionInfo = saved[1], saved[2]
+  print(("Fishing: Expert book from %s, Artisan quest '%s' from %s"):format(book.loc.npc, q.title, q.loc.npc))
+end
+
 -- /sr check runs and reports; errors are caught, not thrown
 do
   local out = {}
