@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.34.1
+
+- Options: the two route sliders are reworded so they no longer read like a charge.
+  - **Expect to sell what you make** (was "Count crafted items as sold on the AH"): the
+    value reads "45% of AH price", with a caution about listing many at once.
+  - **Prefer fewer crafts** (was "What a craft's time is worth"): the value reads
+    "up to 44s"; nothing is ever charged.
+  - Both have end labels and a live example that changes as you drag, so you can see
+    where the choice flips.
+
 ## 0.34.0 (beta): first public release
 
 SkillRoute Forever plans the cheapest way to level any profession in WoW Forever, from the

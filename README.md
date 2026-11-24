@@ -21,8 +21,8 @@ A WoW Forever addon that plans the cheapest way to level a crafting profession.
 5. **Shopping list** (button at the top) is everything to buy, with what you already
    have (bags, bank, alts) taken off. With the auction house open, **Buy** on a step puts
    its reagents in an Auctionator list and opens the Shopping tab.
-6. **Options** (button, or right-click the minimap button): safety margin, resale share,
-   how much a craft's time is worth, alts, estimates. `/sr help` lists the commands;
+6. **Options** (button, or right-click the minimap button): safety margin, expect to sell
+   what you make, prefer fewer crafts, alts, estimates. `/sr help` lists the commands;
    `/sr check` checks everything works.
 
 
@@ -114,8 +114,10 @@ Copy the `SkillRoute` folder into `World of Warcraft/_forever_/Interface/AddOns/
 - `/sr margin <50-99>` how often the shopping list should be enough to finish
   (default 90; 50 = the expected amount).
 - `/sr ah` (or the button in the shopping list) sends the list to Auctionator.
-- `/sr craftcost <copper>` what a craft's time is worth to you (route choice only).
-- `/sr resale <0-100>` count crafted items as sold on the AH at that share of their price.
+- `/sr craftcost <copper>` prefer fewer crafts: the extra material cost you accept per
+  craft saved (route choice only, never charged).
+- `/sr resale <0-100>` expect to sell what you make: count that share of its AH price as
+  money back when choosing recipes.
 - `/sr alts on|off` count materials on your other characters (Syndicator / DataStore).
 - Click a step whose recipe you know to open it in your profession window.
 - **Right-click a step** to skip that recipe (e.g. its pattern isn't for sale) and

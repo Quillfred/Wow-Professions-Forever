@@ -508,7 +508,7 @@ local function routeRows(plan)
         if not sv and w.gap >= 1 and points > 1 then sub("over this step", "~" .. money(w.gap * points)) end
         local because = w.because == "reliable" and ("skills up more reliably (%.1f vs %.1f crafts per point)"):format(w.craftsOurs, w.craftsAlt)
           or w.because == "feeds" and "what it makes is used by later steps"
-          or w.because == "resale" and ("sells back well (your %d%% resale setting)"):format((SkillRouteDB.settings and SkillRouteDB.settings.resale) or 0)
+          or w.because == "resale" and ("sells back well (your Expect to sell setting, %d%%)"):format((SkillRouteDB.settings and SkillRouteDB.settings.resale) or 0)
           or w.because == "fee" and "the next best needs a trainer fee"
           or w.because == "time" and "fewer crafts (your craft's-time setting)"
           or w.because == "sticky" and "keeps going with the next step's recipe (within 3%)"
@@ -584,7 +584,7 @@ local function routeRows(plan)
         sub("materials", money(st.grossCost) .. ", counted there")
       elseif st.resale then
         row("Afterwards", "|cff40bf40Sell on the AH|r")
-        sub("brings back", money(st.resale) .. " at your resale share")
+        sub("brings back", money(st.resale) .. " at your Expect to sell setting")
       elseif r.out then
         local action, compared, used = afterCrafting(r.out, math.ceil(st.crafts - 1e-9) * (r.outN or 1))
         row("Afterwards", action)
@@ -1024,7 +1024,7 @@ SlashCmdList.SKILLROUTE = function(msg)
       settings.craftValue = math.floor(v)
       print(("SkillRoute: each craft now counts as %s of your time when choosing recipes (not added to the total)."):format(money(settings.craftValue)))
     else
-      print("SkillRoute: /sr craftcost <copper>  (what a craft's time is worth to you; 0 = only gold matters)")
+      print("SkillRoute: /sr craftcost <copper>  (prefer fewer crafts: extra material cost accepted per craft saved; 0 = cheapest)")
     end
   elseif cmd == "resale" and settings then
     local v = tonumber(arg)

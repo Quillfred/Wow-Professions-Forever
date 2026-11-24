@@ -1106,6 +1106,31 @@ do
   O.Set("minimapHide", false); assert(b:IsShown(), "and shown again")
   SlashCmdList.SKILLROUTE("minimap off"); assert(not b:IsShown())
   SlashCmdList.SKILLROUTE("minimap on"); assert(b:IsShown())
+  -- the two reworded sliders: their blue examples follow the slider and flip where the planner does
+  assert(O.FewerExample(0):find("^Off"), O.FewerExample(0))
+  assert(O.FewerExample(5):find("still") and O.FewerExample(5):find("10s to you"), O.FewerExample(5))
+  assert(O.FewerExample(10):find("about even"), O.FewerExample(10))
+  assert(O.FewerExample(44):find("orange 50s recipe") and O.FewerExample(44):find("88s to you"), O.FewerExample(44))
+  assert(O.FewerExample(100):find("2g to you"), O.FewerExample(100))
+  assert(O.ResaleExample(0) == "Off: only what you spend counts.")
+  assert(O.ResaleExample(45):find("counts as 13s %(30s minus 17s back%)"), O.ResaleExample(45))
+  assert(O.ResaleExample(80):find("pays for itself"), O.ResaleExample(80))
+  local moved = 0
+  for _, f in ipairs(frames) do
+    local h = rawget(f, "OnValueChanged")
+    if h then
+      h(f, 44)
+      moved = moved + 1
+    end
+  end
+  assert(moved >= 3, "sliders built: " .. moved)
+  local seen88, seenOrange
+  for _, fs in ipairs(texts) do
+    if type(fs.text) == "string" and fs.text:find("88s to you") then seen88 = true end
+    if fs.text == "up to 44s" then seenOrange = true end
+  end
+  assert(seen88 and seenOrange, "dragging Prefer fewer crafts to 44s rewrites its value and example")
+  SkillRouteDB.settings.craftValue, SkillRouteDB.settings.resale = nil, nil
   O.Toggle(); assert(not O.IsShown(), "options close")
   SkillRouteDB.settings.margin = nil
 end

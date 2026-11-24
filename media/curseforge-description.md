@@ -44,7 +44,7 @@ Leveling guides written for Classic don't match Forever: many recipes changed sk
 1. Install **[Auctionator](https://www.curseforge.com/wow/addons/auctionator)** (strongly recommended: SkillRoute's prices come from it) and do a full AH scan.
 2. Open your profession window: SkillRoute opens next to it. You can also type **/sr** or click the minimap button.
 3. Read the route top to bottom. **Hover** a step for details, **click** to open the recipe or set a waypoint, **right-click** to skip a recipe you can't get.
-4. Use **Shopping list** for what to buy, and **Options** for the safety margin, alts, resale share and more.
+4. Use **Shopping list** for what to buy, and **Options** for the safety margin, alts, selling what you make and more.
 
 **Optional:** TomTom (better waypoints), Syndicator or DataStore (count materials on your alts).
 

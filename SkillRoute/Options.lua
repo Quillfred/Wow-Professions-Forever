@@ -102,12 +102,51 @@ local function check(parent, y, label, tip, get, set)
 end
 
 -- A slider where the client has the classic template, else a number box.
-local function number(parent, y, label, tip, lo, hi, step, fmt, get, set)
+-- A slider row. opts (optional): ends = { left, right } labels under the slider (the
+-- left one turns gold at the minimum), example = function(v) -> text (blue, rewritten as
+-- the slider moves), caution = text (orange, below the rest).
+local WIDTH = 340
+local function number(parent, y, label, tip, lo, hi, step, fmt, get, set, opts)
+  opts = opts or {}
   local t = parent:CreateFontString(nil, "OVERLAY", "GameFontNormal")
   t:SetPoint("TOPLEFT", 20, y)
   t:SetText(label)
   local value = parent:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
   value:SetPoint("TOPRIGHT", -24, y)
+  local below = y - 40
+  local left, right
+  if opts.ends then
+    left = parent:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
+    left:SetPoint("TOPLEFT", 24, y - 38); left:SetText(opts.ends[1])
+    right = parent:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
+    right:SetPoint("TOPRIGHT", -24, y - 38); right:SetText(opts.ends[2])
+    below = y - 54
+  end
+  local hint = parent:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
+  hint:SetPoint("TOPLEFT", 20, below); hint:SetWidth(WIDTH); hint:SetJustifyH("LEFT")
+  hint:SetText(tip)
+  below = below - (hint:GetStringHeight() or 12) - 4
+  local example
+  if opts.example then
+    example = parent:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+    example:SetPoint("TOPLEFT", 20, below); example:SetWidth(WIDTH); example:SetJustifyH("LEFT")
+    example:SetTextColor(0.56, 0.78, 1)
+    below = below - 40 -- room for three lines, so the rows below don't move as the text changes
+  end
+  if opts.caution then
+    local c = parent:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+    c:SetPoint("TOPLEFT", 20, below); c:SetWidth(WIDTH); c:SetJustifyH("LEFT")
+    c:SetTextColor(0.95, 0.68, 0.35)
+    c:SetText(opts.caution)
+    below = below - (c:GetStringHeight() or 24) - 4
+  end
+  local function show(v)
+    value:SetText(fmt(v))
+    if example then example:SetText(opts.example(v)) end
+    if left then
+      if v <= lo then left:SetTextColor(1, 0.82, 0) else left:SetTextColor(0.5, 0.5, 0.5) end
+    end
+  end
   local ok, s = pcall(CreateFrame, "Slider", nil, parent, "OptionsSliderTemplate")
   if ok and s then
     s:SetPoint("TOPLEFT", 24, y - 20); s:SetPoint("RIGHT", -24, 0)
@@ -121,26 +160,63 @@ local function number(parent, y, label, tip, lo, hi, step, fmt, get, set)
     local busy = false
     s:SetScript("OnValueChanged", function(_, v)
       v = math.floor(v / step + 0.5) * step
-      value:SetText(fmt(v))
+      show(v)
       if not busy then set(v) end
     end)
-    refreshers[#refreshers + 1] = function() busy = true; s:SetValue(get()); value:SetText(fmt(get())); busy = false end
+    refreshers[#refreshers + 1] = function() busy = true; s:SetValue(get()); show(get()); busy = false end
   else
     local e = CreateFrame("EditBox", nil, parent, "InputBoxTemplate")
     e:SetSize(60, 20); e:SetPoint("TOPLEFT", 28, y - 20)
     e:SetAutoFocus(false); e:SetNumeric(true)
     e:SetScript("OnEnterPressed", function(self)
       local v = tonumber(self:GetText())
-      if v then set(math.max(lo, math.min(hi, v))) end
+      if v then set(math.max(lo, math.min(hi, v))); show(get()) end
       self:ClearFocus()
     end)
-    refreshers[#refreshers + 1] = function() e:SetText(tostring(get())); value:SetText(fmt(get())) end
+    refreshers[#refreshers + 1] = function() e:SetText(tostring(get())); show(get()) end
   end
-  t:SetScript("OnEnter", nil)
-  local hint = parent:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
-  hint:SetPoint("TOPLEFT", 20, y - 40); hint:SetPoint("RIGHT", -20, 0); hint:SetJustifyH("LEFT")
-  hint:SetText(tip)
-  return y - 62
+  return below - 8
+end
+
+-- Silver amount as text: 44 -> "44s", 138 -> "1g 38s".
+local function silver(n)
+  n = math.floor(n + 0.5)
+  local g, s = math.floor(n / 100), n % 100
+  if g == 0 then return s .. "s" end
+  return s == 0 and (g .. "g") or (g .. "g " .. s .. "s")
+end
+
+local WIN = "|cff40bf40wins|r"
+
+-- Live example for "Expect to sell what you make": a 30s craft whose item sells for 40s.
+-- Mirrors the planner: share x 95% (after the AH cut) x price comes off the craft's cost,
+-- and a craft that pays for itself counts as nearly free, never as profit.
+function Options.ResaleExample(pct)
+  if pct <= 0 then return "Off: only what you spend counts." end
+  local back = math.floor(40 * 0.95 * pct / 100 + 0.5)
+  if back >= 30 then
+    return ("At %d%%: a 30s craft whose item sells for 40s pays for itself (%s back), so it counts as nearly free.")
+      :format(pct, silver(back))
+  end
+  return ("At %d%%: a 30s craft whose item sells for 40s counts as %s (30s minus %s back).")
+    :format(pct, silver(30 - back), silver(back))
+end
+
+-- Live example for "Prefer fewer crafts": an orange 50s recipe (1 craft per point) against
+-- a 10s one at a 1-in-3 chance (3 crafts, 30s per point). The planner compares
+-- (cost + v) / chance, so the orange one wins above v = 10s: 20s more to save 2 crafts.
+function Options.FewerExample(v)
+  if v <= 0 then
+    return "Off: always the cheapest materials. A 10s recipe you craft 3 times (30s per point) " .. WIN .. " over an orange 50s one."
+  end
+  if v < 10 then
+    return ("At %s: the 10s recipe you craft 3 times (30s) still %s. The orange 50s one costs 20s more, and saving 2 crafts is only worth %s to you.")
+      :format(silver(v), WIN, silver(2 * v))
+  elseif v == 10 then
+    return "At 10s: about even. The orange 50s one costs 20s more, and saving 2 crafts is worth exactly 20s to you."
+  end
+  return ("At %s: the orange 50s recipe %s over a 10s one you craft 3 times (30s). It costs 20s more, and saving 2 crafts is worth %s to you.")
+    :format(silver(v), WIN, silver(2 * v))
 end
 
 local function build()
@@ -183,14 +259,19 @@ local function build()
     "Extra skill-up chance from the talent; 0 if you don't have it.",
     0, 20, 1, function(v) return ("%d%%"):format(v) end,
     function() return math.floor((S().bonus or 0) * 100 + 0.5) end, function(v) Options.Set("bonus", v / 100) end)
-  y = number(panel, y, "Count crafted items as sold on the AH",
-    "Share of their AH price (minus the cut); 0 = off. Selling many lowers the price.",
-    0, 100, 5, function(v) return v == 0 and "off" or ("%d%%"):format(v) end,
-    function() return S().resale or 0 end, function(v) Options.Set("resale", v) end)
-  y = number(panel, y, "What a craft's time is worth (silver)",
-    "Prefers fewer crafts when gold costs are close. Not added to the total.",
-    0, 100, 1, function(v) return v == 0 and "off" or ("%ds"):format(v) end,
-    function() return math.floor((S().craftValue or 0) / 100) end, function(v) Options.Set("craftValue", v * 100) end)
+  y = number(panel, y, "Expect to sell what you make",
+    "Recipes whose items sell well get picked more often. Counts this share of each item's AH price (after the 5% cut) as money back. Nothing is listed for you; the route shows it as \"~X back from sales\".",
+    0, 100, 5, function(v) return v == 0 and "off" or ("%d%% of AH price"):format(v) end,
+    function() return S().resale or 0 end, function(v) Options.Set("resale", v) end,
+    { ends = { "Ignore sales", "Full AH price" }, example = Options.ResaleExample,
+      caution = "You may need to craft many of the same item. Listing them all at once drives the price down, and you lose the deposit on any that don't sell. Set this low unless you know they sell well." })
+  y = number(panel, y, "Prefer fewer crafts",
+    "Picks a recipe that skills up more reliably even if its materials cost more for each craft it saves you. Nothing is charged; it only changes which recipe is chosen.",
+    0, 100, 1, function(v) return v == 0 and "off" or ("up to " .. silver(v)) end,
+    function() return math.floor((S().craftValue or 0) / 100) end, function(v) Options.Set("craftValue", v * 100) end,
+    { ends = { "Cheapest materials", "Fewest crafts" }, example = Options.FewerExample })
+
+  panel:SetHeight(-y + 46)
 
   local b1 = CreateFrame("Button", nil, panel, "UIPanelButtonTemplate")
   b1:SetSize(160, 22); b1:SetPoint("BOTTOMLEFT", 16, 14); b1:SetText("Run self-check")
