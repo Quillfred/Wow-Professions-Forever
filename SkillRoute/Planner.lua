@@ -191,7 +191,10 @@ local function findUnlocks(ctx, unit)
               end
             end
             local v = vendorOK and ctx.items[it] and ctx.items[it][3] or nil
-            local ah, est = ctx.price(it)
+            -- the AH price itself (ctx.ahPrice), not "cheaper of AH and vendor": a vendor
+            -- price the faction check rejected mustn't come back as an AH sighting
+            local ah, est
+            if ctx.ahPrice then ah, est = ctx.ahPrice(it), false else ah, est = ctx.price(it) end
             -- a one-off listing: only trust a recent sighting (ctx.ahFresh), not an old price
             if ah and ctx.ahFresh and not ctx.ahFresh(it) then ah = nil end
             if est or ah == v then ah = nil end -- estimate, or just the vendor price echoed back

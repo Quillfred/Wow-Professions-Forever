@@ -663,6 +663,29 @@ do
   assert(loc and loc.npc, "a Cooking trainer for an Expert-level recipe")
   print("goblin deviled clams trainer: " .. loc.npc)
   print("ah why (Horde, Cooked Crab Claw):" .. why)
+  -- its 4s vendor price is Alliance-only: for Horde the price is the AH's 1g 50s, and
+  -- an AH pattern step shows that, not "last seen 4s"
+  assert(SkillRouteData.items[2698][3] == 400, "the recipe's vendor price is 4s")
+  prices[2698] = 15000
+  assert(Core.Price(2698) == 15000, "Horde: no Alliance vendor price, the AH price: " .. tostring(Core.Price(2698)))
+  assert(Core.AHPrice(2698) == 15000, "AH price alone")
+  local savedAge = Auctionator.API.v1.GetAuctionAgeByItemID
+  Auctionator.API.v1.GetAuctionAgeByItemID = function() return 0 end
+  local savedP = { GetProfessions, GetProfessionInfo }
+  GetProfessions = function() return 1 end
+  GetProfessionInfo = function() return "Cooking", 0, 85, 150, 0, 0, 185 end
+  local cp = Core.Plan(185, 100)
+  for _, st in ipairs(cp.steps) do
+    if st.unlock and st.unlock.item == 2698 then
+      assert(st.unlock.price == 15000, "pattern bought at the AH price, not the vendor's: " .. tostring(st.unlock.price))
+    end
+  end
+  for _, u in pairs(cp.unlocks or {}) do
+    if u.item == 2698 then assert(u.via == "ah" and u.price == 15000, "Crab Claw pattern: AH at 1g 50s") end
+  end
+  GetProfessions, GetProfessionInfo = savedP[1], savedP[2]
+  Auctionator.API.v1.GetAuctionAgeByItemID = savedAge
+  prices[2698] = nil
 end
 
 -- recipes taught by a quest (ATT): learnable when your faction has a giver; the row

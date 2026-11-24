@@ -949,6 +949,23 @@ function Core.PriceSource()
   return auctionator() and "Auctionator" or nil
 end
 
+-- The auction house price alone (Auctionator's last scan), never a vendor price.
+function Core.AHPrice(item)
+  local api = auctionator()
+  if not api then return nil end
+  local ok, v = pcall(api.GetAuctionPriceByItemID, CALLER, item)
+  return ok and v or nil
+end
+
+-- Can you buy it from a vendor? A pattern only if a vendor of your faction sells it (or
+-- you saw one); other vendor-priced items are sold to both factions (see gen_data).
+local function vendorForMe(item)
+  local pv = Data.patternVendors and Data.patternVendors[item]
+  if not pv then return true end
+  local me = myLetter()
+  return not me or pv[1]:find(me, 1, true) ~= nil or Core.Place("vendor", item) ~= nil
+end
+
 function Core.Price(item)
   local api = auctionator()
   local ah, vendor
@@ -962,6 +979,7 @@ function Core.Price(item)
   end
   local it = Data.items[item]
   vendor = vendor or (it and it[3])
+  if vendor and not vendorForMe(item) then vendor = nil end -- e.g. an Alliance-only recipe for Horde
   if ah and vendor then return math.min(ah, vendor), false end
   if ah or vendor then return ah or vendor, false end
   -- not on the AH, but farmable (meat, fish): no gold, a small time cost so a rare drop
@@ -1144,7 +1162,7 @@ function Core.Plan(line, target)
     bonus = settings.bonus or 0,
     fixedUnlocks = cached and cached.key == key and cached.set or nil,
     skip = Core.Skips(line), ahFresh = Core.AHFresh, ownedPatterns = ownedPatterns,
-    questOK = questsForFaction(recipes),
+    questOK = questsForFaction(recipes), ahPrice = Core.AHPrice,
     hasSpec = function(id) local k = IsPlayerSpell or IsSpellKnown; return k and k(id) or false end,
   })
   if not (cached and cached.key == key) then
