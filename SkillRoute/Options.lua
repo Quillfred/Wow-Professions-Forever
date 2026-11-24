@@ -13,7 +13,7 @@ end
 
 -- One place to change a setting: store it, drop cached choices, re-plan if open.
 function Options.Set(key, value)
-  settings()[key] = value
+  if key == "bonus" then Core.Bonus(); Core.Char().bonus = value else settings()[key] = value end
   Core.InvalidatePatterns()
   Core.Changed()
   if key == "minimapHide" then Options.UpdateMinimap() end
@@ -131,7 +131,14 @@ local function number(parent, y, label, tip, lo, hi, step, fmt, get, set, opts)
     example = parent:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
     example:SetPoint("TOPLEFT", 20, below); example:SetWidth(WIDTH); example:SetJustifyH("LEFT")
     example:SetTextColor(0.56, 0.78, 1)
-    below = below - 40 -- room for three lines, so the rows below don't move as the text changes
+    -- room for the longest the example gets anywhere on the slider, so nothing below moves
+    -- as it changes and the next line sits right under it
+    local tallest = 0
+    for v = lo, hi, step do
+      example:SetText(opts.example(v))
+      tallest = math.max(tallest, example:GetStringHeight() or 0)
+    end
+    below = below - (tallest > 0 and tallest or 26) - 3
   end
   if opts.caution then
     local c = parent:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
@@ -178,6 +185,15 @@ local function number(parent, y, label, tip, lo, hi, step, fmt, get, set, opts)
   return below - 8
 end
 
+-- A faint line between options, so each slider's text clearly belongs to it.
+local function separator(parent, y)
+  local l = parent:CreateTexture(nil, "ARTWORK")
+  if l.SetColorTexture then l:SetColorTexture(1, 1, 1, 0.16) else l:SetTexture(1, 1, 1, 0.16) end
+  l:SetHeight(1)
+  l:SetPoint("TOPLEFT", 18, y); l:SetPoint("TOPRIGHT", -18, y)
+  return y - 10
+end
+
 -- Silver amount as text: 44 -> "44s", 138 -> "1g 38s".
 local function silver(n)
   n = math.floor(n + 0.5)
@@ -187,6 +203,21 @@ local function silver(n)
 end
 
 local WIN = "|cff40bf40wins|r"
+
+-- Live example for the safety margin: 10 skill points at a 1-in-2 chance take 20 crafts on
+-- average (variance 20). The shopping list buys mean + z x sd, as Planner.Shopping does.
+function Options.MarginExample(pct)
+  local n = math.ceil(20 + Core.MarginZ(pct) * math.sqrt(20) - 1e-9)
+  local short
+  if pct <= 50 then short = "Runs short about half the time."
+  else
+    local miss = 100 - pct
+    short = (100 % miss == 0) and ("Runs short about 1 time in %d."):format(100 / miss)
+      or ("Runs short about %d times in 100."):format(miss)
+  end
+  return ("At %d%%: 10 skill points at a 1-in-2 chance take 20 crafts on average; you'd buy enough for %d%s. %s")
+    :format(pct, n, n <= 20 and ", the expected amount" or "", short)
+end
 
 -- Live example for "Expect to sell what you make": a 30s craft whose item sells for 40s.
 -- Mirrors the planner: share x 95% (after the AH cut) x price comes off the craft's cost,
@@ -250,21 +281,26 @@ local function build()
   y = check(panel, y, "Show the minimap button",
     "Left-click opens SkillRoute, right-click these options.",
     function() return not S().minimapHide end, function(v) Options.Set("minimapHide", not v) end)
-  y = y - 6
+  y = separator(panel, y - 4)
   y = number(panel, y, "Shopping list safety margin",
-    "Buy enough to finish the route this often (50% = the expected amount).",
-    50, 99, 1, function(v) return ("%d%%"):format(v) end,
-    function() return S().margin or 90 end, function(v) Options.Set("margin", v) end)
+    "Skill-ups are random, so a step can take more crafts than expected. This is how sure you want to be that the shopping list covers the whole route. Higher buys more spare materials, which you can sell or use later.",
+    50, 99, 1, function(v) return ("%d%% sure"):format(v) end,
+    function() return S().margin or 90 end, function(v) Options.Set("margin", v) end,
+    { ends = { "Expected amount", "Almost never short" }, example = Options.MarginExample })
+  y = separator(panel, y)
   y = number(panel, y, "Working Overtime talent",
     "Extra skill-up chance from the talent; 0 if you don't have it.",
     0, 20, 1, function(v) return ("%d%%"):format(v) end,
-    function() return math.floor((S().bonus or 0) * 100 + 0.5) end, function(v) Options.Set("bonus", v / 100) end)
+    function() return math.floor(Core.Bonus() * 100 + 0.5) end, function(v) Options.Set("bonus", v / 100) end,
+    { example = function() return ("Saved for %s only; each character has its own."):format(UnitName("player") or "this character") end })
+  y = separator(panel, y)
   y = number(panel, y, "Expect to sell what you make",
     "Recipes whose items sell well get picked more often. Counts this share of each item's AH price (after the 5% cut) as money back. Nothing is listed for you; the route shows it as \"~X back from sales\".",
     0, 100, 5, function(v) return v == 0 and "off" or ("%d%% of AH price"):format(v) end,
     function() return S().resale or 0 end, function(v) Options.Set("resale", v) end,
     { ends = { "Ignore sales", "Full AH price" }, example = Options.ResaleExample,
       caution = "You may need to craft many of the same item. Listing them all at once drives the price down, and you lose the deposit on any that don't sell. Set this low unless you know they sell well." })
+  y = separator(panel, y)
   y = number(panel, y, "Prefer fewer crafts",
     "Picks a recipe that skills up more reliably even if its materials cost more for each craft it saves you. Nothing is charged; it only changes which recipe is chosen.",
     0, 100, 1, function(v) return v == 0 and "off" or ("up to " .. silver(v)) end,

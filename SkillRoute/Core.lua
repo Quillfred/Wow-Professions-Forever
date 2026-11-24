@@ -16,7 +16,7 @@ local function db()
   local d = SkillRouteDB
   d.trainer = d.trainer or {}
   d.chars = d.chars or {}
-  d.settings = d.settings or { bonus = 0 }
+  d.settings = d.settings or {}
   return d
 end
 
@@ -29,6 +29,14 @@ function Core.Char()
   local k = charKey()
   d.chars[k] = d.chars[k] or { known = {}, targets = {} }
   return d.chars[k]
+end
+
+-- Working Overtime is a talent, so its bonus is saved per character. The old
+-- account-wide value moves to the first character that logs in after the update.
+function Core.Bonus()
+  local c, d = Core.Char(), db()
+  if c.bonus == nil then c.bonus = d.settings.bonus or 0; d.settings.bonus = nil end
+  return c.bonus
 end
 
 -- Professions ------------------------------------------------------------------
@@ -1106,7 +1114,7 @@ function Core.Plan(line, target)
     local plan = Planner.GatherPlan({ nodes = Data.gather and Data.gather[line], skinning = line == 393,
       fishing = line == 356 and Data.fishing or nil, zoneRank = zoneRank,
       skinZones = line == 393 and Data.skinZones or nil,
-      skill = s.rank, target = target, maxSkill = s.max, bonus = db().settings.bonus or 0 })
+      skill = s.rank, target = target, maxSkill = s.max, bonus = Core.Bonus() })
     plan.ms = t0g and (debugprofilestop() - t0g)
     plan.skill, plan.max, plan.target, plan.line = s.rank, s.max, target, line
     return plan
@@ -1116,7 +1124,7 @@ function Core.Plan(line, target)
   local known, settings = knownSet(line), db().settings
   local nKnown = 0
   for _ in pairs(known) do nKnown = nKnown + 1 end
-  local key = table.concat({ s.rank, target, nKnown, Core.dataVersion, settings.bonus or 0, settings.craftValue or 0, settings.resale or 0,
+  local key = table.concat({ s.rank, target, nKnown, Core.dataVersion, Core.Bonus(), settings.craftValue or 0, settings.resale or 0,
                              tostring(settings.estimate), tostring(settings.cdmats) }, ":")
   local recipes = Data.professions[line].recipes
   local owned = {}
@@ -1159,7 +1167,7 @@ function Core.Plan(line, target)
               or (UnitFactionGroup and UnitFactionGroup("player") == "Horde") and "H" or nil,
     patternVendors = Data.patternVendors,
     vendorSeen = function(item) return Core.Place("vendor", item) ~= nil end,
-    bonus = settings.bonus or 0,
+    bonus = Core.Bonus(),
     fixedUnlocks = cached and cached.key == key and cached.set or nil,
     skip = Core.Skips(line), ahFresh = Core.AHFresh, ownedPatterns = ownedPatterns,
     questOK = questsForFaction(recipes), ahPrice = Core.AHPrice,

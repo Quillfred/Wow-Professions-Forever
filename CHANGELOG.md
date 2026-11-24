@@ -9,6 +9,11 @@
     "up to 44s"; nothing is ever charged.
   - Both have end labels and a live example that changes as you drag, so you can see
     where the choice flips.
+- **Shopping list safety margin** explained: the value reads "90% sure", with end labels
+  and a live example of how much extra it buys.
+- **Working Overtime** is now saved per character (it's a talent); your current value
+  moves to the first character you log in with.
+- Options: separators between options; the caution sits right under its example.
 - Fixed: the Options button (and /sr before a profession window was opened) needed two
   clicks the first time.
 

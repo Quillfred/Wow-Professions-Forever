@@ -1010,8 +1010,9 @@ SlashCmdList.SKILLROUTE = function(msg)
   elseif cmd == "overtime" and settings then
     local v = tonumber(arg)
     if v and v >= 0 and v <= 100 then
-      settings.bonus = v / 100
-      print(("SkillRoute: Working Overtime bonus set to %d%%"):format(v))
+      Core.Bonus(); Core.Char().bonus = v / 100
+      Core.InvalidatePatterns(); Core.Changed()
+      print(("SkillRoute: Working Overtime bonus set to %d%% for this character"):format(v))
     else
       print("SkillRoute: /sr overtime <0-100>  (your Working Overtime talent %, 0 if you don't have it)")
     end

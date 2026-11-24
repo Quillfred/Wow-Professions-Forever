@@ -135,7 +135,15 @@ Core.InvalidatePatterns()
 -- UI: open, both modes, cycle, slash commands
 SlashCmdList.SKILLROUTE("")
 assert(UI.IsShown())
-SlashCmdList.SKILLROUTE("overtime 10"); assert(SkillRouteDB.settings.bonus == 0.1)
+SlashCmdList.SKILLROUTE("overtime 10"); assert(ns.Core.Char().bonus == 0.1 and SkillRouteDB.settings.bonus == nil, "overtime is per character")
+do -- the old account-wide value moves to the first character, others start at 0
+  local me = ns.Core.Char(); local mine = me.bonus
+  me.bonus = nil; SkillRouteDB.settings.bonus = 0.05
+  assert(ns.Core.Bonus() == 0.05 and SkillRouteDB.settings.bonus == nil, "migrated to this character")
+  local saved = _G.UnitName; _G.UnitName = function() return "Alt" end
+  assert(ns.Core.Bonus() == 0, "an alt has its own (none)")
+  _G.UnitName = saved; me.bonus = mine
+end
 SlashCmdList.SKILLROUTE("estimate on"); assert(SkillRouteDB.settings.estimate == true)
 SlashCmdList.SKILLROUTE("help")
 SlashCmdList.SKILLROUTE("cdmats on"); assert(SkillRouteDB.settings.cdmats == true)
@@ -1112,6 +1120,12 @@ do
   assert(O.FewerExample(10):find("about even"), O.FewerExample(10))
   assert(O.FewerExample(44):find("orange 50s recipe") and O.FewerExample(44):find("88s to you"), O.FewerExample(44))
   assert(O.FewerExample(100):find("2g to you"), O.FewerExample(100))
+  -- safety margin example: the same mean + z x sd the shopping list buys (20 crafts, sd sqrt 20)
+  assert(O.MarginExample(50):find("enough for 20, the expected amount%. Runs short about half the time"), O.MarginExample(50))
+  assert(O.MarginExample(75):find("enough for 24%. Runs short about 1 time in 4"), O.MarginExample(75))
+  assert(O.MarginExample(90):find("enough for 26%. Runs short about 1 time in 10"), O.MarginExample(90))
+  assert(O.MarginExample(99):find("enough for 31%. Runs short about 1 time in 100"), O.MarginExample(99))
+  assert(O.MarginExample(93):find("7 times in 100"), O.MarginExample(93))
   assert(O.ResaleExample(0) == "Off: only what you spend counts.")
   assert(O.ResaleExample(45):find("counts as 13s %(30s minus 17s back%)"), O.ResaleExample(45))
   assert(O.ResaleExample(80):find("pays for itself"), O.ResaleExample(80))
