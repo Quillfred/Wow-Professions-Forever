@@ -272,6 +272,7 @@ local function build()
     { ends = { "Cheapest materials", "Fewest crafts" }, example = Options.FewerExample })
 
   panel:SetHeight(-y + 46)
+  panel:Hide() -- new frames start shown; the first Toggle must open it, not close it
 
   local b1 = CreateFrame("Button", nil, panel, "UIPanelButtonTemplate")
   b1:SetSize(160, 22); b1:SetPoint("BOTTOMLEFT", 16, 14); b1:SetText("Run self-check")

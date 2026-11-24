@@ -19,7 +19,7 @@ local function stubObj()
   end })
 end
 local frames = {}
-_G.CreateFrame = function() local f = stubObj(); frames[#frames + 1] = f; return f end
+_G.CreateFrame = function() local f = stubObj(); f.shown = true; frames[#frames + 1] = f; return f end -- WoW: new frames start shown
 _G.UIParent, _G.UISpecialFrames, _G.SlashCmdList = stubObj(), {}, {}
 _G.tinsert = table.insert
 _G.GameTooltip = stubObj()

@@ -9,6 +9,8 @@
     "up to 44s"; nothing is ever charged.
   - Both have end labels and a live example that changes as you drag, so you can see
     where the choice flips.
+- Fixed: the Options button (and /sr before a profession window was opened) needed two
+  clicks the first time.
 
 ## 0.34.0 (beta): first public release
 

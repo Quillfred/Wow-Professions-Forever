@@ -934,6 +934,7 @@ local function build()
   ahBtn:SetText("Send to Auctionator")
   ahBtn:SetScript("OnClick", function() if lastPlan then Core.ExportToAuctionator(lastPlan) end end)
   ahBtn:Hide()
+  frame:Hide() -- new frames start shown; the first open must show it (and refresh via OnShow)
 end
 
 -- autoOpened: the window was opened by opening a profession window, so it closes
