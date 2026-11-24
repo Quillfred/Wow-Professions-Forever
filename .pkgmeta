@@ -1,0 +1,24 @@
+package-as: SkillRoute
+
+move-folders:
+  SkillRoute/SkillRoute: SkillRoute
+
+manual-changelog:
+  filename: CHANGELOG.md
+  markup-type: markdown
+
+plain-copy:
+  - SkillRoute/Data.lua
+
+ignore:
+  - tools
+  - tests
+  - media
+  - README.md
+  - CHANGELOG.md
+  - LICENSE
+  - THIRD_PARTY_NOTICES.md
+
+optional-dependencies:
+  - auctionator
+  - tomtom

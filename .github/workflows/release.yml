@@ -1,0 +1,60 @@
+# Release SkillRoute Forever: Actions -> release -> Run workflow, with a tag like
+# v0.34.1 (a release file) or v0.34.1-beta1 (a beta file). Needs the CurseForge API token
+# in the repository secret CF_API_KEY; the project ID is in SkillRoute/SkillRoute.toc
+# (## X-Curse-Project-ID).
+name: release
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Tag to release, e.g. v0.34.1 or v0.34.1-beta1 (must match the TOC version)"
+        required: true
+
+permissions:
+  contents: write  # create the tag and the GitHub release
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    env:
+      TAG: ${{ inputs.tag }}
+    steps:
+      - name: Check out main
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0  # full history: the packager builds the changelog from it
+
+      - name: Tag matches the TOC version
+        run: |
+          toc=$(sed -n 's/^## Version: *//p' SkillRoute/SkillRoute.toc | tr -d '\r')
+          base=${TAG#v}; base=${base%%-*}
+          echo "tag $TAG, TOC version $toc"
+          if [ "$base" != "$toc" ]; then
+            echo "::error::Tag $TAG doesn't match the TOC version $toc"; exit 1
+          fi
+          if git rev-parse -q --verify "refs/tags/$TAG" >/dev/null; then
+            echo "::error::Tag $TAG already exists"; exit 1
+          fi
+
+      - name: Run the tests
+        run: |
+          sudo apt-get update -qq && sudo apt-get install -y -qq lua5.1 >/dev/null
+          lua5.1 tests/test_planner.lua | tail -3
+          lua5.1 tests/test_planner.lua | grep -q "ALL TESTS PASSED"
+          lua5.1 tests/smoke_wow.lua > smoke.log 2>&1 || { tail -20 smoke.log; exit 1; }
+          tail -1 smoke.log | grep -q "SMOKE TEST PASSED"
+
+      - name: Create the tag on main
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git tag -a "$TAG" -m "SkillRoute Forever $TAG"
+          git push origin "$TAG"
+
+      - name: Package and upload (CurseForge + GitHub release)
+        uses: BigWigsMods/packager@v2
+        env:
+          CF_API_KEY: ${{ secrets.CF_API_KEY }}
+          GITHUB_OAUTH: ${{ secrets.GITHUB_TOKEN }}
