@@ -192,3 +192,16 @@ lua5.1 tests/smoke_wow.lua      # whole addon against a fake WoW API
   in tools/forever_checks.json (applied on every rebuild), the report in
   tools/forever-classic-check-2026-11-23.md. Herb/ore zones, fishing zones and
   disenchant results now use Forever's own observed data.
+
+## License
+Copyright (C) 2026 Quillfred and SkillRoute contributors.
+
+SkillRoute is free software: you can redistribute it and/or modify it under the terms of
+the **GNU General Public License version 3**, as published by the Free Software
+Foundation (full text in `LICENSE`). It is distributed in the hope that it will be
+useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+FITNESS FOR A PARTICULAR PURPOSE.
+
+It's GPL v3 because it includes data derived from cMaNGOS Classic-DB (GPL v3). Other
+sources and their licenses are in `THIRD_PARTY_NOTICES.md`. World of Warcraft is a
+trademark of Blizzard Entertainment; SkillRoute isn't affiliated with Blizzard.
