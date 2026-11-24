@@ -1,4 +1,4 @@
-# SkillRoute
+# SkillRoute Forever
 
 **Plans the cheapest way to level any profession in WoW Forever, using the game's own recipe data and your Auctionator prices, with trainers, vendors and waypoints for every step.**
 
