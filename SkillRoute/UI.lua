@@ -218,8 +218,22 @@ local function setRow(i, opts)
     if opts.ahStep then r.buyBtn:Show() else r.buyBtn:Hide() end
     r.sub:SetPoint("RIGHT", r, "RIGHT", opts.ahStep and -(EDGE + 50) or -6, 0)
   end
+  if r.SetAlpha then r:SetAlpha(opts.later and 0.45 or 1) end -- past your character level's stop
   r:Show()
 end
+
+-- Where your character level stops a route: the first rank cap it passes that needs a
+-- higher level. Returns cap, level needed, your level (or nil).
+local function levelStop(plan)
+  if plan.gather then return nil end
+  for cap = plan.max, plan.target - 1, 75 do
+    local stepN = ({ [75] = 2, [150] = 3, [225] = 4 })[cap]
+    local need, mine
+    if stepN then need, mine = Core.RankLevelShort(plan.line, stepN) end
+    if need then return cap, need, mine end
+  end
+end
+UI._levelStop = levelStop
 
 local function lines()
   local c = charState()
@@ -233,13 +247,24 @@ local function shortTravel(loc) local t = loc and Core.TravelText(loc); return t
 
 local function routeRows(plan)
   local n = 0
-  local function add(o) n = n + 1; setRow(n, o) end
+  local stopCap, stopNeed, stopMine = levelStop(plan)
+  local later = false
+  local function add(o) n = n + 1; o.later = later; setRow(n, o) end
   local trained = plan.max
   local toolShown = {}
   for _, st in ipairs(plan.steps) do
     -- rank training needed before this step?
     while RANKS[trained] and st.from >= trained do
       local rank = RANKS[trained]
+      if stopCap and trained == stopCap and not later then
+        add({ icon = "Interface\\Icons\\Spell_Holy_BorrowedTime",
+              text = ("|cffff4040After character level %d|r (you're %d)"):format(stopNeed, stopMine),
+              sub = ("You can level to %d now. The faded steps below are for later."):format(stopCap),
+              tip = { { header = "SkillRoute" }, { "Character level", ("%d needed past %d"):format(stopNeed, stopCap) },
+                      { "you", ("level %d"):format(stopMine), sub = true },
+                      { note = "The route below is planned already, so you can see what it will cost. \"Buy for\" counts it separately." } } })
+        later = true
+      end
       local rh = Core.RankHow(plan.line, RANK_STEP[rank]) -- visited trainer / ATT book or quest / nearest
       local p, n, loc = rh.place, rh.nPlaces, rh.loc
       local where = p and (p.zone .. (p.sub and (", " .. p.sub) or "") .. (p.x and (" (%.1f, %.1f)"):format(p.x, p.y) or ""))
@@ -744,16 +769,11 @@ local function refresh()
     warn[#warn + 1] = ("|cffff4040%d recipe colours differ from the data: update SkillRoute|r"):format(plan.mismatch)
   end
   -- the first rank this route passes that your character level is too low for
-  if not plan.gather then
-    for cap = plan.max, plan.target - 1, 75 do
-      local stepN = ({ [75] = 2, [150] = 3, [225] = 4 })[cap]
-      local need, mine
-      if stepN then need, mine = Core.RankLevelShort(plan.line, stepN) end -- (not "x and f()": keeps one value)
-      if need then
-        warn[#warn + 1] = ("|cffff4040Past %d needs character level %d (you're %d): the route stops at %d until then.|r")
-          :format(cap, need, mine, cap)
-        break
-      end
+  do
+    local cap, need, mine = levelStop(plan)
+    if cap then
+      warn[#warn + 1] = ("|cffff4040You can level to %d now; past it needs character level %d (you're %d). Faded steps are for later.|r")
+        :format(cap, need, mine)
     end
   end
   info:SetText(("Skill %d/%d  ->  %d   -   %s%s"):format(plan.skill, plan.max, plan.target, src,
@@ -773,7 +793,23 @@ local function refresh()
       plan.line == 393 and "skins" or plan.line == 356 and "catches" or "nodes", plan.ms and ("%.1f ms"):format(plan.ms) or "?"))
     return
   end
-  footer:SetText(("Buy for |cffffffff%s|r%s%s   |cff808080planned in %s|r"):format(money(plan.total, "ffffff"),
+  -- the part of it for steps past your character level's stop (their materials and patterns)
+  local laterText = ""
+  do
+    local cap, need = levelStop(plan)
+    if cap then
+      local later, seen = 0, {}
+      for _, st in ipairs(plan.steps) do
+        if not st.gap and st.from >= cap then
+          if not st.credited then later = later + (st.cost or 0) end
+          local u = st.unlock
+          if u and u.via ~= "owned" and not seen[u] then seen[u] = true; later = later + (u.price or 0) end
+        end
+      end
+      if later > 0 then laterText = (" |cff9d9d9d(~%s of it after level %d)|r"):format(money(math.min(later, plan.total), "9d9d9d"), need) end
+    end
+  end
+  footer:SetText(("Buy for |cffffffff%s|r%s%s%s   |cff808080planned in %s|r"):format(money(plan.total, "ffffff"), laterText,
     ((plan.fees or 0) > 0 and (" + |cffffffff" .. money(plan.fees, "ffffff") .. "|r training") or "")
     .. (function()
       local back = 0

@@ -10,6 +10,7 @@ local function stubObj()
     if k == "SetText" then return function(self, v) self.text = v end end
     if k == "GetText" then return function(self) return self.text end end
     if k == "RegisterForClicks" then return function() end end
+    if k == "SetAlpha" then return function(self, a) rawset(self, "alpha", a) end end
     if k == "SetScript" then return function(self, n, f) if n == "OnShow" then self.onShow = f end; self[n] = f end end
     if k == "RegisterEvent" then return function(self, ev) local e = rawget(self, "events") or {}; rawset(self, "events", e); e[ev] = true end end
     if k == "CreateTexture" then return function() return stubObj() end end
@@ -907,12 +908,27 @@ do
   end
   UI.Toggle()
   assert(warn, "Artisan row warns about character level 35")
-  local top
+  local top, divider, foot
   for _, t in ipairs(texts) do
     local v = rawget(t, "text")
-    if type(v) == "string" and v:find("Past 225 needs character level 35", 1, true) then top = v end
+    if type(v) == "string" and v:find("You can level to 225 now; past it needs character level 35", 1, true) then top = v end
+    if type(v) == "string" and v:find("After character level 35", 1, true) then divider = v end
+    if type(v) == "string" and v:find("of it after level 35", 1, true) then foot = v end
   end
-  assert(top, "the header says where your level stops the route")
+  assert(top and divider and foot, "header, divider row and footer split for the level stop")
+  -- rows after the divider are faded, rows before aren't
+  local seenDivider, fadedAfter, fadedBefore = false, 0, 0
+  for _, r in ipairs(UI.Rows()) do
+    if rawget(r, "shown") then
+      local tx = r.text and rawget(r.text, "text") or ""
+      if tostring(tx):find("After character level", 1, true) then seenDivider = true
+      elseif rawget(r, "alpha") and rawget(r, "alpha") < 1 then
+        if seenDivider then fadedAfter = fadedAfter + 1 else fadedBefore = fadedBefore + 1 end
+      end
+    end
+  end
+  assert(fadedAfter > 0 and fadedBefore == 0, ("faded after the divider only (%d after, %d before)"):format(fadedAfter, fadedBefore))
+  print("level stop: " .. top:gsub("|c%x%x%x%x%x%x%x%x", ""):gsub("|r", "") .. " | " .. foot:gsub("|c%x%x%x%x%x%x%x%x", ""):gsub("|r", ""))
   print("rank level warning: " .. warn:gsub("|c%x%x%x%x%x%x%x%x", ""):gsub("|r", ""))
   GetProfessions, GetProfessionInfo, _G.UnitLevel = saved[1], saved[2], saved[3]
 end
