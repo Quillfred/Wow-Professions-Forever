@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="400" height="400" viewBox="0 0 400 400">
+  <defs>
+    <radialGradient id="bg" cx="50%" cy="40%" r="75%">
+      <stop offset="0" stop-color="#2b2342"/>
+      <stop offset="1" stop-color="#120e1d"/>
+    </radialGradient>
+    <linearGradient id="gold" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#ffe27a"/>
+      <stop offset="1" stop-color="#d9a21b"/>
+    </linearGradient>
+  </defs>
+  <rect x="8" y="8" width="384" height="384" rx="56" fill="url(#bg)" stroke="url(#gold)" stroke-width="10"/>
+  <!-- the route: a winding dotted path climbing to the top right -->
+  <path d="M 78 318 C 150 318, 120 236, 196 232 S 250 150, 318 104"
+        fill="none" stroke="#f3d488" stroke-width="12" stroke-linecap="round" stroke-dasharray="2 26" opacity="0.95"/>
+  <!-- steps: orange, yellow, green (skill-up colours) -->
+  <circle cx="78" cy="318" r="24" fill="#ff8040" stroke="#1a1426" stroke-width="6"/>
+  <circle cx="196" cy="232" r="24" fill="#ffff00" stroke="#1a1426" stroke-width="6"/>
+  <circle cx="262" cy="150" r="20" fill="#40bf40" stroke="#1a1426" stroke-width="6"/>
+  <!-- the goal: a gold star -->
+  <g transform="translate(318 96)">
+    <polygon points="0,-52 14,-17 51,-16 22,8 32,44 0,23 -32,44 -22,8 -51,-16 -14,-17"
+             fill="url(#gold)" stroke="#1a1426" stroke-width="6" stroke-linejoin="round"/>
+  </g>
+</svg>
