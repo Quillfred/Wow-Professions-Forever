@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.34.1
+## 0.34.1 (beta)
 
 - Options: the two route sliders are reworded so they no longer read like a charge.
   - **Expect to sell what you make** (was "Count crafted items as sold on the AH"): the
