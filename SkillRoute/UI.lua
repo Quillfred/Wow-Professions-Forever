@@ -393,11 +393,18 @@ local function routeRows(plan)
                       .. ((st.also and #st.also > 0) and ("  |cff40bf40+ " .. table.concat(st.also, ", ") .. " when you see it|r") or "")),
             range = ("%d-%d"):format(st.from, st.to),
             tipTitle = st.name,
-            tip = st.fishing and {
-                    { header = "SkillRoute" },
-                    { "Skill-up", st.from < 75 and "every catch below 75"
-                                  or ("about 1 in %d catches"):format(math.ceil(1 / ns.Planner.FishChance(st.from))) },
-                    { note = "Below a zone's fishing level you hook nothing; until 95 above it some fish get away." } }
+            tip = st.fishing and (function()
+                    local t = { { header = "SkillRoute" },
+                      { "Skill-up", st.from < 75 and "every catch below 75"
+                                    or ("about 1 in %d catches at %d, fewer as you go"):format(math.ceil(1 / ns.Planner.FishChance(st.from)), st.from) } }
+                    if st.parts and #st.parts > 1 then
+                      for i, part in ipairs(st.parts) do
+                        t[#t + 1] = { i == 1 and "Catches" or "", ("%d-%d: ~%d"):format(part.from, part.to, math.ceil(part.crafts - 1e-9)) }
+                      end
+                    end
+                    t[#t + 1] = { note = "Below a zone's fishing level you hook nothing; until 95 above it some fish get away." }
+                    return t
+                  end)()
                   or st.skinning and {
                     { header = "SkillRoute" },
                     { "Skin", "the highest-level beasts you can" },

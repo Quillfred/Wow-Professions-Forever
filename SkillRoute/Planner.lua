@@ -817,8 +817,19 @@ function Planner.GatherPlan(ctx)
       end)
       local zones = {}
       for k = 1, math.min(3, #safe) do zones[#zones + 1] = safe[k][1]; zones[#zones + 1] = safe[k][2] end
-      steps[#steps + 1] = { gather = true, fishing = true, name = "fish", from = s, to = e, crafts = n,
-                            zones = zones, color = Planner.FishChance(s) >= 1 and "orange" or "yellow" }
+      -- same waters as the range before, and no rank-up (75/150/225) in between: one step,
+      -- with the per-25 breakdown kept for the tooltip
+      local prev = steps[#steps]
+      local same = prev and prev.fishing and prev.to == s and s % 75 ~= 0 and #prev.zones == #zones
+      for k = 1, #zones, 2 do same = same and prev.zones[k] == zones[k] end
+      if same then
+        prev.to, prev.crafts = e, prev.crafts + n
+        prev.parts[#prev.parts + 1] = { from = s, to = e, crafts = n }
+      else
+        steps[#steps + 1] = { gather = true, fishing = true, name = "fish", from = s, to = e, crafts = n,
+                              zones = zones, color = Planner.FishChance(s) >= 1 and "orange" or "yellow",
+                              parts = { { from = s, to = e, crafts = n } } }
+      end
       total = total + n
       s = e
     end

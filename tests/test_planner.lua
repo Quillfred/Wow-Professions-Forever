@@ -262,6 +262,24 @@ do
   check(nSpec > 0 and nAvail > 0, ("Armorsmith recipes learnable with the spec (%d of %d)"):format(nAvail, nSpec))
 end
 
+-- fishing: ranges with the same waters merge into one step, never across a rank-up
+do
+  local zr = function(z) local sd = D.zoneSide[z]; if not sd then return 1 end return sd == "H" and 0 or 2 end
+  local pl = P.GatherPlan({ fishing = D.fishing, skill = 1, target = 300, zoneRank = zr })
+  local catches, parts = 0, 0
+  for i, st in ipairs(pl.steps) do
+    catches = catches + st.crafts
+    parts = parts + #st.parts
+    for cap = 75, 225, 75 do check(not (st.from < cap and st.to > cap), "fishing step crosses rank " .. cap) end
+    local prev = pl.steps[i - 1]
+    if prev and prev.to % 75 ~= 0 then
+      check(table.concat(prev.zones, ",") ~= table.concat(st.zones, ","), "consecutive fishing steps with the same zones not merged")
+    end
+  end
+  check(math.abs(catches - pl.gathers) < 1e-6 and parts == 12, ("catches add up (%d steps, %d ranges)"):format(#pl.steps, parts))
+  print(("fishing 1-300: %d steps (was 12), ~%d catches"):format(#pl.steps, math.ceil(pl.gathers)))
+end
+
 -- every NPC has a name, not its ID (ATT lists some quest givers over two lines)
 do
   local bad = {}
