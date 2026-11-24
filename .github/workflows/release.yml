@@ -26,6 +26,13 @@ jobs:
           ref: main
           fetch-depth: 0  # full history: the packager builds the changelog from it
 
+      - name: Token and project ID are set
+        env:
+          CF_API_KEY: ${{ secrets.CF_API_KEY }}
+        run: |
+          [ -n "$CF_API_KEY" ] || { echo "::error::Repository secret CF_API_KEY is not set"; exit 1; }
+          grep -q '^## X-Curse-Project-ID: *[0-9]' SkillRoute/SkillRoute.toc || { echo "::error::No X-Curse-Project-ID in the TOC"; exit 1; }
+
       - name: Tag matches the TOC version
         run: |
           toc=$(sed -n 's/^## Version: *//p' SkillRoute/SkillRoute.toc | tr -d '\r')

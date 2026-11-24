@@ -6,6 +6,7 @@
 ## OptionalDeps: Auctionator, TomTom
 ## X-License: GPL-3.0
 ## X-Website: https://github.com/Quillfred/Wow-Professions-Forever
+## X-Curse-Project-ID: 1827480
 ## IconTexture: Interface\Icons\Trade_Tailoring
 
 Data.lua
