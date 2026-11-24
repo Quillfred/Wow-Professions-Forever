@@ -753,10 +753,18 @@ do
   assert(#expect > 0, "the step has something to buy")
   local said
   _G.print = function(m) said = m end
-  local searchedFor
+  local searchedFor, advFor
   api.MultiSearchExact = function(_, names) searchedFor = names end
   btnRow.buyBtn.OnClick(btnRow.buyBtn, "LeftButton")
-  assert(searchedFor and #searchedFor == #expect, "Buy also opens Auctionator's Shopping tab on the step's reagents")
+  assert(searchedFor and #searchedFor == #expect, "no advanced search: names-only fallback")
+  api.MultiSearchAdvanced = function(_, terms) advFor = terms end
+  searchedFor = nil
+  btnRow.buyBtn.OnClick(btnRow.buyBtn, "LeftButton")
+  assert(advFor and #advFor == #expect and not searchedFor, "advanced search used when available")
+  for i, t in ipairs(advFor) do
+    assert(t.isExact and t.quantity == expect[i].qty and t.searchString == expect[i].name, "search term carries the quantity")
+  end
+  api.MultiSearchAdvanced = nil
   local name = "SkillRoute First Aid (steps)"
   assert(lists[name] and #lists[name] == #expect, "list created with the step's reagents")
   local qty1 = lists[name][1]

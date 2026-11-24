@@ -1303,17 +1303,28 @@ function Core.AddStepToAuctionator(plan, st, remove)
   local here = steps[key]
   -- open Auctionator's Shopping tab on this step's reagents (its public search; the
   -- quantities are on the list). Only with the AH open.
-  local searched = false
-  local search = api.MultiSearchExact or api.MultiSearch
-  if here and Core.ahOpen and search then
-    local names = {}
-    for _, x in ipairs(here.items) do names[#names + 1] = x.name end
-    searched = pcall(search, addonName, names)
+  -- MultiSearchAdvanced takes full search terms, quantity included, so Auctionator's buy
+  -- pane starts at the amount you need; MultiSearchExact (names only) is the fallback.
+  local searched, withQty = false, false
+  if here and Core.ahOpen then
+    if api.MultiSearchAdvanced then
+      local adv = {}
+      for _, x in ipairs(here.items) do adv[#adv + 1] = { searchString = x.name, isExact = true, quantity = x.qty } end
+      searched = pcall(api.MultiSearchAdvanced, addonName, adv)
+      withQty = searched
+    end
+    local search = api.MultiSearchExact or api.MultiSearch
+    if not searched and search then
+      local names = {}
+      for _, x in ipairs(here.items) do names[#names + 1] = x.name end
+      searched = pcall(search, addonName, names)
+    end
   end
   print(("SkillRoute: %s %s - Auctionator list \"%s\" now has %d item(s)%s.%s"):format(
     remove and "removed" or "added", st.name, listName, #terms,
     here and (": " .. table.concat((function() local t = {} for _, x in ipairs(here.items) do t[#t + 1] = x.qty .. " " .. x.name end return t end)(), ", ")) or "",
-    searched and " Searching them in Auctionator's Shopping tab." or ""))
+    searched and (withQty and " Searching them in Auctionator's Shopping tab, with the amounts."
+      or (" Searching them in Auctionator's Shopping tab (amounts are on the \"%s\" list)."):format(listName)) or ""))
   return true
 end
 
