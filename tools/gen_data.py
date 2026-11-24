@@ -88,9 +88,15 @@ def main():
     cache = sys.argv[2] if len(sys.argv) > 2 else ".db2cache"
     p = fetch(build, cache)
     # Optional: learn levels / sources / trainer costs from Wowhead (tools/import_wowhead.py).
+    # NO_WOWHEAD=1: build without anything taken from Wowhead (wowhead_forever.json,
+    # forever_sources.json, the Wowhead-first source overrides): AllTheThings, Forever's
+    # own tables and Classic-DB only. Trainer fees then come only from trainer windows.
+    no_wowhead = os.environ.get("NO_WOWHEAD") == "1"
+    if no_wowhead:
+        print("NO_WOWHEAD=1: building without Wowhead-derived data")
     wowhead = {}
     whpath = os.path.join(os.path.dirname(os.path.abspath(__file__)), "wowhead_forever.json")
-    if os.path.exists(whpath):
+    if os.path.exists(whpath) and not no_wowhead:
         with open(whpath, encoding="utf-8") as f:
             wowhead = {int(k): {int(sp): v for sp, v in rec.items()}
                        for k, rec in json.load(f)["professions"].items()}
@@ -98,7 +104,7 @@ def main():
     # Optional: sources for recipes Wowhead's Recipes tab left blank (tools/import_sources.py).
     extra = {}
     xpath = os.path.join(os.path.dirname(os.path.abspath(__file__)), "forever_sources.json")
-    if os.path.exists(xpath):
+    if os.path.exists(xpath) and not no_wowhead:
         with open(xpath, encoding="utf-8") as f:
             extra = {int(k): v for k, v in json.load(f).items()}
 
@@ -260,7 +266,7 @@ def main():
     teaching_items = {it for its in taught_by.values() for it in its} | {it for its in rank_books.values() for it in its}
     # recipes where Wowhead's Forever page was checked and beats ATT on the source
     opath = os.path.join(os.path.dirname(os.path.abspath(__file__)), "source_overrides.json")
-    wh_first = {k for k in (json.load(open(opath, encoding="utf-8")) if os.path.exists(opath) else {})
+    wh_first = set() if no_wowhead else {k for k in (json.load(open(opath, encoding="utf-8")) if os.path.exists(opath) else {})
                 if not k.startswith("_")}
     for s, a in sorted(abil.items()):
         if s not in reagents or s not in names:
