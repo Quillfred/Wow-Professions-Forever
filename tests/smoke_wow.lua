@@ -1478,6 +1478,21 @@ do
   print("known recipes: the window's learned / not learned wins; search-filtered lists don't forget")
 end
 
+-- clients with only C_Item.GetItemCount (no global GetItemCount): bag counts still work
+do
+  local savedG, savedC = _G.GetItemCount, _G.C_Item
+  _G.GetItemCount = nil
+  _G.C_Item = setmetatable({ GetItemCount = function(item, bank) return item == 4305 and (bank and 30 or 19) or 0 end },
+                           { __index = savedC })
+  assert(Core.InBags(4305) == 19 and Core.Have(4305) == 30, "C_Item counts: bags 19, with bank 30")
+  local r = SkillRouteData.professions[197].recipes
+  local spell
+  for id, x in pairs(r) do if x.r and #x.r == 2 and x.r[1] == 4305 then spell = id; break end end
+  if spell then assert(Core.CraftableNow(197, spell) == math.floor(19 / r[spell].r[2]), "Craft all counts bags via C_Item") end
+  _G.GetItemCount, _G.C_Item = savedG, savedC
+  print("bag counts via C_Item.GetItemCount OK")
+end
+
 -- /sr check runs and reports; errors are caught, not thrown
 do
   local out = {}

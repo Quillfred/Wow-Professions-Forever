@@ -101,7 +101,7 @@ function H.BagNeeds()
     end
   end
   for item, n in pairs(want) do
-    local short = n - (GetItemCount and GetItemCount(item) or 0) -- bags only
+    local short = n - Core.InBags(item)
     want[item] = short > 0 and short or nil
   end
   return want, line

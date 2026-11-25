@@ -207,7 +207,7 @@ local function draw()
     for i = 1, math.min(#r.r / 2, MAT_ROWS) do
       local item, per = r.r[2 * i - 1], r.r[2 * i]
       local need = per * crafts
-      local have = GetItemCount and GetItemCount(item) or 0
+      local have = Core.InBags(item)
       local it = Data.items[item]
       local m = ui.mats[i]
       m.l:SetText(UI.ItemName(item))

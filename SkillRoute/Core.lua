@@ -1163,6 +1163,9 @@ end
 function Core.Have(item)
   return getCount(item, true) -- bags + bank
 end
+function Core.InBags(item)
+  return getCount(item, false)
+end
 
 -- Materials on your other characters (same faction): Syndicator, else DataStore.
 -- Counted once per plan (cache reset in Core.Plan); 0 when neither is installed or
@@ -1385,7 +1388,7 @@ function Core.CraftableNow(line, spell)
   if not (r and r.r) then return 0 end
   local n = math.huge
   for i = 1, #r.r, 2 do
-    local have = GetItemCount and GetItemCount(r.r[i]) or 0
+    local have = Core.InBags(r.r[i])
     n = math.min(n, math.floor(have / r.r[i + 1]))
   end
   return n == math.huge and 0 or n

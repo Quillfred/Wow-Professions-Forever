@@ -15,6 +15,8 @@
   opens instead of the full window (Options: "Dock a mini panel"); **Full route** opens it.
 - Fixed: a recipe recorded as known once (e.g. the Runed Golden Rod) stayed known even
   when the profession window lists it as not learned. The window's answer now wins.
+- Fixed: the mini panel showed 0 of every material (so no Craft buttons) on clients
+  without the old GetItemCount; the bank button had the same problem.
 - The mini panel docks past the profession window's side tabs; drag it anywhere
   (remembered), right-click it to dock again. Tools you craft get Craft buttons and say
   which trainer teaches them.
