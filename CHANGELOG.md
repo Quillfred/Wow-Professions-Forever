@@ -4,7 +4,8 @@
 
 - **SkillRoute's own AH scan:** a **Scan AH** button (and `/sr scan`) while the auction
   house is open reads the lowest price of everything listed in one search. Auctionator is
-  no longer required for prices.
+  no longer required for prices. The button sits on the auction house window's title bar
+  (and on the full SkillRoute window) and shows the scan's progress.
 - **Freshest price wins:** per item, SkillRoute uses whichever is newer, its own scan or
   Auctionator's.
 - **What you paid:** AH purchases of stackable goods are remembered. An item that isn't on

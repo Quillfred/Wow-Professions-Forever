@@ -1321,14 +1321,20 @@ do
   _G.print = function(s) said[#said + 1] = tostring(s) end
 
   assert(not P.Scan(), "no scan with the AH closed")
+  _G.AuctionHouseFrame = stubObj()
   fire("AUCTION_HOUSE_SHOW"); fireP("AUCTION_HOUSE_SHOW")
+  local scanBtn
+  for _, f in ipairs(frames) do if f.text == "SkillRoute: Scan AH" then scanBtn = f end end
+  assert(scanBtn, "Scan button on the auction house window")
   assert(P.Scan() and P.Scanning(), "scan starts at the AH")
+  assert(scanBtn.text:find("^Scanning"), "button shows progress: " .. tostring(scanBtn.text))
   run(); assert(sent == 1, "one browse search for the whole AH")
   fireP("AUCTION_HOUSE_BROWSE_RESULTS_UPDATED") -- first page: asks for more
   assert(full, "asked for the next page")
   fireP("AUCTION_HOUSE_BROWSE_RESULTS_ADDED")   -- all in: stored
   run()
   assert(not P.Scanning(), "scan finished")
+  assert(scanBtn.text == "SkillRoute: Scan AH", "button back to Scan AH")
   local b = P.Book()
   assert(b.items[2589] == 40 and b.items[4306] == 300 and b.count == 2, "lowest price per item kept")
   assert(Core.PriceSource():find("SkillRoute scan"), Core.PriceSource())
@@ -1367,7 +1373,7 @@ do
 
   _G.print = realPrint
   fire("AUCTION_HOUSE_CLOSED")
-  C_Timer.After, _G.C_AuctionHouse = savedAfter, nil
+  C_Timer.After, _G.C_AuctionHouse, _G.AuctionHouseFrame = savedAfter, nil, nil
   SkillRouteDB.prices, SkillRouteDB.paid = nil, nil
   Core.InvalidatePatterns()
   print(("own AH scan: %d items in one search, freshest-price rules and paid prices OK"):format(b.count))

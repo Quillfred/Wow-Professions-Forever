@@ -231,6 +231,34 @@ local function hookAH()
   end
 end
 
+-- A Scan button on the auction house window itself (title bar, top left), so it's there
+-- whichever SkillRoute window is open. Its label shows the scan's progress.
+local ahBtn
+local function attachButton()
+  local parent = AuctionHouseFrame or AuctionFrame
+  if not parent or ahBtn then return end
+  ahBtn = CreateFrame("Button", nil, parent, "UIPanelButtonTemplate")
+  ahBtn:SetSize(150, 20)
+  ahBtn:SetPoint("TOPLEFT", parent, "TOPLEFT", 8, -1)
+  ahBtn:SetFrameStrata("HIGH")
+  ahBtn:SetScript("OnClick", function() Prices.Scan() end)
+  ahBtn:SetScript("OnEnter", function(self)
+    GameTooltip:SetOwner(self, "ANCHOR_BOTTOM"); GameTooltip:SetText("SkillRoute: scan the auction house")
+    GameTooltip:AddLine("Reads the lowest price of everything listed, in one search. SkillRoute uses the freshest of this and Auctionator's prices.", 1, 1, 1, true)
+    local b = Prices.Book()
+    if b.t then GameTooltip:AddLine(("Last scan: %s, %d items."):format(date("%b %d %H:%M", b.t), b.count or 0), 0.6, 0.6, 0.6, true) end
+    GameTooltip:Show()
+  end)
+  ahBtn:SetScript("OnLeave", function() GameTooltip:Hide() end)
+  Prices.OnStatus(function(text)
+    if not ahBtn then return end
+    ahBtn:SetText(text and text:gsub("^Scanning the auction house%.%.%. ", "Scanning: ")
+                                :gsub("^Saving prices%.%.%. ", "Saving: ") or "SkillRoute: Scan AH")
+    if text then ahBtn:Disable() else ahBtn:Enable() end
+  end)
+  ahBtn:SetText("SkillRoute: Scan AH")
+end
+
 local f = CreateFrame("Frame")
 for _, ev in ipairs({ "PLAYER_LOGIN", "AUCTION_HOUSE_SHOW", "AUCTION_HOUSE_CLOSED",
   "AUCTION_HOUSE_BROWSE_RESULTS_UPDATED", "AUCTION_HOUSE_BROWSE_RESULTS_ADDED", "AUCTION_HOUSE_BROWSE_FAILURE",
@@ -240,6 +268,10 @@ end
 f:SetScript("OnEvent", function(_, ev, a, b)
   if ev == "PLAYER_LOGIN" or ev == "AUCTION_HOUSE_SHOW" then
     hookAH()
+    if ev == "AUCTION_HOUSE_SHOW" then
+      local ok, err = pcall(attachButton)
+      if not ok then Core.ReportError("AH scan button", err) end
+    end
   elseif ev == "AUCTION_HOUSE_CLOSED" then
     if scan then stop("auction house closed; scan cancelled, nothing saved.") end
     pending = nil
