@@ -177,7 +177,7 @@ local function nextPage()
   if not scan or scan.phase ~= "read" then return end
   scan.lastPage = GetTime()
   if AH.HasFullBrowseResults() then store(); return end
-  status(("Scanning the auction house... %d listings"):format(#(AH.GetBrowseResults() or {})))
+  status(("Scanning the auction house... %d items"):format(#(AH.GetBrowseResults() or {})))
   whenReady(function() AH.RequestMoreBrowseResults() end)
 end
 
@@ -252,8 +252,11 @@ local function attachButton()
   ahBtn:SetScript("OnLeave", function() GameTooltip:Hide() end)
   Prices.OnStatus(function(text)
     if not ahBtn then return end
-    ahBtn:SetText(text and text:gsub("^Scanning the auction house%.%.%. ", "Scanning: ")
-                                :gsub("^Saving prices%.%.%. ", "Saving: ") or "SkillRoute: Scan AH")
+    -- short labels: the button is narrow ("Scanning 28000", "Saving 60%")
+    local label = text and (text:match("(%d+) items") and ("Scanning " .. text:match("(%d+) items"))
+                            or text:match("(%d+%%)") and ("Saving " .. text:match("(%d+%%)"))
+                            or "Scanning...")
+    ahBtn:SetText(label or "SkillRoute: Scan AH")
     if text then ahBtn:Disable() else ahBtn:Enable() end
   end)
   ahBtn:SetText("SkillRoute: Scan AH")

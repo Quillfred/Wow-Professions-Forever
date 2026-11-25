@@ -247,8 +247,7 @@ local function draw()
       end
     end
     if shortN > 0 then
-      ui.short:SetText(("|cffff6060Short of %d material%s|r: ~%s on the AH%s"):format(shortN, shortN == 1 and "" or "s",
-        UI.Money(shortCost), unpriced and " (some unpriced)" or ""))
+      ui.short:SetText(("|cffff6060Short:|r ~%s on the AH%s"):format(UI.Money(shortCost), unpriced and " (some unpriced)" or ""))
       place(ui.short, 12, y - 2)
       if ui.st and Core.ahOpen and Core.CanExportToAuctionator() then
         ui.buy:ClearAllPoints(); ui.buy:SetPoint("TOPRIGHT", -12, y + 2); ui.buy:Show()

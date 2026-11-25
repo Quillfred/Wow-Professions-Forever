@@ -231,7 +231,7 @@ do
   for _, t in ipairs(texts) do
     local v = rawget(t, "text")
     if type(v) == "string" and v:find("Afterwards:", 1, true) then after = v end
-    if type(v) == "string" and v:find("Short of %d") then short = v end
+    if type(v) == "string" and v:find("Short:", 1, true) then short = v end
   end
   assert(after or e[1].kind ~= "craft", "Afterwards line on a craft step")
   -- hovering the step shows the full route's tooltip
@@ -1327,10 +1327,11 @@ do
   for _, f in ipairs(frames) do if f.text == "SkillRoute: Scan AH" then scanBtn = f end end
   assert(scanBtn, "Scan button on the auction house window")
   assert(P.Scan() and P.Scanning(), "scan starts at the AH")
-  assert(scanBtn.text:find("^Scanning"), "button shows progress: " .. tostring(scanBtn.text))
+  assert(scanBtn.text == "Scanning...", "button shows progress: " .. tostring(scanBtn.text))
   run(); assert(sent == 1, "one browse search for the whole AH")
   fireP("AUCTION_HOUSE_BROWSE_RESULTS_UPDATED") -- first page: asks for more
   assert(full, "asked for the next page")
+  assert(scanBtn.text == "Scanning 3", "short progress label: " .. tostring(scanBtn.text))
   fireP("AUCTION_HOUSE_BROWSE_RESULTS_ADDED")   -- all in: stored
   run()
   assert(not P.Scanning(), "scan finished")
