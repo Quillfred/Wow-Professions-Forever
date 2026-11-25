@@ -9,8 +9,9 @@
 - **Prices for the amount you need:** after the full read, one search per material your
   routes buy prices *all* of it along the price ladder, not just the cheapest listing
   (Options: "Price the amounts I need", on by default). The button shows "Pricing 7/18";
-  closing the AH partway keeps what was priced. Searches the AH drops are sent again, and
-  an answer that comes without its event is still read.
+  closing the AH partway keeps what was priced. It looks up each material's AH item info
+  before searching it (searches for items the AH hadn't looked up were often ignored), so
+  first searches now nearly always answer. `/sr scanlog` sums up the last scan's searches.
 - The scan sends each request the moment the AH allows it (no more 0.3 s polling), and the
   finish line says where the time went (pages, waiting, answers).
 - **Freshest price wins:** per item, SkillRoute uses whichever is newer, its own scan or

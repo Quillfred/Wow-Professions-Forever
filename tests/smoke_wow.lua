@@ -1367,7 +1367,9 @@ do
   local isReady, searched = true, nil
   C_AuctionHouse.IsThrottledMessageSystemReady = function() return isReady end
   C_AuctionHouse.MakeItemKey = function(id) return { itemID = id } end
-  C_AuctionHouse.SendSearchQuery = function(key) searched = key.itemID end
+  local looked = {}
+  C_AuctionHouse.GetItemKeyInfo = function(k) looked[k.itemID] = true; return { isCommodity = true } end
+  C_AuctionHouse.SendSearchQuery = function(key) assert(looked[key.itemID], "item info asked before searching"); searched = key.itemID end
   local ladder = { { unitPrice = 60, quantity = 50 }, { unitPrice = 40, quantity = 2 } }
   C_AuctionHouse.GetNumCommoditySearchResults = function() return #ladder end
   C_AuctionHouse.GetCommoditySearchResultInfo = function(_, i) return ladder[i] end
@@ -1387,7 +1389,8 @@ do
   isReady = true
   fireP("AUCTION_HOUSE_THROTTLED_SYSTEM_READY")
   assert(full, "sent as soon as the AH said it's ready")
-  fireP("AUCTION_HOUSE_BROWSE_RESULTS_ADDED") -- (timers not run: the 4 s no-answer timeout would fire)
+  fireP("AUCTION_HOUSE_BROWSE_RESULTS_ADDED")
+  do local q = queue; queue = {}; for _, f in ipairs(q) do f() end end -- the short pause (not the timeouts)
   assert(P.Scanning() and searched == 2589, "second pass searches the material")
   assert(scanBtn.text == "Pricing 1/1", "button: " .. tostring(scanBtn.text))
   fireP("COMMODITY_SEARCH_RESULTS_UPDATED", 2589); run()
@@ -1410,6 +1413,7 @@ do
   queue = {}
   assert(P.Scan()); run()
   fireP("AUCTION_HOUSE_BROWSE_RESULTS_UPDATED"); fireP("AUCTION_HOUSE_BROWSE_RESULTS_ADDED")
+  do local q = queue; queue = {}; for _, f in ipairs(q) do f() end end
   assert(sends[1] == 2589, "first material searched")
   fireP("AUCTION_HOUSE_THROTTLED_MESSAGE_DROPPED")
   assert(sends[2] == 2589, "dropped search sent again")
@@ -1430,6 +1434,7 @@ do
   SkillRouteDB.lastError = nil
   assert(P.Scan()); run()
   fireP("AUCTION_HOUSE_BROWSE_RESULTS_UPDATED"); fireP("AUCTION_HOUSE_BROWSE_RESULTS_ADDED")
+  do local q = queue; queue = {}; for _, f in ipairs(q) do f() end end -- the pause, then the failing search
   assert(not P.Scanning() and said[#said]:find("stopped on an error"), "error: scan stops: " .. tostring(said[#said]))
   assert(SkillRouteDB.lastError and SkillRouteDB.lastError:find("second pass"), "and /sr check has it")
   SkillRouteDB.lastError = nil
@@ -1457,7 +1462,7 @@ do
   -- the diagnostic log: /sr scanlog sums it up
   local log = P.ScanLogLines()
   local joined = table.concat(log, "\n")
-  assert(joined:find("first try OK by pause", 1, true) and joined:find("events after first tries that failed", 1, true)
+  assert(joined:find("by AH ready at send", 1, true) and joined:find("events after first tries that failed", 1, true)
     and #SkillRouteDB.scanLog.items >= 1, joined)
   realPrint("scanlog sample:\n  " .. table.concat(log, "\n  "))
   Core.BuyList = savedBuy

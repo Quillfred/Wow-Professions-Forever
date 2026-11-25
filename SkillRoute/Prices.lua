@@ -209,10 +209,11 @@ end
 -- Results are kept item by item, so closing the AH partway keeps what was priced.
 local DEPTH_TIMEOUT = 4    -- second try: give it time
 local FIRST_TIMEOUT = 1.5  -- answers normally come within a second; retry sooner
--- Diagnostic (0.35 test builds): the first try of each material waits one of these
--- after the previous answer, in turn, and everything that happens is logged to
--- SkillRouteDB.scanLog; /sr scanlog sums it up. Retries wait GAPS[2].
-local GAPS = { 0, 0.25, 1.0 }
+-- A short pause between searches. What made searches stop being ignored was asking the
+-- AH for the item's info (GetItemKeyInfo) before searching it (tested: 21/22 first
+-- tries worked, whatever the pause). Everything is logged to SkillRouteDB.scanLog
+-- (last scan only); /sr scanlog sums it up.
+local GAP = 0.1
 local sendDepth -- below
 
 -- Log ------------------------------------------------------------------------------
@@ -290,7 +291,7 @@ function nextDepth()
   status(("Pricing the amounts you need... %d/%d"):format(scan.depthI, #scan.depthList))
   scan.current = d
   depthWatch(scan.depthI)
-  local gap = GAPS[(scan.depthI - 1) % #GAPS + 1]
+  local gap = GAP
   local kind = "?"
   if AH.GetItemKeyInfo then
     local ok, info = pcall(AH.GetItemKeyInfo, AH.MakeItemKey(d.item))
@@ -347,6 +348,9 @@ Prices._readCommodity, Prices._readItems = readCommodity, readItems
 function sendDepth(d)
   whenReady(guarded(function()
     if not (scan and scan.current == d) then return end
+    -- never send while the AH says it isn't ready (the item-info lookup can use up its
+    -- allowance): wait for its "ready" event instead
+    if not ready() then sendDepth(d); return end
     if (d.tries or 0) == 0 then
       local cached = C_Item and C_Item.IsItemDataCachedByID
       d.wasLoaded = not cached or cached(d.item) and true or false
@@ -381,10 +385,10 @@ function sendDepth(d)
         d.tries = tries + 1
         scan.retries = (scan.retries or 0) + 1
         if not d.wasLoaded then scan.notLoaded = (scan.notLoaded or 0) + 1 end
-        C_Timer.After(GAPS[2], function() if scan and scan.current == d then sendDepth(d) end end)
+        C_Timer.After(GAP, function() if scan and scan.current == d then sendDepth(d) end end)
       else
         d.log.tries[#d.log.tries].outcome = "no answer"
-        scan.current = nil; C_Timer.After(GAPS[2], Prices.NextDepth)
+        scan.current = nil; C_Timer.After(GAP, Prices.NextDepth)
       end
     end)
   end))
@@ -477,7 +481,6 @@ function Prices.ScanLogLines()
     for _, k in ipairs(order) do parts[#parts + 1] = ("%s %d/%d"):format(tostring(k), g[k][1], g[k][2]) end
     out[#out + 1] = label .. ": " .. table.concat(parts, ", ")
   end
-  group("first try OK by pause", function(x) return x.gap .. "s" end)
   group("by loaded", function(x) return "loaded " .. x.loaded end)
   group("by type", function(x) return x.commodity end)
   group("by AH ready at send", function(x) return "ready " .. tostring(x.tries[1] and x.tries[1].ready) end)
