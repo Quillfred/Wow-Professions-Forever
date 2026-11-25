@@ -1375,7 +1375,11 @@ do
   results = { { itemKey = { itemID = 2589 }, minPrice = 40 } }
   fire("AUCTION_HOUSE_SHOW")
   said = {}
+  local savedCItem, loaded = _G.C_Item, {}
+  _G.C_Item = setmetatable({ RequestLoadItemDataByID = function(id) loaded[id] = true end,
+                             IsItemDataCachedByID = function(id) return loaded[id] or false end }, { __index = savedCItem })
   assert(P.Scan()); run()
+  assert(loaded[2589], "materials asked to load at the start of the scan")
   isReady = false
   fireP("AUCTION_HOUSE_BROWSE_RESULTS_UPDATED") -- wants the next page, AH not ready
   assert(not full, "waits for the AH")
@@ -1416,8 +1420,9 @@ do
     "answer read without its event, then the next material after a pause: " .. tostring(P.Own(2589)))
   assert(until_(function() return #sends == 4 end) and sends[4] == 4306, "no answer: retried once")
   assert(until_(function() return not P.Scanning() end), "then skipped and finished")
-  assert(said[#said]:find("1 of 2 materials"), said[#said])
+  assert(said[#said]:find("1 of 2 materials") and said[#said]:find("1 retried"), said[#said])
   Core.BuyList = savedBuy
+  _G.C_Item = savedCItem
   realPrint("scan summary: " .. line)
 
   -- what you paid: 5 at 1s each; used when the AH has none

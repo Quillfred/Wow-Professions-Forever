@@ -229,7 +229,10 @@ function Prices.NextDepth()
   if not d then
     local how = {}
     if (scan.byPoll or 0) > 0 then how[#how + 1] = scan.byPoll .. " without the AH's event" end
-    if (scan.retries or 0) > 0 then how[#how + 1] = scan.retries .. " retried" end
+    if (scan.retries or 0) > 0 then
+      how[#how + 1] = scan.retries .. " retried" .. (C_Item and C_Item.IsItemDataCachedByID
+        and (" (%d weren't loaded yet)"):format(scan.notLoaded or 0) or "")
+    end
     stop(summary((" + %d of %d materials priced for the amounts you need (%.0f s%s)")
       :format(scan.priced, #scan.depthList, GetTime() - scan.depthStart, #how > 0 and (": " .. table.concat(how, ", ")) or "")))
     Core.InvalidatePatterns(); Core.Changed()
@@ -282,6 +285,10 @@ Prices._readCommodity, Prices._readItems = readCommodity, readItems
 function sendDepth(d)
   whenReady(function()
     if not (scan and scan.current == d) then return end
+    if (d.tries or 0) == 0 then
+      local cached = C_Item and C_Item.IsItemDataCachedByID
+      d.wasLoaded = not cached or cached(d.item) and true or false
+    end
     ours = true
     pcall(AH.SendSearchQuery, AH.MakeItemKey(d.item),
       { { sortOrder = (Enum and Enum.AuctionHouseSortOrder and Enum.AuctionHouseSortOrder.Price) or 0, reverseSort = false } }, false)
@@ -303,7 +310,11 @@ function sendDepth(d)
       -- no "results" event: the answer may be there anyway; else retry once, then skip
       local tiers = readCommodity(d.item) or readItems(AH.MakeItemKey(d.item))
       if tiers then Prices.DepthResult(d.item, tiers)
-      elseif tries < 1 then d.tries = tries + 1; scan.retries = (scan.retries or 0) + 1; sendDepth(d)
+      elseif tries < 1 then
+        d.tries = tries + 1
+        scan.retries = (scan.retries or 0) + 1
+        if not d.wasLoaded then scan.notLoaded = (scan.notLoaded or 0) + 1 end
+        sendDepth(d)
       else scan.current = nil; C_Timer.After(GAP, Prices.NextDepth) end
     end)
   end)
@@ -345,6 +356,14 @@ function Prices.Scan()
   end
   scan = { started = GetTime(), lastPage = GetTime(), phase = "read" }
   status("Scanning the auction house...")
+  -- the second pass's searches seem to be ignored for items the client hasn't loaded:
+  -- ask for them now, while the full read runs
+  if (SkillRouteDB.settings or {}).depth ~= false and Core.BuyList then
+    local load = C_Item and C_Item.RequestLoadItemDataByID
+    for item in pairs(Core.BuyList()) do
+      if load then pcall(load, item) elseif GetItemInfo then GetItemInfo(item) end
+    end
+  end
   whenReady(function()
     ours = true
     scan.sentAt = GetTime()
