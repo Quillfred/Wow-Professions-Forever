@@ -1422,11 +1422,43 @@ do
   assert(until_(function() return #sends == 4 end) and sends[4] == 4306, "no answer: retried once")
   assert(until_(function() return not P.Scanning() end), "then skipped and finished")
   assert(said[#said]:find("1 of 2 materials") and said[#said]:find("1 retried"), said[#said])
+  -- an error inside the second pass stops it with a message (never stuck at "Pricing 1/N")
+  Core.BuyList = function() return { [2589] = 10 } end
+  results = { { itemKey = { itemID = 2589 }, minPrice = 40 } }
+  local savedMake = C_AuctionHouse.MakeItemKey
+  C_AuctionHouse.MakeItemKey = function() error("Usage: bad argument") end
+  SkillRouteDB.lastError = nil
+  assert(P.Scan()); run()
+  fireP("AUCTION_HOUSE_BROWSE_RESULTS_UPDATED"); fireP("AUCTION_HOUSE_BROWSE_RESULTS_ADDED")
+  assert(not P.Scanning() and said[#said]:find("stopped on an error"), "error: scan stops: " .. tostring(said[#said]))
+  assert(SkillRouteDB.lastError and SkillRouteDB.lastError:find("second pass"), "and /sr check has it")
+  SkillRouteDB.lastError = nil
+  C_AuctionHouse.MakeItemKey = savedMake
+  -- a material that never answers and never times out: the watchdog stops it after 15 s
+  local clock = 1000
+  local savedGT = _G.GetTime
+  _G.GetTime = function() return clock end
+  C_AuctionHouse.SendSearchQuery = function() end
+  silent = {}
+  local savedAfter2 = C_Timer.After
+  local slow = {}
+  C_Timer.After = function(d, f) if d >= 1 and d < 5 then slow[#slow + 1] = f else queue[#queue + 1] = { d, f } end end
+  queue = {}
+  assert(P.Scan())
+  local function step() local q = queue; queue = {}; for _, x in ipairs(q) do clock = clock + (x[1] or 0); x[2]() end end
+  step()
+  fireP("AUCTION_HOUSE_BROWSE_RESULTS_UPDATED"); fireP("AUCTION_HOUSE_BROWSE_RESULTS_ADDED")
+  for _ = 1, 10 do if not P.Scanning() then break end; step() end
+  assert(not P.Scanning() and said[#said]:find("stalled on material 1"), "watchdog: " .. tostring(said[#said]))
+  C_Timer.After, _G.GetTime = savedAfter2, savedGT
+  queue = {}
+  C_Timer.After = function(_, f) queue[#queue + 1] = f end
+
   -- the diagnostic log: /sr scanlog sums it up
   local log = P.ScanLogLines()
   local joined = table.concat(log, "\n")
   assert(joined:find("first try OK by pause", 1, true) and joined:find("events after first tries that failed", 1, true)
-    and #SkillRouteDB.scanLog.items == 2, joined)
+    and #SkillRouteDB.scanLog.items >= 1, joined)
   realPrint("scanlog sample:\n  " .. table.concat(log, "\n  "))
   Core.BuyList = savedBuy
   _G.C_Item = savedCItem

@@ -242,7 +242,36 @@ function Prices.DepthPass()
   Prices.NextDepth()
 end
 
-function Prices.NextDepth()
+-- Any error in the second pass stops it cleanly (prices so far kept), never a stuck scan.
+local function depthFailed(err)
+  Core.ReportError("AH second pass", err)
+  if scan then
+    stop(summary((" + %d materials priced, then it stopped on an error (/sr check)"):format(scan.priced or 0)))
+    Core.InvalidatePatterns(); Core.Changed()
+  end
+end
+local function guarded(fn)
+  return function(...)
+    local ok, err = pcall(fn, ...)
+    if not ok then depthFailed(err) end
+  end
+end
+Prices._guarded = guarded
+
+-- Watchdog: no progress for 15 s -> stop and say so.
+local function depthWatch(i, since)
+  since = since or GetTime()
+  C_Timer.After(5, function()
+    if not (scan and scan.phase == "depth" and scan.depthI == i) then return end
+    if GetTime() - since < 15 then depthWatch(i, since); return end
+    stop(summary((" + %d materials priced; it stalled on material %d (/sr scanlog)"):format(scan.priced or 0, i)))
+    Core.InvalidatePatterns(); Core.Changed()
+  end)
+end
+
+local nextDepth
+function Prices.NextDepth() guarded(nextDepth)() end
+function nextDepth()
   if not scan or scan.phase ~= "depth" then return end
   scan.depthI = scan.depthI + 1
   local d = scan.depthList[scan.depthI]
@@ -260,11 +289,16 @@ function Prices.NextDepth()
   end
   status(("Pricing the amounts you need... %d/%d"):format(scan.depthI, #scan.depthList))
   scan.current = d
+  depthWatch(scan.depthI)
   local gap = GAPS[(scan.depthI - 1) % #GAPS + 1]
-  local status_ = AH.GetItemCommodityStatus and AH.GetItemCommodityStatus(d.item)
+  local kind = "?"
+  if AH.GetItemKeyInfo then
+    local ok, info = pcall(AH.GetItemKeyInfo, AH.MakeItemKey(d.item))
+    if ok and type(info) == "table" and info.isCommodity ~= nil then kind = info.isCommodity and "commodity" or "item" end
+  end
   local cached = C_Item and C_Item.IsItemDataCachedByID
   d.log = { item = d.item, name = (GetItemInfo and GetItemInfo(d.item)) or ("item " .. d.item), n = d.n, gap = gap,
-            commodity = status_ == 2 and "commodity" or status_ == 1 and "item" or "?",
+            commodity = kind,
             loaded = (not cached) and "?" or (cached(d.item) and "yes" or "no"), tries = {} }
   SkillRouteDB.scanLog.items[#SkillRouteDB.scanLog.items + 1] = d.log
   if gap > 0 then C_Timer.After(gap, function() if scan and scan.current == d then sendDepth(d) end end)
@@ -311,7 +345,7 @@ Prices._readCommodity, Prices._readItems = readCommodity, readItems
 
 -- Send the search for the material being priced.
 function sendDepth(d)
-  whenReady(function()
+  whenReady(guarded(function()
     if not (scan and scan.current == d) then return end
     if (d.tries or 0) == 0 then
       local cached = C_Item and C_Item.IsItemDataCachedByID
@@ -353,7 +387,7 @@ function sendDepth(d)
         scan.current = nil; C_Timer.After(GAPS[2], Prices.NextDepth)
       end
     end)
-  end)
+  end))
 end
 Prices._resendDepth = function() if scan and scan.current then sendDepth(scan.current) end end
 
