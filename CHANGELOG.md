@@ -13,6 +13,11 @@
 - **Mini panel** docked to the profession window: the next step, its materials (have /
   need), **Craft 1** and **Craft all**, the two steps after it and what's left to buy. It
   opens instead of the full window (Options: "Dock a mini panel"); **Full route** opens it.
+- Fixed: a recipe recorded as known once (e.g. the Runed Golden Rod) stayed known even
+  when the profession window lists it as not learned. The window's answer now wins.
+- The mini panel docks past the profession window's side tabs; drag it anywhere
+  (remembered), right-click it to dock again. Tools you craft get Craft buttons and say
+  which trainer teaches them.
 - **At the trainer:** a "your route here" panel lists the recipes this trainer has that
   your route uses, with the skill range each is for, the cost, **Learn** and **Learn all**.
 - **Rank-up reminder:** when a profession hits 75, 150 or 225 and your target is higher,

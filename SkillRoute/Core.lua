@@ -194,17 +194,25 @@ function Core.ScanRecipes()
   local recipes = Data.professions[line].recipes
   local known = Core.Char().known
   known[line] = known[line] or {}
-  local bad = 0
+  local mine = known[line]
+  -- what the window says wins: learned -> true, listed as not learned -> false (that
+  -- also overrides the game's spell check). Recipes it doesn't list (search box,
+  -- filters) are left as they were.
+  local changed, bad = false, 0
   for _, id in ipairs(T.GetAllRecipeIDs() or {}) do
     local info = T.GetRecipeInfo(id)
-    if info and info.learned then
-      known[line][id] = true
-      local r = recipes[id]
-      local live = DIFF[info.relativeDifficulty] or DIFF[info.difficulty]
-      if r and rank and live and live ~= Planner.Color(r, rank) then bad = bad + 1 end
+    if info then
+      local v = info.learned and true or false
+      if mine[id] ~= v and (v or recipes[id]) then mine[id] = v; changed = true end
+      if v then
+        local r = recipes[id]
+        local live = DIFF[info.relativeDifficulty] or DIFF[info.difficulty]
+        if r and rank and live and live ~= Planner.Color(r, rank) then bad = bad + 1 end
+      end
     end
   end
   Core.mismatch[line] = bad
+  if changed then Core.InvalidatePatterns() end
   Core.Changed()
 end
 
@@ -212,11 +220,12 @@ end
 local function knownSet(line)
   local saved = Core.Char().known[line] or {}
   local set = {}
-  for id in pairs(saved) do set[id] = true end
+  for id, v in pairs(saved) do if v then set[id] = true end end
   local isKnown = IsPlayerSpell or IsSpellKnown
   if isKnown then
     for id in pairs(Data.professions[line].recipes) do
-      if not set[id] and isKnown(id) then set[id] = true end
+      -- false = the profession window listed it as not learned: that wins
+      if saved[id] == nil and isKnown(id) then set[id] = true end
     end
   end
   return set
@@ -1344,7 +1353,7 @@ end
 -- Open a known recipe in the profession window. Returns true if the client could.
 function Core.IsRecipeKnown(line, spell)
   local saved = Core.Char().known[line]
-  if saved and saved[spell] then return true end
+  if saved and saved[spell] ~= nil then return saved[spell] end
   local isKnown = IsPlayerSpell or IsSpellKnown
   return isKnown and isKnown(spell) or false
 end

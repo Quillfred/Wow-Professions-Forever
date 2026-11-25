@@ -1457,6 +1457,27 @@ do
   print("essence swap, rank reminder (" .. msg:gsub("|c%x%x%x%x%x%x%x%x", ""):gsub("|r", "") .. "), bank grab OK")
 end
 
+-- what the profession window says about a recipe wins: "not learned" un-knows it,
+-- even if it was recorded before or the game's spell check says otherwise
+do
+  local T = C_TradeSkillUI
+  local savedInfo, savedIPS = T.GetRecipeInfo, _G.IsPlayerSpell
+  Core.ScanRecipes()
+  assert(Core.IsRecipeKnown(197, 3848), "learned in the window")
+  T.GetRecipeInfo = function(id) return { learned = id ~= 3848, relativeDifficulty = 3 } end
+  _G.IsPlayerSpell = function() return true end
+  Core.ScanRecipes()
+  assert(Core.IsRecipeKnown(197, 3848) == false, "listed as not learned: not known")
+  local savedIDs = T.GetAllRecipeIDs
+  T.GetAllRecipeIDs = function() return { 2963 } end -- search box: shorter list
+  Core.ScanRecipes()
+  assert(Core.IsRecipeKnown(197, 3848) == false and Core.IsRecipeKnown(197, 2963), "unlisted recipes keep their state")
+  T.GetAllRecipeIDs, T.GetRecipeInfo, _G.IsPlayerSpell = savedIDs, savedInfo, savedIPS
+  Core.ScanRecipes()
+  assert(Core.IsRecipeKnown(197, 3848), "learned again")
+  print("known recipes: the window's learned / not learned wins; search-filtered lists don't forget")
+end
+
 -- /sr check runs and reports; errors are caught, not thrown
 do
   local out = {}

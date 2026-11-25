@@ -36,7 +36,8 @@ function Mini.Entries(plan)
       trained = trained + 75
     end
     for _, u in ipairs(st.tools or {}) do
-      out[#out + 1] = { kind = "tool", text = ((u.craftSpell and "Craft" or "Buy") .. " 1 x " .. UI.ItemName(u.item) .. " (tool)"), at = st.from }
+      out[#out + 1] = { kind = "tool", spell = u.craftSpell, item = u.item, learn = u.learnHow, at = st.from,
+                        text = ((u.craftSpell and "Craft" or "Buy") .. " 1 x " .. UI.ItemName(u.item) .. " (tool)") }
     end
     if st.gap then
       out[#out + 1] = { kind = "gap", text = ("No usable recipe for %d-%d: see the full route"):format(st.from, st.to), at = st.from }
@@ -60,11 +61,50 @@ end
 
 local function parentFrame() return ProfessionsFrame or TradeSkillFrame end
 
+-- How far right of the profession window to dock: past anything sticking out of its
+-- right edge (the side tabs for your other professions).
+local function dockX(parent)
+  local edge = parent.GetRight and parent:GetRight()
+  if not edge then return 2 end
+  local far = edge
+  local kids = { parent:GetChildren() }
+  for _, k in ipairs(kids) do
+    if k ~= panel and k.IsShown and k:IsShown() and k.GetLeft then
+      local l, r = k:GetLeft(), k:GetRight()
+      if l and r and l >= edge - 12 and r > far and r - edge < 120 then far = r end
+    end
+  end
+  return math.floor(far - edge + 2)
+end
+
+-- Docked by default; drag it anywhere (the spot is remembered, relative to the window);
+-- right-click the title bar to dock it again.
+local function dock(parent)
+  local o = (SkillRouteDB.settings or {}).miniPos
+  panel:ClearAllPoints()
+  if o then panel:SetPoint("TOPLEFT", parent, "TOPRIGHT", o[1], o[2])
+  else panel:SetPoint("TOPLEFT", parent, "TOPRIGHT", dockX(parent), -24) end
+end
+
 local function build(parent)
   panel = CreateFrame("Frame", "SkillRouteMini", parent, "BasicFrameTemplateWithInset")
   panel:SetWidth(W)
-  panel:SetPoint("TOPLEFT", parent, "TOPRIGHT", 2, -24)
   panel:SetFrameStrata("HIGH")
+  panel:SetMovable(true); panel:EnableMouse(true); panel:RegisterForDrag("LeftButton")
+  panel:SetClampedToScreen(true)
+  panel:SetScript("OnDragStart", panel.StartMoving)
+  panel:SetScript("OnDragStop", function(self)
+    self:StopMovingOrSizing()
+    local l, t, pr, pt = self:GetLeft(), self:GetTop(), parent:GetRight(), parent:GetTop()
+    if l and t and pr and pt then
+      SkillRouteDB.settings = SkillRouteDB.settings or {}
+      SkillRouteDB.settings.miniPos = { math.floor(l - pr + 0.5), math.floor(t - pt + 0.5) }
+    end
+    dock(parent)
+  end)
+  panel:SetScript("OnMouseUp", function(_, btn)
+    if btn == "RightButton" then SkillRouteDB.settings.miniPos = nil; dock(parent) end
+  end)
   local title = font("GameFontHighlight"); title:SetPoint("TOP", 0, -5); title:SetText("SkillRoute")
   ui.head = font("GameFontDisableSmall"); ui.head:SetPoint("TOPRIGHT", -12, -30)
   ui.cap1 = font("GameFontDisableSmall"); ui.cap1:SetText("NEXT STEP")
@@ -97,7 +137,8 @@ local function build(parent)
   ui.sep:SetHeight(1)
   ui.costL = font("GameFontHighlightSmall"); ui.costL:SetText("Left to buy")
   ui.costR = font("GameFontHighlightSmall")
-  panel:SetScript("OnShow", function() Mini.Refresh() end)
+  panel:SetScript("OnShow", function() dock(parent); Mini.Refresh() end)
+  dock(parent)
 end
 
 local function place(fs, x, y) fs:ClearAllPoints(); fs:SetPoint("TOPLEFT", x, y) end
@@ -121,7 +162,7 @@ local function draw()
   local y = -30
   for _, m in ipairs(ui.mats) do m.l:SetText(""); m.r:SetText("") end
   ui.note:SetText(""); ui.then1:SetText(""); ui.then2:SetText("")
-  ui.spell, ui.allN = nil, 0
+  ui.spell, ui.allN, ui.crafts, ui.learn = nil, 0, 0, nil
   local entries = plan and Mini.Entries(plan) or {}
   local nCraft = 0
   for _, e in ipairs(entries) do if e.kind == "craft" then nCraft = nCraft + 1 end end
@@ -139,10 +180,15 @@ local function draw()
   elseif e.kind == "craft" then
     local st = e.st
     local r = Data.professions[line].recipes[st.spell]
-    ui.spell = st.spell
+    ui.spell, ui.crafts, ui.learn = st.spell, math.ceil(st.crafts - 1e-9), st.learn
     ui.icon:SetTexture(UI.Icon(r.out, st.spell))
-    ui.main:SetText(("Craft |cffffffff%d x|r %s"):format(math.ceil(st.crafts - 1e-9), st.name))
+    ui.main:SetText(("Craft |cffffffff%d x|r %s"):format(ui.crafts, st.name))
     ui.sub:SetText(("|cff999999skill %d -> %d|r  %s"):format(st.from, st.to, bands(r)))
+  elseif e.kind == "tool" and e.spell then -- a tool you craft: same as a craft, once
+    ui.spell, ui.crafts, ui.learn = e.spell, 1, e.learn
+    ui.icon:SetTexture(UI.Icon(e.item, e.spell))
+    ui.main:SetText("|cffff8040" .. e.text .. "|r")
+    ui.sub:SetText(("|cff999999needed from skill %d; keep it in your bags|r"):format(e.at))
   else
     ui.icon:SetTexture(e.kind == "rank" and "Interface\\Icons\\INV_Misc_Book_09" or "Interface\\Icons\\INV_Scroll_03")
     ui.main:SetText("|cffffd100" .. e.text .. "|r")
@@ -156,9 +202,8 @@ local function draw()
   -- materials: have (bags) / needed for the rest of this step
   local known = false
   if ui.spell then
-    local st = e.st
-    local r = Data.professions[line].recipes[st.spell]
-    local crafts = math.ceil(st.crafts - 1e-9)
+    local r = Data.professions[line].recipes[ui.spell]
+    local crafts = ui.crafts
     for i = 1, math.min(#r.r / 2, MAT_ROWS) do
       local item, per = r.r[2 * i - 1], r.r[2 * i]
       local need = per * crafts
@@ -171,9 +216,16 @@ local function draw()
       place(m.l, 12, y); m.r:ClearAllPoints(); m.r:SetPoint("TOPRIGHT", -12, y)
       y = y - 14
     end
-    known = Core.IsRecipeKnown(line, st.spell)
-    ui.allN = math.min(crafts, Core.CraftableNow(line, st.spell))
-    if not known then ui.note:SetText("Not learned yet: " .. (LEARN[st.learn] or "learn it first") .. ".") end
+    known = Core.IsRecipeKnown(line, ui.spell)
+    ui.allN = math.min(crafts, Core.CraftableNow(line, ui.spell))
+    if not known then
+      local how = LEARN[ui.learn] or "learn it first"
+      if ui.learn == "trainer" or ui.learn == "trainer?" or not ui.learn then
+        local t = Core.NearestRecipeTrainer(line, ui.spell, r.learn or r.y)
+        if t then how = ("learn it at %s, %s"):format(t.npc, Core.Where(t) or "?") end
+      end
+      ui.note:SetText("Not learned yet: " .. how .. ".")
+    end
   end
   if ui.note:GetText() ~= "" then place(ui.note, 12, y - 2); y = y - h(ui.note) - 4 end
 
