@@ -145,6 +145,25 @@ function H.BagNeeds()
   return total, byLine
 end
 
+-- For the button's tooltip: only what's in the bank (that's what a click takes), per
+-- profession { { name, { { item, take, needed }, ... } }, ... }, and how many other
+-- materials the routes need that the bank doesn't have.
+function H.BankRows(byLine)
+  local shown, missing, seen = {}, 0, {}
+  for _, p in ipairs(byLine or {}) do
+    local rows = {}
+    for item, n in pairs(p.items) do
+      local banked = Core.Have(item) - Core.InBags(item)
+      if banked > 0 then rows[#rows + 1] = { item, math.min(n, banked), n }
+      elseif not seen[item] then missing = missing + 1 end
+      seen[item] = true
+    end
+    table.sort(rows, function(a, b) return UI.ItemName(a[1]) < UI.ItemName(b[1]) end)
+    if #rows > 0 then shown[#shown + 1] = { p.name, rows } end
+  end
+  return shown, missing
+end
+
 -- Move whole stacks from the bank until each need is met. Returns stacks moved.
 function H.TakeFromBank()
   local want = H.BagNeeds()
@@ -249,17 +268,21 @@ local function showBankButton()
       local want, byLine = H.BagNeeds()
       GameTooltip:SetOwner(self, "ANCHOR_BOTTOM")
       GameTooltip:SetText("Take route materials")
-      GameTooltip:AddLine(("What the next %d steps of each of your professions still need in your bags, from the bank (whole stacks):")
+      GameTooltip:AddLine(("From your bank, what the next %d steps of each of your professions still need in your bags (whole stacks):")
         :format(LOOKAHEAD), 1, 1, 1, true)
-      local any = false
-      for _, p in ipairs(byLine or {}) do
-        if next(p.items) then
-          GameTooltip:AddLine(p.name, 1, 0.82, 0)
-          for item, n in pairs(p.items) do GameTooltip:AddDoubleLine("  " .. UI.ItemName(item), n, 1, 1, 1, 1, 1, 1) end
-          any = true
+      local shown, missing = H.BankRows(byLine)
+      for _, g in ipairs(shown) do
+        GameTooltip:AddLine(g[1], 1, 0.82, 0)
+        for _, r in ipairs(g[2]) do
+          GameTooltip:AddDoubleLine("  " .. UI.ItemName(r[1]),
+            r[2] < r[3] and ("%d |cff999999(of %d needed)|r"):format(r[2], r[3]) or tostring(r[2]), 1, 1, 1, 1, 1, 1)
         end
       end
-      if not any then GameTooltip:AddLine("Nothing: your bags have it all.", 0.6, 0.6, 0.6) end
+      if #shown == 0 then GameTooltip:AddLine("Nothing your routes need is in your bank.", 0.6, 0.6, 0.6, true) end
+      if missing > 0 then
+        GameTooltip:AddLine(("%d other material%s not in your bank: see the shopping list."):format(missing, missing == 1 and "" or "s"),
+          0.6, 0.6, 0.6, true)
+      end
       if not H.BankWindow() then GameTooltip:AddLine("Drag to move this button.", 0.6, 0.6, 0.6) end
       GameTooltip:Show()
     end)

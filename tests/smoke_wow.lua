@@ -1442,6 +1442,16 @@ do
   local names = {}
   for _, p in ipairs(byLine) do names[#names + 1] = p.name end
   assert(#byLine >= 1 and table.concat(names, ","):find("Tailoring"), "every crafting profession you have: " .. table.concat(names, ","))
+  -- the tooltip lists only what's in the bank: 12 of the item banked, one item not at all
+  local other
+  for it in pairs(want) do if it ~= item then other = it; break end end
+  local savedHave, savedBags = Core.Have, Core.InBags
+  Core.Have = function(it) return it == item and 12 or 0 end
+  Core.InBags = function() return 0 end
+  local shown, missing = H.BankRows({ { name = "Tailoring", items = { [item] = 40, [other or 1] = 5 } } })
+  assert(#shown == 1 and #shown[1][2] == 1 and shown[1][2][1][2] == 12 and shown[1][2][1][3] == 40, "take 12 of 40")
+  assert(missing == 1, "one material not in the bank")
+  Core.Have, Core.InBags = savedHave, savedBags
   local moved = {}
   _G.C_Container = {
     GetContainerNumSlots = function(bag) return bag == -1 and 2 or 0 end,
