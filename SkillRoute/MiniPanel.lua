@@ -69,7 +69,7 @@ local function dockX(parent)
   local far = edge
   local kids = { parent:GetChildren() }
   for _, k in ipairs(kids) do
-    if k ~= panel and k.IsShown and k:IsShown() and k.GetLeft then
+    if k ~= panel and not (k.IsForbidden and k:IsForbidden()) and k.IsShown and k:IsShown() and k.GetLeft then
       local l, r = k:GetLeft(), k:GetRight()
       if l and r and l >= edge - 12 and r > far and r - edge < 120 then far = r end
     end

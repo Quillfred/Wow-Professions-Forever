@@ -1475,7 +1475,10 @@ do
     GetWidth = function() return 1920 end, GetHeight = function() return 1080 end }, { __index = savedUIP })
   assert(H.BankWindow() == bagAddon, "the bag addon's on-screen bank window, not off-screen or transparent ones")
   local holder = frameAt("BagAddonBankHolder", 0, 0, 1920, 1080)
-  local kids = { tiny, offscreen, clear, bagAddon, holder }
+  -- a forbidden frame: touching it (even GetName) errors in game
+  local forbidden = setmetatable({ IsForbidden = function() return true end },
+    { __index = function() return function() error("Attempt to access forbidden object") end end })
+  local kids = { forbidden, tiny, offscreen, clear, bagAddon, holder }
   _G.UIParent = setmetatable({ GetChildren = function() return unpack(kids) end,
     GetWidth = function() return 1920 end, GetHeight = function() return 1080 end }, { __index = savedUIP })
   assert(H.BankWindow() == bagAddon, "a full-screen holder frame isn't the bank window")

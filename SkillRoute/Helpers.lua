@@ -156,7 +156,8 @@ end
 -- top-level frame with "bank" in its name), else Blizzard's. Only one that's really on
 -- screen: bag addons often keep Blizzard's open but moved away or transparent.
 local function onScreen(f)
-  if not (f and f.IsVisible and f:IsVisible()) then return false end
+  if not f or (f.IsForbidden and f:IsForbidden()) then return false end
+  if not (f.IsVisible and f:IsVisible()) then return false end
   if f.GetEffectiveAlpha and (f:GetEffectiveAlpha() or 1) < 0.05 then return false end
   local l, r, t, b = f:GetLeft(), f:GetRight(), f:GetTop(), f:GetBottom()
   local W, H = UIParent:GetWidth(), UIParent:GetHeight()
@@ -165,10 +166,18 @@ local function onScreen(f)
 end
 H.OnScreen = onScreen
 
+-- The name of a top-level frame, or nil. Some of the game's own frames are forbidden to
+-- addons (touching them is an error), so those are skipped.
+local function frameName(f)
+  if f.IsForbidden and f:IsForbidden() then return nil end
+  local ok, n = pcall(f.GetName, f)
+  return ok and n or nil
+end
+
 function H.BankWindow()
   local best, area = nil, 0
   for _, f in ipairs({ UIParent:GetChildren() }) do
-    local name = f.GetName and f:GetName()
+    local name = frameName(f)
     if name and name ~= "BankFrame" and name ~= "SkillRouteBankButton" and name:lower():find("bank", 1, true)
        and onScreen(f) then
       local w, h = f:GetWidth() or 0, f:GetHeight() or 0
@@ -185,14 +194,14 @@ end
 function H.BankDebug()
   local out = {}
   local function desc(f)
-    local n = f.GetName and f:GetName() or "?"
+    local n = frameName(f) or "?"
     return ("%s %dx%d at %d,%d alpha %.2f %s"):format(n, f:GetWidth() or 0, f:GetHeight() or 0,
       f:GetLeft() or -1, f:GetBottom() or -1, f.GetEffectiveAlpha and f:GetEffectiveAlpha() or 1,
       onScreen(f) and "on screen" or "OFF screen")
   end
   for _, f in ipairs({ UIParent:GetChildren() }) do
-    local n = f.GetName and f:GetName()
-    if n and n:lower():find("bank", 1, true) and f.IsVisible and f:IsVisible() then out[#out + 1] = desc(f) end
+    local n = frameName(f)
+    if n and n:lower():find("bank", 1, true) and f:IsVisible() then out[#out + 1] = desc(f) end
   end
   if BankFrame then out[#out + 1] = "BankFrame: " .. (BankFrame:IsVisible() and desc(BankFrame) or "hidden") end
   local host = H.BankWindow()

@@ -32,7 +32,8 @@
   SkillRoute says what to do next (trainer, book or quest), where, and how far.
 - **At the bank:** **Take <profession> mats** moves what your next 3 steps still need from
   the bank into your bags (whole stacks). Works with bank tabs and with bag addons that
-  replace the bank window (the button then floats; drag it where you like).
+  replace the bank window: it docks above the bank window you can see, or floats where you
+  can drag it. `/sr bank` shows what it found.
 - **Essences:** 3 lesser = 1 greater, so each is priced at the cheaper form, and the
   shopping list says when to buy the other one and split or combine.
 - **Working Overtime is read from your Legacy Tree** (at login, after loading screens and
