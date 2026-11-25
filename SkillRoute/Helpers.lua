@@ -56,12 +56,31 @@ end
 -- Take route materials at the bank -----------------------------------------------------
 local LOOKAHEAD = 3 -- craft steps
 
-local function bankBags()
-  local bags = { BANK_CONTAINER or -1 }
+-- The bank's containers. Newer clients have bank tabs (Enum.BagIndex.CharacterBankTab_N);
+-- older ones the bank slots (-1) plus bank bags after your own bags. Never a bag you
+-- carry: using an item from one of those at the bank would deposit it instead.
+function H.BankBags()
+  local B = Enum and Enum.BagIndex
+  local bags = {}
+  if B and B.CharacterBankTab_1 then
+    for i = 1, 12 do
+      local id = B["CharacterBankTab_" .. i]
+      if not id then break end
+      bags[#bags + 1] = id
+    end
+    return bags
+  end
+  bags[1] = BANK_CONTAINER or -1
   local first = (NUM_BAG_SLOTS or 4) + 1
-  for b = first, first + (NUM_BANKBAGSLOTS or 7) - 1 do bags[#bags + 1] = b end
+  local carried = {}
+  if B then for k, v in pairs(B) do if type(k) == "string" and not k:find("Bank") then carried[v] = true end end end
+  for b = first, first + (NUM_BANKBAGSLOTS or 7) - 1 do
+    if not carried[b] then bags[#bags + 1] = b end
+  end
   return bags
 end
+local bankBags = H.BankBags
+
 local function slots(bag)
   local C = C_Container
   return (C and C.GetContainerNumSlots and C.GetContainerNumSlots(bag)) or (GetContainerNumSlots and GetContainerNumSlots(bag)) or 0
@@ -135,12 +154,18 @@ end
 
 local bankBtn
 local function showBankButton()
-  local parent = BankFrame
-  if not parent then return end
   if not bankBtn then
-    bankBtn = CreateFrame("Button", nil, parent, "UIPanelButtonTemplate")
-    bankBtn:SetSize(170, 22)
-    bankBtn:SetPoint("TOPRIGHT", parent, "BOTTOMRIGHT", 0, -2)
+    bankBtn = CreateFrame("Button", "SkillRouteBankButton", UIParent, "UIPanelButtonTemplate")
+    bankBtn:SetSize(170, 24)
+    bankBtn:SetFrameStrata("DIALOG")
+    bankBtn:SetMovable(true); bankBtn:RegisterForDrag("LeftButton"); bankBtn:SetClampedToScreen(true)
+    -- drag to move (bag addons replace the bank window, so it can't always dock)
+    bankBtn:SetScript("OnDragStart", bankBtn.StartMoving)
+    bankBtn:SetScript("OnDragStop", function(self)
+      self:StopMovingOrSizing()
+      local x, y = self:GetCenter()
+      if x and y then SkillRouteDB.settings.bankBtnPos = { math.floor(x), math.floor(y) } end
+    end)
     bankBtn:SetScript("OnClick", function() H.TakeFromBank() end)
     bankBtn:SetScript("OnEnter", function(self)
       local want, line = H.BagNeeds()
@@ -155,10 +180,17 @@ local function showBankButton()
       else
         GameTooltip:AddLine("Open a profession once so SkillRoute knows which route.", 0.6, 0.6, 0.6, true)
       end
+      GameTooltip:AddLine("Drag to move this button.", 0.6, 0.6, 0.6)
       GameTooltip:Show()
     end)
     bankBtn:SetScript("OnLeave", function() GameTooltip:Hide() end)
   end
+  bankBtn:ClearAllPoints()
+  local pos = SkillRouteDB.settings and SkillRouteDB.settings.bankBtnPos
+  if pos then bankBtn:SetPoint("CENTER", UIParent, "BOTTOMLEFT", pos[1], pos[2])
+  elseif BankFrame and BankFrame.IsVisible and BankFrame:IsVisible() then
+    bankBtn:SetPoint("TOPRIGHT", BankFrame, "BOTTOMRIGHT", 0, -2)
+  else bankBtn:SetPoint("TOP", UIParent, "TOP", 0, -120) end
   local c = Core.Char()
   local name = c.lastLine and Data.professions[c.lastLine] and Data.professions[c.lastLine].name
   bankBtn:SetText(name and ("Take %s mats"):format(name) or "Take route mats")
@@ -166,14 +198,19 @@ local function showBankButton()
 end
 
 local f = CreateFrame("Frame")
-for _, ev in ipairs({ "PLAYER_ENTERING_WORLD", "SKILL_LINES_CHANGED", "CHAT_MSG_SKILL", "BANKFRAME_OPENED" }) do
+for _, ev in ipairs({ "PLAYER_ENTERING_WORLD", "SKILL_LINES_CHANGED", "CHAT_MSG_SKILL", "BANKFRAME_OPENED", "BANKFRAME_CLOSED" }) do
   pcall(f.RegisterEvent, f, ev)
 end
 local checking = false
 f:SetScript("OnEvent", function(_, ev)
   if ev == "BANKFRAME_OPENED" then
-    local ok, err = pcall(showBankButton)
-    if not ok then Core.ReportError("bank button", err) end
+    -- next frame: the bank window (Blizzard's or a bag addon's) is shown by then
+    C_Timer.After(0, function()
+      local ok, err = pcall(showBankButton)
+      if not ok then Core.ReportError("bank button", err) end
+    end)
+  elseif ev == "BANKFRAME_CLOSED" then
+    if bankBtn then bankBtn:Hide() end
   elseif not checking then
     checking = true -- skill events come in bursts: check once, a moment later
     C_Timer.After(1, function()

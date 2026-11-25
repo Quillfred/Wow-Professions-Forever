@@ -1450,6 +1450,14 @@ do
   _G.print = realPrint
   assert(n == 1 and moved[1] == "-1:1", "took the stack from the bank")
   _G.C_Container = nil
+  -- bank tabs (newer clients): only the tabs; a reagent bag you carry is never "the bank"
+  _G.Enum = { BagIndex = { Backpack = 0, ReagentBag = 5, Bank = -1, CharacterBankTab_1 = 6, CharacterBankTab_2 = 7 } }
+  local b = H.BankBags()
+  assert(#b == 2 and b[1] == 6 and b[2] == 7, "bank tabs only")
+  _G.Enum = { BagIndex = { Backpack = 0, ReagentBag = 5, Bank = -1 } }
+  b = H.BankBags()
+  for _, x in ipairs(b) do assert(x ~= 5 and x ~= 0, "never a carried bag: " .. x) end
+  _G.Enum = nil
 
   -- trainer panel: route recipes this trainer offers, with Learn buttons
   local TP = ns.TrainerPanel

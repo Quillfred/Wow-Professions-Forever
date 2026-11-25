@@ -31,7 +31,8 @@
 - **Rank-up reminder:** when a profession hits 75, 150 or 225 and your target is higher,
   SkillRoute says what to do next (trainer, book or quest), where, and how far.
 - **At the bank:** **Take <profession> mats** moves what your next 3 steps still need from
-  the bank into your bags (whole stacks).
+  the bank into your bags (whole stacks). Works with bank tabs and with bag addons that
+  replace the bank window (the button then floats; drag it where you like).
 - **Essences:** 3 lesser = 1 greater, so each is priced at the cheaper form, and the
   shopping list says when to buy the other one and split or combine.
 - **Working Overtime is read from your Legacy Tree** (at login, after loading screens and
