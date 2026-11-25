@@ -152,6 +152,22 @@ function H.TakeFromBank()
   return moved
 end
 
+-- The bank window that's showing: Blizzard's, else a bag addon's (Baganator, Bagnon,
+-- ...), found as the largest visible top-level frame with "bank" in its name.
+function H.BankWindow()
+  if BankFrame and BankFrame.IsVisible and BankFrame:IsVisible() then return BankFrame end
+  local best, area = nil, 0
+  for _, f in ipairs({ UIParent:GetChildren() }) do
+    local name = f.GetName and f:GetName()
+    if name and name:lower():find("bank", 1, true) and name ~= "SkillRouteBankButton"
+       and f.IsVisible and f:IsVisible() then
+      local w, h = f:GetWidth() or 0, f:GetHeight() or 0
+      if w > 150 and h > 150 and w * h > area then best, area = f, w * h end
+    end
+  end
+  return best
+end
+
 local bankBtn
 local function showBankButton()
   if not bankBtn then
@@ -180,16 +196,16 @@ local function showBankButton()
       else
         GameTooltip:AddLine("Open a profession once so SkillRoute knows which route.", 0.6, 0.6, 0.6, true)
       end
-      GameTooltip:AddLine("Drag to move this button.", 0.6, 0.6, 0.6)
+      if not H.BankWindow() then GameTooltip:AddLine("Drag to move this button.", 0.6, 0.6, 0.6) end
       GameTooltip:Show()
     end)
     bankBtn:SetScript("OnLeave", function() GameTooltip:Hide() end)
   end
   bankBtn:ClearAllPoints()
+  local host = H.BankWindow()
   local pos = SkillRouteDB.settings and SkillRouteDB.settings.bankBtnPos
-  if pos then bankBtn:SetPoint("CENTER", UIParent, "BOTTOMLEFT", pos[1], pos[2])
-  elseif BankFrame and BankFrame.IsVisible and BankFrame:IsVisible() then
-    bankBtn:SetPoint("TOPRIGHT", BankFrame, "BOTTOMRIGHT", 0, -2)
+  if host then bankBtn:SetPoint("BOTTOMRIGHT", host, "TOPRIGHT", 0, 2) -- docked above the bank
+  elseif pos then bankBtn:SetPoint("CENTER", UIParent, "BOTTOMLEFT", pos[1], pos[2])
   else bankBtn:SetPoint("TOP", UIParent, "TOP", 0, -120) end
   local c = Core.Char()
   local name = c.lastLine and Data.professions[c.lastLine] and Data.professions[c.lastLine].name
@@ -204,8 +220,8 @@ end
 local checking = false
 f:SetScript("OnEvent", function(_, ev)
   if ev == "BANKFRAME_OPENED" then
-    -- next frame: the bank window (Blizzard's or a bag addon's) is shown by then
-    C_Timer.After(0, function()
+    -- a moment later: bag addons show their bank window after the event
+    C_Timer.After(0.2, function()
       local ok, err = pcall(showBankButton)
       if not ok then Core.ReportError("bank button", err) end
     end)

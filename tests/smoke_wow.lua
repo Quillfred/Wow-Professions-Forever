@@ -1458,6 +1458,15 @@ do
   b = H.BankBags()
   for _, x in ipairs(b) do assert(x ~= 5 and x ~= 0, "never a carried bag: " .. x) end
   _G.Enum = nil
+  -- a bag addon's bank window is found by name, the biggest visible one
+  local bagAddon = setmetatable({ GetName = function() return "Baganator_BankViewFrame" end, IsVisible = function() return true end,
+    GetWidth = function() return 600 end, GetHeight = function() return 400 end }, { __index = function() return function() end end })
+  local tiny = setmetatable({ GetName = function() return "SomeBankIcon" end, IsVisible = function() return true end,
+    GetWidth = function() return 20 end, GetHeight = function() return 20 end }, { __index = function() return function() end end })
+  local savedUIP = _G.UIParent
+  _G.UIParent = setmetatable({ GetChildren = function() return tiny, bagAddon end }, { __index = savedUIP })
+  assert(H.BankWindow() == bagAddon, "bag addon's bank window found")
+  _G.UIParent = savedUIP
 
   -- trainer panel: route recipes this trainer offers, with Learn buttons
   local TP = ns.TrainerPanel
