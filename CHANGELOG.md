@@ -30,8 +30,8 @@
   your route uses, with the skill range each is for, the cost, **Learn** and **Learn all**.
 - **Rank-up reminder:** when a profession hits 75, 150 or 225 and your target is higher,
   SkillRoute says what to do next (trainer, book or quest), where, and how far.
-- **At the bank:** **Take <profession> mats** moves what your next 3 steps still need from
-  the bank into your bags (whole stacks). Works with bank tabs and with bag addons that
+- **At the bank:** **Take route mats** moves what the next 3 steps of each of your crafting
+  professions still need from the bank into your bags (whole stacks). Works with bank tabs and with bag addons that
   replace the bank window: it docks above the bank window you can see, or floats where you
   can drag it. `/sr bank` shows what it found.
 - **Essences:** 3 lesser = 1 greater, so each is priced at the cheaper form, and the

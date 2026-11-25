@@ -102,28 +102,47 @@ local function useSlot(bag, slot)
   if C and C.UseContainerItem then C.UseContainerItem(bag, slot) elseif UseContainerItem then UseContainerItem(bag, slot) end
 end
 
--- What the next craft steps still need in your bags: { [item] = count }, and the line.
+-- What the next craft steps of every crafting profession you have still need in your
+-- bags. Returns the total short per item { [item] = n } and, for the tooltip, per
+-- profession { { line, name, items = { [item] = n } }, ... } (sorted by name).
 function H.BagNeeds()
   local c = Core.Char()
-  local line = c.lastLine
-  if not (line and Data.professions[line] and Core.Skills()[line]) then return nil end
-  local plan = Core.Plan(line, c.targets[line] or 300)
-  if not plan then return nil end
-  local want, steps = {}, 0
-  for _, st in ipairs(plan.steps) do
-    if st.spell and not st.gather and not st.gap then
-      local r = Data.professions[line].recipes[st.spell]
-      local crafts = math.ceil(st.crafts - 1e-9)
-      for i = 1, #(r.r or {}), 2 do want[r.r[i]] = (want[r.r[i]] or 0) + r.r[i + 1] * crafts end
-      steps = steps + 1
-      if steps >= LOOKAHEAD then break end
+  local total, byLine = {}, {}
+  for line in pairs(Core.Skills()) do
+    local prof = Data.professions[line]
+    local plan = prof and not prof.gather and Core.Plan(line, c.targets[line] or 300)
+    if plan and not plan.gather then
+      local want, steps = {}, 0
+      for _, st in ipairs(plan.steps) do
+        if st.spell and not st.gather and not st.gap then
+          local r = prof.recipes[st.spell]
+          local crafts = math.ceil(st.crafts - 1e-9)
+          for i = 1, #(r.r or {}), 2 do
+            want[r.r[i]] = (want[r.r[i]] or 0) + r.r[i + 1] * crafts
+            total[r.r[i]] = (total[r.r[i]] or 0) + r.r[i + 1] * crafts
+          end
+          steps = steps + 1
+          if steps >= LOOKAHEAD then break end
+        end
+      end
+      if next(want) then byLine[#byLine + 1] = { line = line, name = prof.name, items = want } end
     end
   end
-  for item, n in pairs(want) do
-    local short = n - Core.InBags(item)
-    want[item] = short > 0 and short or nil
+  -- minus what's in your bags: the totals first (two routes can share a material)
+  local have = {}
+  for item, n in pairs(total) do
+    have[item] = Core.InBags(item)
+    local short = n - have[item]
+    total[item] = short > 0 and short or nil
   end
-  return want, line
+  for _, p in ipairs(byLine) do
+    for item, n in pairs(p.items) do
+      local short = n - (have[item] or 0)
+      p.items[item] = short > 0 and short or nil
+    end
+  end
+  table.sort(byLine, function(x, y) return x.name < y.name end)
+  return total, byLine
 end
 
 -- Move whole stacks from the bank until each need is met. Returns stacks moved.
@@ -227,18 +246,20 @@ local function showBankButton()
     end)
     bankBtn:SetScript("OnClick", function() H.TakeFromBank() end)
     bankBtn:SetScript("OnEnter", function(self)
-      local want, line = H.BagNeeds()
+      local want, byLine = H.BagNeeds()
       GameTooltip:SetOwner(self, "ANCHOR_BOTTOM")
       GameTooltip:SetText("Take route materials")
-      if line then
-        GameTooltip:AddLine(("What the next %d %s steps still need in your bags, from the bank (whole stacks):")
-          :format(LOOKAHEAD, Data.professions[line].name), 1, 1, 1, true)
-        local any = false
-        for item, n in pairs(want or {}) do GameTooltip:AddDoubleLine(UI.ItemName(item), n, 1, 1, 1, 1, 1, 1); any = true end
-        if not any then GameTooltip:AddLine("Nothing: your bags have it all.", 0.6, 0.6, 0.6) end
-      else
-        GameTooltip:AddLine("Open a profession once so SkillRoute knows which route.", 0.6, 0.6, 0.6, true)
+      GameTooltip:AddLine(("What the next %d steps of each of your professions still need in your bags, from the bank (whole stacks):")
+        :format(LOOKAHEAD), 1, 1, 1, true)
+      local any = false
+      for _, p in ipairs(byLine or {}) do
+        if next(p.items) then
+          GameTooltip:AddLine(p.name, 1, 0.82, 0)
+          for item, n in pairs(p.items) do GameTooltip:AddDoubleLine("  " .. UI.ItemName(item), n, 1, 1, 1, 1, 1, 1) end
+          any = true
+        end
       end
+      if not any then GameTooltip:AddLine("Nothing: your bags have it all.", 0.6, 0.6, 0.6) end
       if not H.BankWindow() then GameTooltip:AddLine("Drag to move this button.", 0.6, 0.6, 0.6) end
       GameTooltip:Show()
     end)
@@ -250,9 +271,7 @@ local function showBankButton()
   if host then bankBtn:SetPoint("BOTTOMRIGHT", host, "TOPRIGHT", 0, 2) -- docked above the bank
   elseif pos then bankBtn:SetPoint("CENTER", UIParent, "BOTTOMLEFT", pos[1], pos[2])
   else bankBtn:SetPoint("TOP", UIParent, "TOP", 0, -120) end
-  local c = Core.Char()
-  local name = c.lastLine and Data.professions[c.lastLine] and Data.professions[c.lastLine].name
-  bankBtn:SetText(name and ("Take %s mats"):format(name) or "Take route mats")
+  bankBtn:SetText("Take route mats")
   bankBtn:Show()
 end
 

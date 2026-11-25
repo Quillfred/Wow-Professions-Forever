@@ -122,8 +122,8 @@ Copy the `SkillRoute` folder into `World of Warcraft/_forever_/Interface/AddOns/
 - **Mini panel** (default): opens docked to the profession window with the next step,
   Craft 1 / Craft all and what's next; Options "Dock a mini panel" switches back to the
   full window. **At the trainer**, a panel lists the route's recipes there with Learn
-  buttons. **At the bank**, "Take <profession> mats" moves the next 3 steps' materials to
-  your bags. A reminder appears when a profession hits a rank cap you need to pass.
+  buttons. **At the bank**, "Take route mats" moves the next 3 steps' materials of each
+  of your crafting professions to your bags. A reminder appears when a profession hits a rank cap you need to pass.
 - `/sr scan` (or **Scan AH**, with the auction house open) scans the AH for prices.
 - `/sr craftcost <copper>` prefer fewer crafts: the extra material cost you accept per
   craft saved (route choice only, never charged).

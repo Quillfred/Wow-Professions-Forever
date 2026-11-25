@@ -1436,9 +1436,12 @@ do
   -- bank: moves whole stacks of what the next steps need
   local plan = Core.Plan(197, 300)
   Core.Char().lastLine = 197
-  local want = H.BagNeeds()
+  local want, byLine = H.BagNeeds()
   local item = next(want)
   assert(item, "the next steps need something")
+  local names = {}
+  for _, p in ipairs(byLine) do names[#names + 1] = p.name end
+  assert(#byLine >= 1 and table.concat(names, ","):find("Tailoring"), "every crafting profession you have: " .. table.concat(names, ","))
   local moved = {}
   _G.C_Container = {
     GetContainerNumSlots = function(bag) return bag == -1 and 2 or 0 end,
