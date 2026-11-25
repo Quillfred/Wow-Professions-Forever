@@ -1459,14 +1459,25 @@ do
   for _, x in ipairs(b) do assert(x ~= 5 and x ~= 0, "never a carried bag: " .. x) end
   _G.Enum = nil
   -- a bag addon's bank window is found by name, the biggest visible one
-  local bagAddon = setmetatable({ GetName = function() return "Baganator_BankViewFrame" end, IsVisible = function() return true end,
-    GetWidth = function() return 600 end, GetHeight = function() return 400 end }, { __index = function() return function() end end })
-  local tiny = setmetatable({ GetName = function() return "SomeBankIcon" end, IsVisible = function() return true end,
-    GetWidth = function() return 20 end, GetHeight = function() return 20 end }, { __index = function() return function() end end })
+  local function frameAt(name, l, b, w, h, alpha)
+    return setmetatable({ GetName = function() return name end, IsVisible = function() return true end,
+      GetWidth = function() return w end, GetHeight = function() return h end, GetEffectiveAlpha = function() return alpha or 1 end,
+      GetLeft = function() return l end, GetRight = function() return l + w end, GetBottom = function() return b end,
+      GetTop = function() return b + h end }, { __index = function() return function() end end })
+  end
+  local bagAddon = frameAt("Baganator_BankViewFrame", 400, 200, 600, 400)
+  local offscreen = frameAt("OtherBankWindow", -5000, 200, 900, 900)
+  local clear = frameAt("ClearBankWindow", 100, 100, 900, 900, 0)
+  _G.BankFrame = frameAt("BankFrame", -3000, -3000, 400, 400) -- moved away by the bag addon
+  local tiny = frameAt("SomeBankIcon", 500, 500, 20, 20)
   local savedUIP = _G.UIParent
-  _G.UIParent = setmetatable({ GetChildren = function() return tiny, bagAddon end }, { __index = savedUIP })
-  assert(H.BankWindow() == bagAddon, "bag addon's bank window found")
-  _G.UIParent = savedUIP
+  _G.UIParent = setmetatable({ GetChildren = function() return tiny, offscreen, clear, bagAddon end,
+    GetWidth = function() return 1920 end, GetHeight = function() return 1080 end }, { __index = savedUIP })
+  assert(H.BankWindow() == bagAddon, "the bag addon's on-screen bank window, not off-screen or transparent ones")
+  _G.UIParent = setmetatable({ GetChildren = function() return tiny end,
+    GetWidth = function() return 1920 end, GetHeight = function() return 1080 end }, { __index = savedUIP })
+  assert(H.BankWindow() == nil, "Blizzard's bank moved off screen: not docked to it")
+  _G.UIParent, _G.BankFrame = savedUIP, nil
 
   -- trainer panel: route recipes this trainer offers, with Learn buttons
   local TP = ns.TrainerPanel

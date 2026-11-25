@@ -152,20 +152,31 @@ function H.TakeFromBank()
   return moved
 end
 
--- The bank window that's showing: Blizzard's, else a bag addon's (Baganator, Bagnon,
--- ...), found as the largest visible top-level frame with "bank" in its name.
+-- The bank window you can see: a bag addon's (Baganator, Bagnon, ...: the largest
+-- top-level frame with "bank" in its name), else Blizzard's. Only one that's really on
+-- screen: bag addons often keep Blizzard's open but moved away or transparent.
+local function onScreen(f)
+  if not (f and f.IsVisible and f:IsVisible()) then return false end
+  if f.GetEffectiveAlpha and (f:GetEffectiveAlpha() or 1) < 0.05 then return false end
+  local l, r, t, b = f:GetLeft(), f:GetRight(), f:GetTop(), f:GetBottom()
+  local W, H = UIParent:GetWidth(), UIParent:GetHeight()
+  if not (l and r and t and b and W and H) then return false end
+  return r > 20 and l < W - 20 and t > 20 and b < H - 20
+end
+H.OnScreen = onScreen
+
 function H.BankWindow()
-  if BankFrame and BankFrame.IsVisible and BankFrame:IsVisible() then return BankFrame end
   local best, area = nil, 0
   for _, f in ipairs({ UIParent:GetChildren() }) do
     local name = f.GetName and f:GetName()
-    if name and name:lower():find("bank", 1, true) and name ~= "SkillRouteBankButton"
-       and f.IsVisible and f:IsVisible() then
+    if name and name ~= "BankFrame" and name ~= "SkillRouteBankButton" and name:lower():find("bank", 1, true)
+       and onScreen(f) then
       local w, h = f:GetWidth() or 0, f:GetHeight() or 0
       if w > 150 and h > 150 and w * h > area then best, area = f, w * h end
     end
   end
-  return best
+  if best then return best end
+  if BankFrame and onScreen(BankFrame) then return BankFrame end
 end
 
 local bankBtn
