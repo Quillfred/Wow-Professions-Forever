@@ -979,12 +979,40 @@ function Core.AHFresh(item)
   return p ~= nil and (age == nil or age <= MAX_AH_AGE_DAYS)
 end
 
--- For tooltips: { ah, age, src, paid, paidDays } (any may be nil).
+-- For tooltips: { ah, age, src, paid, paidDays, cheapest, forN } (any may be nil).
+-- cheapest/forN: SkillRoute's scan priced the amount your routes need (ah = average
+-- per unit for forN; cheapest = the cheapest listing).
 function Core.PriceInfo(item)
   local p, age, src = ahQuote(item, true)
-  local paid, days
-  if ns.Prices then paid, days = ns.Prices.LastPaid(item) end
-  return { ah = p, age = age, src = src, paid = paid, paidDays = days }
+  local paid, days, cheapest, forN
+  if ns.Prices then
+    paid, days = ns.Prices.LastPaid(item)
+    if src == "SkillRoute scan" then
+      local minP, d = ns.Prices.Detail(item)
+      if d then cheapest, forN = minP, d.n end
+    end
+  end
+  return { ah = p, age = age, src = src, paid = paid, paidDays = days, cheapest = cheapest, forN = forN }
+end
+
+-- What all your crafting routes will buy on the AH: { [item] = units }. Stackable
+-- materials only (not patterns, tools, books, vendor or farmed items).
+function Core.BuyList()
+  local c, out = Core.Char(), {}
+  for line in pairs(Core.Skills()) do
+    local prof = Data.professions[line]
+    if prof and not prof.gather then
+      local ok, plan = pcall(Core.Plan, line, c.targets[line] or 300)
+      if ok and plan and plan.shopping then
+        for _, b in ipairs(plan.shopping.buy) do
+          if b.buy and b.buy > 0 and not (b.vendor or b.farm or b.pattern or b.tool or b.book) then
+            out[b.item] = (out[b.item] or 0) + b.buy
+          end
+        end
+      end
+    end
+  end
+  return out
 end
 
 -- Recipes you marked as unavailable (right-click a step); per character.

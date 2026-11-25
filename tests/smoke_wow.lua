@@ -1361,6 +1361,41 @@ do
   fireP("AUCTION_HOUSE_CLOSED")
   assert(not P.Scanning() and b.items[2589] == 40, "closing the AH cancels")
 
+  -- the AH's "ready" event sends the next page at once; then the second pass prices the
+  -- amount your routes need along the price ladder
+  local isReady, searched = true, nil
+  C_AuctionHouse.IsThrottledMessageSystemReady = function() return isReady end
+  C_AuctionHouse.MakeItemKey = function(id) return { itemID = id } end
+  C_AuctionHouse.SendSearchQuery = function(key) searched = key.itemID end
+  local ladder = { { unitPrice = 60, quantity = 50 }, { unitPrice = 40, quantity = 2 } }
+  C_AuctionHouse.GetNumCommoditySearchResults = function() return #ladder end
+  C_AuctionHouse.GetCommoditySearchResultInfo = function(_, i) return ladder[i] end
+  local savedBuy = Core.BuyList
+  Core.BuyList = function() return { [2589] = 10 } end
+  results = { { itemKey = { itemID = 2589 }, minPrice = 40 } }
+  fire("AUCTION_HOUSE_SHOW")
+  said = {}
+  assert(P.Scan()); run()
+  isReady = false
+  fireP("AUCTION_HOUSE_BROWSE_RESULTS_UPDATED") -- wants the next page, AH not ready
+  assert(not full, "waits for the AH")
+  isReady = true
+  fireP("AUCTION_HOUSE_THROTTLED_SYSTEM_READY")
+  assert(full, "sent as soon as the AH said it's ready")
+  fireP("AUCTION_HOUSE_BROWSE_RESULTS_ADDED") -- (timers not run: the 4 s no-answer timeout would fire)
+  assert(P.Scanning() and searched == 2589, "second pass searches the material")
+  assert(scanBtn.text == "Pricing 1/1", "button: " .. tostring(scanBtn.text))
+  fireP("COMMODITY_SEARCH_RESULTS_UPDATED", 2589); run()
+  assert(not P.Scanning(), "done")
+  assert(P.Own(2589) == 56, "10 priced along the ladder: 2 at 40s + 8 at 60s = 56 each: " .. tostring(P.Own(2589)))
+  assert(P.CostFor({ { 10, 1 } }, 3) == 10, "beyond what's listed: at the dearest price")
+  local line = said[#said] or ""
+  assert(line:find("pages:") and line:find("1 of 1 materials priced for the amounts you need"), line)
+  local pi2 = Core.PriceInfo(2589)
+  assert(pi2.ah == 56 and pi2.cheapest == 40 and pi2.forN == 10, "tooltip shows the amount and the cheapest")
+  Core.BuyList = savedBuy
+  realPrint("scan summary: " .. line)
+
   -- what you paid: 5 at 1s each; used when the AH has none
   C_AuctionHouse.StartCommoditiesPurchase(999123, 5)
   C_AuctionHouse.ConfirmCommoditiesPurchase(999123, 5)
@@ -1370,7 +1405,7 @@ do
   assert(P.LastPaid(999123) == 100, "paid 1s each")
   assert(Core.Price(999123) == 100, "no AH price: what you paid")
   local pi = Core.PriceInfo(2589)
-  assert(pi.ah == 40 and pi.src == "SkillRoute scan" and pi.age == 0, "tooltip info")
+  assert(pi.ah == 56 and pi.src == "SkillRoute scan" and pi.age == 0, "tooltip info (the amount-priced average)")
 
   _G.print = realPrint
   fire("AUCTION_HOUSE_CLOSED")

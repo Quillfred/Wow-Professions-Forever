@@ -299,6 +299,9 @@ local function build()
   y = check(panel, y, "Dock a mini panel to the profession window",
     "Shows the next step, Craft buttons and what's left to buy next to the profession window, instead of opening the full SkillRoute window. The full route is one click away.",
     function() return S().mini ~= false end, function(v) Options.Set("mini", v) end)
+  y = check(panel, y, "Price the amounts I need when scanning the AH",
+    "After the full scan, one search per material your routes buy, so a price is what buying all of it costs (not just the cheapest listing). Adds a few seconds per material.",
+    function() return S().depth ~= false end, function(v) Options.Set("depth", v) end)
   y = check(panel, y, "Count materials on my alts",
     "Uses Syndicator or DataStore, if installed.",
     function() return S().alts ~= false end, function(v) Options.Set("alts", v) end)

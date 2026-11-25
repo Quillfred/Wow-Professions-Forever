@@ -737,7 +737,8 @@ local function shoppingRows(plan)
       if pi.ah or pi.paid then
         tip = { { header = "SkillRoute" } }
         if pi.ah then
-          tip[#tip + 1] = { "AH price", money(pi.ah) .. " each" }
+          tip[#tip + 1] = { "AH price", money(pi.ah) .. " each" .. (pi.forN and (" for %d"):format(pi.forN) or "") }
+          if pi.cheapest and pi.cheapest < pi.ah then tip[#tip + 1] = { "cheapest", money(pi.cheapest), sub = true } end
           tip[#tip + 1] = { "from", (pi.src or "?") .. (pi.age == 0 and ", today" or pi.age == 1 and ", yesterday"
                              or pi.age and (", %d days ago"):format(pi.age) or ""), sub = true }
         end

@@ -6,6 +6,12 @@
   house is open reads the lowest price of everything listed in one search. Auctionator is
   no longer required for prices. The button sits on the auction house window's title bar
   (and on the full SkillRoute window) and shows the scan's progress.
+- **Prices for the amount you need:** after the full read, one search per material your
+  routes buy prices *all* of it along the price ladder, not just the cheapest listing
+  (Options: "Price the amounts I need", on by default). The button shows "Pricing 7/18";
+  closing the AH partway keeps what was priced.
+- The scan sends each request the moment the AH allows it (no more 0.3 s polling), and the
+  finish line says where the time went (pages, waiting, answers).
 - **Freshest price wins:** per item, SkillRoute uses whichever is newer, its own scan or
   Auctionator's.
 - **What you paid:** AH purchases of stackable goods are remembered. An item that isn't on

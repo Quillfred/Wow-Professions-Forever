@@ -39,11 +39,20 @@ function Prices.Book() return root("prices") end
 function Prices.Paid() return root("paid") end
 
 -- Our own price: copper, age in whole days, time of the scan.
+-- Our own price: copper, age in whole days, time of the scan. For materials the second
+-- pass priced, the average cost of the amount your routes need (not the cheapest one).
 function Prices.Own(item)
   local b = Prices.Book()
   local p = b.items and b.items[item]
   if not p then return nil end
-  return p, math.floor((now() - (b.t or 0)) / 86400), b.t
+  local d = b.depth and b.depth[item]
+  return d and d.p or p, math.floor((now() - (b.t or 0)) / 86400), b.t
+end
+
+-- For tooltips: the cheapest listing and, if priced, the amount and its average.
+function Prices.Detail(item)
+  local b = Prices.Book()
+  return b.items and b.items[item], b.depth and b.depth[item]
 end
 
 -- When Auctionator last scanned (its saved state, or the last update it told us of).
@@ -126,11 +135,26 @@ local function ready()
   return not AH.IsThrottledMessageSystemReady or AH.IsThrottledMessageSystemReady()
 end
 
--- Send fn() when the AH accepts messages, retrying every 0.3 s.
+-- Send fn() as soon as the AH accepts messages: on its "ready" event, with a check every
+-- 0.3 s as a backup. Time spent waiting is added to scan.tWait (shown at the end).
+local waiting -- { fn, since }
+local function fire()
+  local w = waiting
+  if not (w and scan) then waiting = nil; return end
+  if not ready() then return end
+  waiting = nil
+  scan.tWait = (scan.tWait or 0) + (GetTime() - w.since)
+  w.fn()
+end
+local function poll() if waiting then fire(); if waiting then C_Timer.After(0.3, poll) end end end
 local function whenReady(fn)
   if not scan then return end
-  if ready() then fn() else C_Timer.After(0.3, function() whenReady(fn) end) end
+  if ready() then fn(); return end
+  local first = waiting == nil
+  waiting = { fn = fn, since = GetTime() }
+  if first then C_Timer.After(0.3, poll) end
 end
+Prices._fireReady = fire -- for the event handler below
 
 local function watchdog()
   if not scan or scan.phase ~= "read" then return end
@@ -165,20 +189,96 @@ local function store()
     local b = Prices.Book()
     local count = 0
     for _ in pairs(items) do count = count + 1 end
-    b.items, b.t, b.count = items, now(), count
-    stop(("auction house scanned: %d items priced (%.0f s)."):format(count, GetTime() - scan.started))
+    b.items, b.t, b.count, b.depth = items, now(), count, {}
+    scan.count, scan.readTime = count, GetTime() - scan.started
     Core.InvalidatePatterns()
     Core.Changed()
+    Prices.DepthPass()
   end
   step()
 end
 
+-- The end-of-scan line, with where the time went.
+local function summary(extra)
+  return ("auction house scanned: %d items priced in %.0f s (%d pages: %.0f s waiting for the AH to allow the next one, %.0f s for pages to arrive)%s.")
+    :format(scan.count or 0, scan.readTime or 0, scan.pages or 0, scan.tWaitRead or scan.tWait or 0, scan.tPage or 0, extra or "")
+end
+
+-- Second pass: the materials your routes will buy, one search each, to price the amount
+-- you need along the price ladder (the full read only has each item's cheapest listing).
+-- Results are kept item by item, so closing the AH partway keeps what was priced.
+local DEPTH_TIMEOUT = 4
+function Prices.DepthPass()
+  local want = (SkillRouteDB.settings or {}).depth ~= false and Core.BuyList and Core.BuyList() or {}
+  local list = {}
+  for item, n in pairs(want) do if Prices.Book().items[item] then list[#list + 1] = { item = item, n = n } end end
+  table.sort(list, function(a, b) return a.item < b.item end)
+  if #list == 0 or not (AH.SendSearchQuery and AH.MakeItemKey) then stop(summary()); return end
+  scan.tWaitRead = scan.tWait or 0
+  scan.phase, scan.depthList, scan.depthI, scan.depthStart, scan.priced = "depth", list, 0, GetTime(), 0
+  Prices.NextDepth()
+end
+
+function Prices.NextDepth()
+  if not scan or scan.phase ~= "depth" then return end
+  scan.depthI = scan.depthI + 1
+  local d = scan.depthList[scan.depthI]
+  if not d then
+    stop(summary((" + %d of %d materials priced for the amounts you need (%.0f s)")
+      :format(scan.priced, #scan.depthList, GetTime() - scan.depthStart)))
+    Core.InvalidatePatterns(); Core.Changed()
+    return
+  end
+  status(("Pricing the amounts you need... %d/%d"):format(scan.depthI, #scan.depthList))
+  scan.current = d
+  local i = scan.depthI
+  whenReady(function()
+    ours = true
+    pcall(AH.SendSearchQuery, AH.MakeItemKey(d.item), { { sortOrder = (Enum and Enum.AuctionHouseSortOrder and Enum.AuctionHouseSortOrder.Price) or 0, reverseSort = false } }, false)
+    ours = false
+    C_Timer.After(DEPTH_TIMEOUT, function() -- no answer: move on
+      if scan and scan.phase == "depth" and scan.depthI == i then Prices.NextDepth() end
+    end)
+  end)
+end
+
+-- Average price per unit of buying n from listings { {price, qty}, ... } (cheapest
+-- first); beyond what's listed, at the dearest price seen.
+function Prices.CostFor(tiers, n)
+  local left, total, last = n, 0, nil
+  for _, t in ipairs(tiers) do
+    local take = math.min(left, t[2])
+    total, left, last = total + take * t[1], left - take, t[1]
+    if left <= 0 then break end
+  end
+  if left > 0 and last then total = total + left * last end
+  return n > 0 and total / n or nil
+end
+
+-- A search answer for the material being priced: store its price for the amount needed.
+function Prices.DepthResult(item, tiers)
+  local d = scan and scan.phase == "depth" and scan.current
+  if not d or d.item ~= item then return end
+  scan.current = nil
+  table.sort(tiers, function(a, b) return a[1] < b[1] end)
+  local avg = #tiers > 0 and Prices.CostFor(tiers, d.n)
+  if avg then
+    Prices.Book().depth[item] = { p = math.floor(avg + 0.5), n = d.n, listed = (function()
+      local q = 0 for _, t in ipairs(tiers) do q = q + t[2] end return q end)() }
+    scan.priced = scan.priced + 1
+  end
+  Prices.NextDepth()
+end
+
 local function nextPage()
   if not scan or scan.phase ~= "read" then return end
-  scan.lastPage = GetTime()
+  local t = GetTime()
+  scan.lastPage = t
+  scan.pages = (scan.pages or 0) + 1
+  if scan.sentAt then scan.tPage = (scan.tPage or 0) + (t - scan.sentAt); scan.sentAt = nil end
   if AH.HasFullBrowseResults() then store(); return end
   status(("Scanning the auction house... %d items"):format(#(AH.GetBrowseResults() or {})))
-  whenReady(function() AH.RequestMoreBrowseResults() end)
+  whenReady(function() scan.sentAt = GetTime(); AH.RequestMoreBrowseResults() end)
 end
 
 function Prices.Scan()
@@ -192,6 +292,7 @@ function Prices.Scan()
   status("Scanning the auction house...")
   whenReady(function()
     ours = true
+    scan.sentAt = GetTime()
     local ok, err = pcall(AH.SendBrowseQuery, { searchString = "", sorts = {}, filters = {}, itemClassFilters = {} })
     ours = false
     if not ok then stop("the scan couldn't start: " .. tostring(err)); return end
@@ -253,7 +354,8 @@ local function attachButton()
   Prices.OnStatus(function(text)
     if not ahBtn then return end
     -- short labels: the button is narrow ("Scanning 28000", "Saving 60%")
-    local label = text and (text:match("(%d+) items") and ("Scanning " .. text:match("(%d+) items"))
+    local label = text and (text:match("(%d+/%d+)") and ("Pricing " .. text:match("(%d+/%d+)"))
+                            or text:match("(%d+) items") and ("Scanning " .. text:match("(%d+) items"))
                             or text:match("(%d+%%)") and ("Saving " .. text:match("(%d+%%)"))
                             or "Scanning...")
     ahBtn:SetText(label or "SkillRoute: Scan AH")
@@ -265,7 +367,8 @@ end
 local f = CreateFrame("Frame")
 for _, ev in ipairs({ "PLAYER_LOGIN", "AUCTION_HOUSE_SHOW", "AUCTION_HOUSE_CLOSED",
   "AUCTION_HOUSE_BROWSE_RESULTS_UPDATED", "AUCTION_HOUSE_BROWSE_RESULTS_ADDED", "AUCTION_HOUSE_BROWSE_FAILURE",
-  "COMMODITY_PRICE_UPDATED", "COMMODITY_PURCHASE_SUCCEEDED", "COMMODITY_PURCHASE_FAILED" }) do
+  "COMMODITY_PRICE_UPDATED", "COMMODITY_PURCHASE_SUCCEEDED", "COMMODITY_PURCHASE_FAILED",
+  "AUCTION_HOUSE_THROTTLED_SYSTEM_READY", "COMMODITY_SEARCH_RESULTS_UPDATED", "ITEM_SEARCH_RESULTS_UPDATED" }) do
   pcall(f.RegisterEvent, f, ev) -- an event this client doesn't have is just skipped
 end
 f:SetScript("OnEvent", function(_, ev, a, b)
@@ -276,10 +379,36 @@ f:SetScript("OnEvent", function(_, ev, a, b)
       if not ok then Core.ReportError("AH scan button", err) end
     end
   elseif ev == "AUCTION_HOUSE_CLOSED" then
-    if scan then stop("auction house closed; scan cancelled, nothing saved.") end
+    if scan and scan.phase == "depth" then
+      stop(summary((" + %d materials priced for the amounts you need before the AH closed"):format(scan.priced)))
+      Core.InvalidatePatterns(); Core.Changed()
+    elseif scan then stop("auction house closed; scan cancelled, nothing saved.") end
     pending = nil
   elseif ev == "AUCTION_HOUSE_BROWSE_RESULTS_UPDATED" or ev == "AUCTION_HOUSE_BROWSE_RESULTS_ADDED" then
     nextPage()
+  elseif ev == "AUCTION_HOUSE_THROTTLED_SYSTEM_READY" then
+    fire()
+  elseif ev == "COMMODITY_SEARCH_RESULTS_UPDATED" then
+    local item = a
+    if scan and scan.current and scan.current.item == item and AH.GetNumCommoditySearchResults then
+      local tiers = {}
+      for i = 1, math.min(100, AH.GetNumCommoditySearchResults(item) or 0) do
+        local r = AH.GetCommoditySearchResultInfo(item, i)
+        if r and r.unitPrice and r.quantity then tiers[#tiers + 1] = { r.unitPrice, r.quantity } end
+      end
+      Prices.DepthResult(item, tiers)
+    end
+  elseif ev == "ITEM_SEARCH_RESULTS_UPDATED" then
+    local key = a
+    local item = type(key) == "table" and key.itemID
+    if item and scan and scan.current and scan.current.item == item and AH.GetNumItemSearchResults then
+      local tiers = {}
+      for i = 1, math.min(100, AH.GetNumItemSearchResults(key) or 0) do
+        local r = AH.GetItemSearchResultInfo(key, i)
+        if r and r.buyoutAmount and r.quantity and r.quantity > 0 then tiers[#tiers + 1] = { r.buyoutAmount / r.quantity, r.quantity } end
+      end
+      Prices.DepthResult(item, tiers)
+    end
   elseif ev == "AUCTION_HOUSE_BROWSE_FAILURE" then
     if scan and scan.phase == "read" then stop("the auction house refused the scan; nothing saved. Try again in a moment.") end
   elseif ev == "COMMODITY_PRICE_UPDATED" then
