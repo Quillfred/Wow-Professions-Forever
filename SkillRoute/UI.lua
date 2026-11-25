@@ -85,7 +85,7 @@ local function mats(spell, line)
 end
 
 -- Frame ----------------------------------------------------------------------------
-local frame, scroll, content, info, footer, targetBox, profText, modeBtn, hRange, ahBtn
+local frame, scroll, content, info, footer, targetBox, profText, modeBtn, hRange, ahBtn, scanBtn
 local lastPlan
 local rows = {}
 local state = { mode = "route" }
@@ -710,6 +710,22 @@ local function shoppingRows(plan)
       tip[#tip + 1] = { note = "Click: waypoint" }
     end
     if b.est then tags[#tags + 1] = "|cffff8040estimated price|r" end
+    if not tip and not b.farm and not b.vendor then
+      local pi = Core.PriceInfo(b.item)
+      if pi.ah or pi.paid then
+        tip = { { header = "SkillRoute" } }
+        if pi.ah then
+          tip[#tip + 1] = { "AH price", money(pi.ah) .. " each" }
+          tip[#tip + 1] = { "from", (pi.src or "?") .. (pi.age == 0 and ", today" or pi.age == 1 and ", yesterday"
+                             or pi.age and (", %d days ago"):format(pi.age) or ""), sub = true }
+        end
+        if pi.paid then
+          tip[#tip + 1] = { "You paid", money(pi.paid) .. " each" .. (pi.paidDays == 0 and " (today)"
+                             or (" (%d day%s ago)"):format(pi.paidDays, pi.paidDays == 1 and "" or "s")) }
+          if not pi.ah then tip[#tip + 1] = { note = "Not on the AH in the last scan: priced at what you paid." } end
+        end
+      end
+    end
     if b.farm and b.buy > 0 then
       add({ item = b.item,
             text = ("|cff40bf40Farm %d x %s|r"):format(b.buy, b.name),
@@ -737,6 +753,30 @@ local function shoppingRows(plan)
   return n
 end
 
+-- Bottom-right buttons: Scan AH while the auction house is open, Send to Auctionator in
+-- the shopping list; the footer text stops short of whichever are showing.
+function UI.UpdateButtons()
+  if not frame then return end
+  local P = ns.Prices
+  local scanning = P and P.Scanning()
+  if scanBtn then
+    if Core.ahOpen and P then
+      scanBtn:Show()
+      scanBtn:SetText(scanning and "Scanning..." or "Scan AH")
+      if scanning then scanBtn:Disable() else scanBtn:Enable() end
+    else scanBtn:Hide() end
+  end
+  local showAuc = state.mode == "shopping" and Core.CanExportToAuctionator()
+  if ahBtn then
+    ahBtn:ClearAllPoints()
+    if scanBtn and scanBtn:IsShown() then ahBtn:SetPoint("RIGHT", scanBtn, "LEFT", -4, 0)
+    else ahBtn:SetPoint("BOTTOMRIGHT", -14, 8) end
+    if showAuc then ahBtn:Show() else ahBtn:Hide() end
+  end
+  local inset = 14 + ((scanBtn and scanBtn:IsShown()) and 124 or 0) + (showAuc and 154 or 0)
+  footer:SetPoint("RIGHT", -math.max(inset, 20), 0)
+end
+
 local function refresh()
   if not (frame and frame:IsShown()) then return end
   local mine, c = lines()
@@ -762,7 +802,8 @@ local function refresh()
     info:SetText(err)
     return
   end
-  local src = Core.PriceSource() and "Auctionator prices" or "|cffff4040Auctionator not found|r"
+  local src = Core.PriceSource()
+  src = src and (src .. " prices") or "|cffff4040No AH prices yet: scan the AH (Scan AH button, or Auctionator)|r"
   local warn = {}
   local nSkip = 0
   for _ in pairs(Core.Skips(plan.line)) do nSkip = nSkip + 1 end
@@ -787,9 +828,7 @@ local function refresh()
     #warn > 0 and ("\n" .. table.concat(warn, "\n")) or ""))
 
   lastPlan = plan
-  if ahBtn then
-    if state.mode == "shopping" and Core.CanExportToAuctionator() then ahBtn:Show() else ahBtn:Hide() end
-  end
+  UI.UpdateButtons()
   local n = state.mode == "route" and routeRows(plan) or shoppingRows(plan)
   for i = n + 1, #rows do rows[i]:Hide() end
   content:SetHeight(math.max(1, n * ROW_H + ROWS_PAD))
@@ -934,6 +973,26 @@ local function build()
   ahBtn:SetText("Send to Auctionator")
   ahBtn:SetScript("OnClick", function() if lastPlan then Core.ExportToAuctionator(lastPlan) end end)
   ahBtn:Hide()
+  scanBtn = CreateFrame("Button", nil, frame, "UIPanelButtonTemplate")
+  scanBtn:SetSize(120, 22); scanBtn:SetPoint("BOTTOMRIGHT", -14, 8)
+  scanBtn:SetText("Scan AH")
+  scanBtn:SetScript("OnClick", function() if ns.Prices and ns.Prices.Scan() then UI.UpdateButtons() end end)
+  scanBtn:SetScript("OnEnter", function(self)
+    GameTooltip:SetOwner(self, "ANCHOR_TOP"); GameTooltip:SetText("Scan the auction house")
+    GameTooltip:AddLine("Reads the lowest price of everything listed, in one search. SkillRoute uses the freshest of this and Auctionator's prices.", 1, 1, 1, true)
+    local b = ns.Prices and ns.Prices.Book()
+    if b and b.t then GameTooltip:AddLine(("Last scan: %s, %d items."):format(date("%b %d %H:%M", b.t), b.count or 0), 0.6, 0.6, 0.6, true) end
+    GameTooltip:Show()
+  end)
+  scanBtn:SetScript("OnLeave", function() GameTooltip:Hide() end)
+  scanBtn:Hide()
+  if ns.Prices then
+    ns.Prices.OnStatus(function(text)
+      UI.UpdateButtons()
+      if text then if footer then footer:SetText("|cff33ccff" .. text .. "|r") end
+      else UI.Refresh() end -- finished or stopped: back to the route's own footer
+    end)
+  end
   frame:Hide() -- new frames start shown; the first open must show it (and refresh via OnShow)
 end
 
@@ -948,7 +1007,7 @@ local function firstRunTips()
   SkillRouteDB.tipsShown = true
   local t = "|cff33ccffSkillRoute:|r "
   print(t .. "the route lists each step top to bottom. |cffffd100Hover|r a step for details, |cffffd100click|r to open the recipe or set a waypoint, |cffffd100right-click|r to skip a recipe you can't get.")
-  print(t .. "|cffffd100Shopping list|r (top right) is what to buy, minus what you have. Prices come from your Auctionator scans: scan the AH first.")
+  print(t .. "|cffffd100Shopping list|r (top right) is what to buy, minus what you have. Prices come from Auctionator or SkillRoute's own scan (Scan AH button at the auction house): scan first.")
   print(t .. "|cffffd100Options|r for margins and settings; |cffffd100/sr help|r for commands, |cffffd100/sr check|r if something looks wrong.")
 end
 
@@ -1007,6 +1066,8 @@ SlashCmdList.SKILLROUTE = function(msg)
   local settings = SkillRouteDB and SkillRouteDB.settings
   if cmd == "log" then
     if ns.Recorder then ns.Recorder.Command(arg) end
+  elseif cmd == "scan" then
+    if ns.Prices then ns.Prices.Scan() end
   elseif cmd == "overtime" and settings then
     local v = tonumber(arg)
     if v and v >= 0 and v <= 100 then
@@ -1075,7 +1136,7 @@ SlashCmdList.SKILLROUTE = function(msg)
     print("SkillRoute: open with the profession window is " .. (settings.auto and "ON" or "OFF"))
     return
   elseif cmd == "help" then
-    print("SkillRoute: /sr - open/close   /sr options   /sr minimap on|off   /sr check   /sr auto on|off   /sr overtime <pct>   /sr estimate on|off   /sr cdmats on|off   /sr margin <50-99>   /sr craftcost <copper>   /sr alts on|off   /sr resale <pct>   /sr ah   /sr log on|off|skip|boat   /sr unskip   (right-click a step to skip it)")
+    print("SkillRoute: /sr - open/close   /sr options   /sr minimap on|off   /sr check   /sr auto on|off   /sr overtime <pct>   /sr estimate on|off   /sr cdmats on|off   /sr margin <50-99>   /sr craftcost <copper>   /sr alts on|off   /sr resale <pct>   /sr ah   /sr scan   /sr log on|off|skip|boat   /sr unskip   (right-click a step to skip it)")
     return
   else
     UI.Toggle()

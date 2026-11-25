@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.35.0 (beta)
+
+- **SkillRoute's own AH scan:** a **Scan AH** button (and `/sr scan`) while the auction
+  house is open reads the lowest price of everything listed in one search. Auctionator is
+  no longer required for prices.
+- **Freshest price wins:** per item, SkillRoute uses whichever is newer, its own scan or
+  Auctionator's.
+- **What you paid:** AH purchases of stackable goods are remembered. An item that isn't on
+  the AH now is priced at what you last paid (within 30 days). Hover an item in the
+  shopping list to see its price, where it came from and how old it is, and what you paid.
+
 ## 0.34.1 (beta)
 
 - Options: the two route sliders are reworded so they no longer read like a charge.

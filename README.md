@@ -5,9 +5,10 @@ A WoW Forever addon that plans the cheapest way to level a crafting profession.
 ## Getting started
 1. **Install:** put the `SkillRoute` folder in `World of Warcraft/_classic_/Interface/AddOns/`
    (whichever game folder Forever uses). [Auctionator](https://www.curseforge.com/wow/addons/auctionator)
-   is strongly recommended: prices come from your Auctionator scans. TomTom is optional
+   is recommended (prices, Buy buttons); without it, use SkillRoute's own **Scan AH** button. TomTom is optional
    (better waypoints).
-2. **Scan the auction house** once with Auctionator, so SkillRoute has prices.
+2. **Scan the auction house** once (Auctionator's scan, or **Scan AH** in SkillRoute's window
+   while the AH is open), so SkillRoute has prices.
 3. **Open your profession window**: SkillRoute opens next to it (or type `/sr`, or click
    the minimap button). Pick the profession with the arrows and set your target skill.
 4. **Read the route top to bottom.** Each row is a step: how many to craft, from what,
@@ -29,7 +30,10 @@ A WoW Forever addon that plans the cheapest way to level a crafting profession.
 - **Recipe data comes from the Forever client itself** (build in `SkillRoute/Data.lua`),
   not from Classic. Forever moved many skill-up ranges, which is why Classic-based
   guides and addons disagree.
-- **Prices come from your Auctionator scan.** Thread and dyes use the vendor price.
+- **Prices come from the freshest AH scan:** Auctionator's or SkillRoute's own (**Scan AH**,
+  one search for the whole AH), item by item. Thread and dyes use the vendor price. An
+  item not on the AH that you bought recently is priced at what you paid (hover it in the
+  shopping list to see the source and age).
   Recipes whose reagents have no price are skipped and counted. Prices are never
   guessed unless you turn on `/sr estimate on`, and estimates are marked in orange.
 - **Cheapest expected cost:** each skill point is planned with the classic skill-up
@@ -114,6 +118,7 @@ Copy the `SkillRoute` folder into `World of Warcraft/_forever_/Interface/AddOns/
 - `/sr margin <50-99>` how often the shopping list should be enough to finish
   (default 90; 50 = the expected amount).
 - `/sr ah` (or the button in the shopping list) sends the list to Auctionator.
+- `/sr scan` (or **Scan AH**, with the auction house open) scans the AH for prices.
 - `/sr craftcost <copper>` prefer fewer crafts: the extra material cost you accept per
   craft saved (route choice only, never charged).
 - `/sr resale <0-100>` expect to sell what you make: count that share of its AH price as

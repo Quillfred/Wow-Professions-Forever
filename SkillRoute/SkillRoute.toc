@@ -1,7 +1,7 @@
 ## Interface: 16001
 ## Title: SkillRoute Forever
 ## Notes: Cheapest profession leveling route from WoW Forever's own recipe data and your Auctionator prices. /sr
-## Version: 0.34.1
+## Version: 0.35.0
 ## SavedVariables: SkillRouteDB
 ## OptionalDeps: Auctionator, TomTom
 ## X-License: GPL-3.0
@@ -12,6 +12,7 @@
 Data.lua
 Planner.lua
 Core.lua
+Prices.lua
 UI.lua
 Options.lua
 Recorder.lua

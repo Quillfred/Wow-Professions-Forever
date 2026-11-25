@@ -850,16 +850,47 @@ local function auctionator()
   return api and api.GetAuctionPriceByItemID and api or nil
 end
 
+-- Auctionator's price, and a function giving its age (whole days, 0 = today; nil if it
+-- can't tell). The age is a second call, so it's only made when needed.
+local function aucQuote(item)
+  local api = auctionator()
+  if not api then return nil end
+  local ok, v = pcall(api.GetAuctionPriceByItemID, CALLER, item)
+  local p = ok and v or nil
+  if not p then return nil end
+  return p, function()
+    if not api.GetAuctionAgeByItemID then return nil end
+    local ok2, a = pcall(api.GetAuctionAgeByItemID, CALLER, item)
+    return ok2 and a or nil
+  end
+end
+
+-- The freshest AH price: Auctionator's or SkillRoute's own scan, whichever is newer.
+-- Returns copper, age in days (nil = unknown), source name. wantAge: always work out
+-- the age (otherwise only when two sources have to be compared).
+local function ahQuote(item, wantAge)
+  local p, age = aucQuote(item)
+  if wantAge and age then age = age() end
+  if ns.Prices then return ns.Prices.Freshest(item, p, age) end
+  if type(age) == "function" then age = nil end
+  return p, age, p and "Auctionator" or nil
+end
+
 -- Seen on the AH today or yesterday? For one-off listings such as patterns, an old
--- "last seen" price says nothing about whether one is for sale now. Without
--- Auctionator's age API we can't tell, and don't block (right-click skip covers it).
+-- "last seen" price says nothing about whether one is for sale now. When the source
+-- can't tell its age we don't block (right-click skip covers it).
 local MAX_AH_AGE_DAYS = 1
 function Core.AHFresh(item)
-  local api = auctionator()
-  if not (api and api.GetAuctionAgeByItemID) then return true end
-  local ok, age = pcall(api.GetAuctionAgeByItemID, CALLER, item)
-  if not ok then return true end
-  return age ~= nil and age <= MAX_AH_AGE_DAYS
+  local p, age = ahQuote(item, true)
+  return p ~= nil and (age == nil or age <= MAX_AH_AGE_DAYS)
+end
+
+-- For tooltips: { ah, age, src, paid, paidDays } (any may be nil).
+function Core.PriceInfo(item)
+  local p, age, src = ahQuote(item, true)
+  local paid, days
+  if ns.Prices then paid, days = ns.Prices.LastPaid(item) end
+  return { ah = p, age = age, src = src, paid = paid, paidDays = days }
 end
 
 -- Recipes you marked as unavailable (right-click a step); per character.
@@ -953,16 +984,17 @@ function Core.FarmText(item, full)
   return table.concat(parts, full and "\n" or "; or ")
 end
 
+-- Where prices come from, for the window's header: nil when there are none.
 function Core.PriceSource()
-  return auctionator() and "Auctionator" or nil
+  local own = ns.Prices and (ns.Prices.Book().t or 0) > 0
+  local auc = auctionator() ~= nil
+  if auc and own then return "Auctionator + SkillRoute scan" end
+  return auc and "Auctionator" or own and "SkillRoute scan" or nil
 end
 
--- The auction house price alone (Auctionator's last scan), never a vendor price.
+-- The auction house price alone (the freshest scan), never a vendor price.
 function Core.AHPrice(item)
-  local api = auctionator()
-  if not api then return nil end
-  local ok, v = pcall(api.GetAuctionPriceByItemID, CALLER, item)
-  return ok and v or nil
+  return (ahQuote(item))
 end
 
 -- Can you buy it from a vendor? A pattern only if a vendor of your faction sells it (or
@@ -976,20 +1008,19 @@ end
 
 function Core.Price(item)
   local api = auctionator()
-  local ah, vendor
-  if api then
-    local ok, v = pcall(api.GetAuctionPriceByItemID, CALLER, item)
-    ah = ok and v or nil
-    if api.GetVendorPriceByItemID then
-      ok, v = pcall(api.GetVendorPriceByItemID, CALLER, item)
-      vendor = ok and v or nil
-    end
+  local ah, vendor = (ahQuote(item))
+  if api and api.GetVendorPriceByItemID then
+    local ok, v = pcall(api.GetVendorPriceByItemID, CALLER, item)
+    vendor = ok and v or nil
   end
   local it = Data.items[item]
   vendor = vendor or (it and it[3])
   if vendor and not vendorForMe(item) then vendor = nil end -- e.g. an Alliance-only recipe for Horde
   if ah and vendor then return math.min(ah, vendor), false end
   if ah or vendor then return ah or vendor, false end
+  -- not on the AH now, but you bought some recently: what you paid
+  local paid = ns.Prices and ns.Prices.LastPaid(item)
+  if paid then return paid, false end
   -- not on the AH, but farmable (meat, fish): no gold, a small time cost so a rare drop
   -- doesn't look free. Marked "farm": not added to what you spend.
   local farm = Core.FarmCost(item)
@@ -1341,10 +1372,8 @@ end
 -- or sell it to a vendor. Only fresh AH prices count: no stale guesses. Returns
 -- { ah, de, vendor, best, deSkill, deLoot } (copper per item; nil = not known).
 local function freshAH(item)
-  local api = auctionator()
-  if not (api and api.GetAuctionPriceByItemID) then return nil end
-  local ok, v = pcall(api.GetAuctionPriceByItemID, CALLER, item)
-  if ok and v and v > 0 and Core.AHFresh(item) then return v end
+  local v = Core.AHPrice(item)
+  if v and v > 0 and Core.AHFresh(item) then return v end
 end
 -- What your Enchanting route still has to buy: { [item] = units }. One Enchanting plan
 -- (to your Enchanting target) per change of prices, bags or recipes, not per tooltip.
@@ -1518,7 +1547,10 @@ local function onEvent(_, ev, arg1)
   elseif ev == "PLAYER_LOGIN" then
     local api = Auctionator and Auctionator.API and Auctionator.API.v1
     if api and api.RegisterForDBUpdate then
-      pcall(api.RegisterForDBUpdate, CALLER, function() Core.InvalidatePatterns(); Core.Changed() end)
+      pcall(api.RegisterForDBUpdate, CALLER, function()
+        if ns.Prices then ns.Prices.NoteAuctionatorUpdate() end
+        Core.InvalidatePatterns(); Core.Changed()
+      end)
     end
   elseif ev == "TRADE_SKILL_SHOW" or ev == "TRADE_SKILL_LIST_UPDATE" or ev == "NEW_RECIPE_LEARNED" then
     if ev == "NEW_RECIPE_LEARNED" then Core.dataVersion = Core.dataVersion + 1 end

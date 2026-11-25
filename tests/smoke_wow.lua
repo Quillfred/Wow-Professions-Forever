@@ -68,7 +68,7 @@ local ns = {}
 _G.Minimap = setmetatable({ GetWidth = function() return 140 end, GetCenter = function() return 1000, 700 end,
   GetEffectiveScale = function() return 1 end }, { __index = function() return function() end end })
 _G.GetCursorPosition = function() return 1000, 800 end -- straight above the minimap
-for _, f in ipairs({ "Data", "Planner", "Core", "UI", "Options", "Recorder", "Check" }) do
+for _, f in ipairs({ "Data", "Planner", "Core", "Prices", "UI", "Options", "Recorder", "Check" }) do
   local chunk = assert(loadfile("SkillRoute/" .. f .. ".lua"))
   chunk("SkillRoute", ns)
 end
@@ -256,10 +256,13 @@ do
   assert(Core.ToggleSkip(197, 3848) == nil, "toggle back")
   Core.ToggleSkip(197, 3848); SlashCmdList.SKILLROUTE("unskip")
   assert(next(Core.Skips(197)) == nil, "/sr unskip clears")
+  prices[1], prices[2] = 100, 100
   Auctionator.API.v1.GetAuctionAgeByItemID = function(_, id) return id == 1 and 0 or 5 end
   assert(Core.AHFresh(1) and not Core.AHFresh(2), "seen today: fresh; 5 days ago: not")
   Auctionator.API.v1.GetAuctionAgeByItemID = nil
   assert(Core.AHFresh(2), "no age API: don't block")
+  assert(not Core.AHFresh(3), "no AH price at all: not on the AH")
+  prices[1], prices[2] = nil, nil
 end
 -- trainers / vendors from the data: zone asked from the game, nearest, TomTom waypoint
 do
@@ -1243,6 +1246,90 @@ do
   assert(not t:find("^Goretusk"), "Westfall (Alliance) isn't listed first for Horde: " .. t)
   print(("farm zones by faction: %d items, %d Alliance-zone sources marked and listed last; Horde sees 723 as: %s")
     :format(checked, marked, t))
+end
+
+-- SkillRoute's own AH scan, freshest price wins, and what you paid
+do
+  local P = ns.Prices
+  local queue, savedAfter = {}, C_Timer.After
+  C_Timer.After = function(_, f) queue[#queue + 1] = f end
+  local function run() for _ = 1, 50 do local f = table.remove(queue, 1); if not f then return end; f() end end
+  _G.hooksecurefunc = function(t, name, fn)
+    local orig = t[name]
+    t[name] = function(...) local r = orig(...); fn(...); return r end
+  end
+  local money = 100000
+  _G.GetMoney = function() return money end
+  local results = { { itemKey = { itemID = 2589 }, minPrice = 50 }, { itemKey = { itemID = 2589 }, minPrice = 40 },
+                    { itemKey = { itemID = 4306 }, minPrice = 300 } }
+  local full, sent = false, 0
+  _G.C_AuctionHouse = {
+    SendBrowseQuery = function() sent = sent + 1; full = false end,
+    GetBrowseResults = function() return results end,
+    RequestMoreBrowseResults = function() full = true end,
+    HasFullBrowseResults = function() return full end,
+    IsThrottledMessageSystemReady = function() return true end,
+    StartCommoditiesPurchase = function() end,
+    ConfirmCommoditiesPurchase = function() end,
+  }
+  local pf
+  for _, f in ipairs(frames) do local e = rawget(f, "events"); if e and e.AUCTION_HOUSE_BROWSE_RESULTS_ADDED then pf = f end end
+  assert(pf, "price events registered")
+  local function fireP(ev, ...) pf.OnEvent(pf, ev, ...) end
+  local realPrint = print; local said = {}
+  _G.print = function(s) said[#said + 1] = tostring(s) end
+
+  assert(not P.Scan(), "no scan with the AH closed")
+  fire("AUCTION_HOUSE_SHOW"); fireP("AUCTION_HOUSE_SHOW")
+  assert(P.Scan() and P.Scanning(), "scan starts at the AH")
+  run(); assert(sent == 1, "one browse search for the whole AH")
+  fireP("AUCTION_HOUSE_BROWSE_RESULTS_UPDATED") -- first page: asks for more
+  assert(full, "asked for the next page")
+  fireP("AUCTION_HOUSE_BROWSE_RESULTS_ADDED")   -- all in: stored
+  run()
+  assert(not P.Scanning(), "scan finished")
+  local b = P.Book()
+  assert(b.items[2589] == 40 and b.items[4306] == 300 and b.count == 2, "lowest price per item kept")
+  assert(Core.PriceSource():find("SkillRoute scan"), Core.PriceSource())
+
+  -- freshest wins: same day and Auctionator's time unknown -> ours; older ours -> Auctionator
+  assert(P.Freshest(2589, 99, 0) == 40)
+  assert(P.Freshest(2589, 99, nil) == 40, "Auctionator age unknown: ours (exact time)")
+  b.t = time() - 3 * 86400
+  assert(P.Freshest(2589, 99, 0) == 99, "Auctionator's newer price wins")
+  assert(P.Freshest(2589, nil, nil) == 40, "only ours")
+  b.t = time()
+
+  -- a search of your own mid-scan stops it; nothing saved
+  results = { { itemKey = { itemID = 2589 }, minPrice = 1 } }
+  assert(P.Scan()); run()
+  C_AuctionHouse.SendBrowseQuery({ searchString = "linen" })
+  assert(not P.Scanning(), "stopped by another search")
+  assert(b.items[2589] == 40, "nothing saved from a stopped scan")
+  -- an empty search (Auctionator's full scan) doesn't stop it; closing the AH does
+  assert(P.Scan()); run()
+  C_AuctionHouse.SendBrowseQuery({ searchString = "" })
+  assert(P.Scanning(), "empty search carries on")
+  fireP("AUCTION_HOUSE_CLOSED")
+  assert(not P.Scanning() and b.items[2589] == 40, "closing the AH cancels")
+
+  -- what you paid: 5 at 1s each; used when the AH has none
+  C_AuctionHouse.StartCommoditiesPurchase(999123, 5)
+  C_AuctionHouse.ConfirmCommoditiesPurchase(999123, 5)
+  fireP("COMMODITY_PRICE_UPDATED", 100, 500)
+  money = money - 500
+  fireP("COMMODITY_PURCHASE_SUCCEEDED")
+  assert(P.LastPaid(999123) == 100, "paid 1s each")
+  assert(Core.Price(999123) == 100, "no AH price: what you paid")
+  local pi = Core.PriceInfo(2589)
+  assert(pi.ah == 40 and pi.src == "SkillRoute scan" and pi.age == 0, "tooltip info")
+
+  _G.print = realPrint
+  fire("AUCTION_HOUSE_CLOSED")
+  C_Timer.After, _G.C_AuctionHouse = savedAfter, nil
+  SkillRouteDB.prices, SkillRouteDB.paid = nil, nil
+  Core.InvalidatePatterns()
+  print(("own AH scan: %d items in one search, freshest-price rules and paid prices OK"):format(b.count))
 end
 
 -- /sr check runs and reports; errors are caught, not thrown
