@@ -1091,6 +1091,8 @@ SlashCmdList.SKILLROUTE = function(msg)
   local settings = SkillRouteDB and SkillRouteDB.settings
   if cmd == "log" then
     if ns.Recorder then ns.Recorder.Command(arg) end
+  elseif cmd == "scanlog" then
+    if ns.Prices then for _, l in ipairs(ns.Prices.ScanLogLines()) do print("|cff33ccffSkillRoute scan:|r " .. l) end end
   elseif cmd == "bank" then
     if ns.Helpers then ns.Helpers.BankDebug() end
   elseif cmd == "scan" then

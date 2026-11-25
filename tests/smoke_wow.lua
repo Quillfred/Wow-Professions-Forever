@@ -30,6 +30,7 @@ _G.UnitFactionGroup = function() return "Horde" end
 _G.GetRealZoneText = function() return "Stonetalon Mountains" end
 _G.GetSubZoneText = function() return "Sun Rock Retreat" end
 _G.time = os.time
+_G.date = os.date
 _G.C_Map = { GetBestMapForUnit = function() return 1442 end,
              GetPlayerMapPosition = function() return { GetXY = function() return 0.4723, 0.6181 end } end }
 _G.GetRealmName = function() return "Forever" end
@@ -1421,6 +1422,12 @@ do
   assert(until_(function() return #sends == 4 end) and sends[4] == 4306, "no answer: retried once")
   assert(until_(function() return not P.Scanning() end), "then skipped and finished")
   assert(said[#said]:find("1 of 2 materials") and said[#said]:find("1 retried"), said[#said])
+  -- the diagnostic log: /sr scanlog sums it up
+  local log = P.ScanLogLines()
+  local joined = table.concat(log, "\n")
+  assert(joined:find("first try OK by pause", 1, true) and joined:find("events after first tries that failed", 1, true)
+    and #SkillRouteDB.scanLog.items == 2, joined)
+  realPrint("scanlog sample:\n  " .. table.concat(log, "\n  "))
   Core.BuyList = savedBuy
   _G.C_Item = savedCItem
   realPrint("scan summary: " .. line)

@@ -209,8 +209,27 @@ end
 -- Results are kept item by item, so closing the AH partway keeps what was priced.
 local DEPTH_TIMEOUT = 4    -- second try: give it time
 local FIRST_TIMEOUT = 1.5  -- answers normally come within a second; retry sooner
-local GAP = 0.25           -- pause after an answer: a search sent the same moment is often ignored
+-- Diagnostic (0.35 test builds): the first try of each material waits one of these
+-- after the previous answer, in turn, and everything that happens is logged to
+-- SkillRouteDB.scanLog; /sr scanlog sums it up. Retries wait GAPS[2].
+local GAPS = { 0, 0.25, 1.0 }
 local sendDepth -- below
+
+-- Log ------------------------------------------------------------------------------
+local function logTry(d)
+  local t = { sent = nil, events = {}, outcome = nil }
+  d.log.tries[#d.log.tries + 1] = t
+  return t
+end
+local function logEvent(ev, arg)
+  local d = scan and scan.phase == "depth" and scan.current
+  local t = d and d.log and d.log.tries[#d.log.tries]
+  if not t then return end
+  local id = type(arg) == "table" and arg.itemID or arg
+  t.events[#t.events + 1] = { ev:gsub("^AUCTION_HOUSE_THROTTLED_", "T_"):gsub("_SEARCH_RESULTS_", "_RESULTS_"),
+    t.sent and math.floor((GetTime() - t.sent) * 1000) or -1, type(id) == "number" and id or nil }
+end
+Prices._logEvent = logEvent
 function Prices.DepthPass()
   local want = (SkillRouteDB.settings or {}).depth ~= false and Core.BuyList and Core.BuyList() or {}
   local list = {}
@@ -219,6 +238,7 @@ function Prices.DepthPass()
   if #list == 0 or not (AH.SendSearchQuery and AH.MakeItemKey) then stop(summary()); return end
   scan.tWaitRead = scan.tWait or 0
   scan.phase, scan.depthList, scan.depthI, scan.depthStart, scan.priced = "depth", list, 0, GetTime(), 0
+  SkillRouteDB.scanLog = { at = now(), version = Core.Version(), items = {} }
   Prices.NextDepth()
 end
 
@@ -240,7 +260,15 @@ function Prices.NextDepth()
   end
   status(("Pricing the amounts you need... %d/%d"):format(scan.depthI, #scan.depthList))
   scan.current = d
-  sendDepth(d)
+  local gap = GAPS[(scan.depthI - 1) % #GAPS + 1]
+  local status_ = AH.GetItemCommodityStatus and AH.GetItemCommodityStatus(d.item)
+  local cached = C_Item and C_Item.IsItemDataCachedByID
+  d.log = { item = d.item, name = (GetItemInfo and GetItemInfo(d.item)) or ("item " .. d.item), n = d.n, gap = gap,
+            commodity = status_ == 2 and "commodity" or status_ == 1 and "item" or "?",
+            loaded = (not cached) and "?" or (cached(d.item) and "yes" or "no"), tries = {} }
+  SkillRouteDB.scanLog.items[#SkillRouteDB.scanLog.items + 1] = d.log
+  if gap > 0 then C_Timer.After(gap, function() if scan and scan.current == d then sendDepth(d) end end)
+  else sendDepth(d) end
 end
 
 -- Average price per unit of buying n from listings { {price, qty}, ... } (cheapest
@@ -289,6 +317,10 @@ function sendDepth(d)
       local cached = C_Item and C_Item.IsItemDataCachedByID
       d.wasLoaded = not cached or cached(d.item) and true or false
     end
+    local lt = logTry(d)
+    lt.ready = (not AH.IsThrottledMessageSystemReady or AH.IsThrottledMessageSystemReady()) and true or false
+    lt.before = (readCommodity(d.item) or readItems(AH.MakeItemKey(d.item))) and true or false
+    lt.sent = GetTime()
     ours = true
     pcall(AH.SendSearchQuery, AH.MakeItemKey(d.item),
       { { sortOrder = (Enum and Enum.AuctionHouseSortOrder and Enum.AuctionHouseSortOrder.Price) or 0, reverseSort = false } }, false)
@@ -301,7 +333,7 @@ function sendDepth(d)
       if not (scan and scan.current == d and (d.tries or 0) == tries) then return end
       if GetTime() - d.sentAt >= limit - 0.01 then return end
       local tiers = readCommodity(d.item) or readItems(AH.MakeItemKey(d.item))
-      if tiers then scan.byPoll = (scan.byPoll or 0) + 1; Prices.DepthResult(d.item, tiers)
+      if tiers then scan.byPoll = (scan.byPoll or 0) + 1; Prices.DepthResult(d.item, tiers, "poll")
       else C_Timer.After(0.25, check) end
     end
     C_Timer.After(0.25, check)
@@ -309,22 +341,28 @@ function sendDepth(d)
       if not (scan and scan.current == d and (d.tries or 0) == tries) then return end
       -- no "results" event: the answer may be there anyway; else retry once, then skip
       local tiers = readCommodity(d.item) or readItems(AH.MakeItemKey(d.item))
-      if tiers then Prices.DepthResult(d.item, tiers)
+      if tiers then Prices.DepthResult(d.item, tiers, "timeout-read")
       elseif tries < 1 then
+        d.log.tries[#d.log.tries].outcome = "no answer"
         d.tries = tries + 1
         scan.retries = (scan.retries or 0) + 1
         if not d.wasLoaded then scan.notLoaded = (scan.notLoaded or 0) + 1 end
-        sendDepth(d)
-      else scan.current = nil; C_Timer.After(GAP, Prices.NextDepth) end
+        C_Timer.After(GAPS[2], function() if scan and scan.current == d then sendDepth(d) end end)
+      else
+        d.log.tries[#d.log.tries].outcome = "no answer"
+        scan.current = nil; C_Timer.After(GAPS[2], Prices.NextDepth)
+      end
     end)
   end)
 end
 Prices._resendDepth = function() if scan and scan.current then sendDepth(scan.current) end end
 
 -- A search answer for the material being priced: store its price for the amount needed.
-function Prices.DepthResult(item, tiers)
+function Prices.DepthResult(item, tiers, via)
   local d = scan and scan.phase == "depth" and scan.current
   if not d or d.item ~= item then return end
+  local lt = d.log and d.log.tries[#d.log.tries]
+  if lt then lt.outcome = (via or "event") .. (lt.sent and (" +%dms"):format((GetTime() - lt.sent) * 1000) or "") .. ((#tiers == 0) and " (empty)" or "") end
   scan.current = nil
   table.sort(tiers, function(a, b) return a[1] < b[1] end)
   local avg = #tiers > 0 and Prices.CostFor(tiers, d.n)
@@ -333,7 +371,7 @@ function Prices.DepthResult(item, tiers)
       local q = 0 for _, t in ipairs(tiers) do q = q + t[2] end return q end)() }
     scan.priced = scan.priced + 1
   end
-  C_Timer.After(GAP, Prices.NextDepth) -- a short pause, or the next search may be ignored
+  Prices.NextDepth() -- (the next material's pause is applied there)
 end
 
 local function nextPage()
@@ -384,6 +422,59 @@ local function foreignSearch(query)
   local empty = (q.searchString or "") == "" and not (q.filters and #q.filters > 0)
     and not (q.itemClassFilters and #q.itemClassFilters > 0) and not q.minLevel and not q.maxLevel
   if not empty then stop("scan stopped because another search started; nothing saved. Scan again when you're done.") end
+end
+
+-- /sr scanlog: the second pass's log, summed up -------------------------------------
+function Prices.ScanLogLines()
+  local L = SkillRouteDB.scanLog
+  if not (L and L.items and #L.items > 0) then return { "no scan log yet: scan the AH with SkillRoute first." } end
+  local out = { ("scan of %s (v%s): %d materials"):format(date("%H:%M", L.at), L.version or "?", #L.items) }
+  local function firstOK(x) local t = x.tries[1]; return t and t.outcome and t.outcome ~= "no answer" end
+  local function group(label, key)
+    local g, order = {}, {}
+    for _, x in ipairs(L.items) do
+      local k = key(x)
+      if not g[k] then g[k] = { 0, 0 }; order[#order + 1] = k end
+      g[k][2] = g[k][2] + 1
+      if firstOK(x) then g[k][1] = g[k][1] + 1 end
+    end
+    table.sort(order, function(a, b) return tostring(a) < tostring(b) end)
+    local parts = {}
+    for _, k in ipairs(order) do parts[#parts + 1] = ("%s %d/%d"):format(tostring(k), g[k][1], g[k][2]) end
+    out[#out + 1] = label .. ": " .. table.concat(parts, ", ")
+  end
+  group("first try OK by pause", function(x) return x.gap .. "s" end)
+  group("by loaded", function(x) return "loaded " .. x.loaded end)
+  group("by type", function(x) return x.commodity end)
+  group("by AH ready at send", function(x) return "ready " .. tostring(x.tries[1] and x.tries[1].ready) end)
+  -- what the AH said after first tries that failed vs worked
+  local seen = { fail = {}, ok = {} }
+  for _, x in ipairs(L.items) do
+    local t = x.tries[1]
+    if t then
+      local s = firstOK(x) and seen.ok or seen.fail
+      for _, e in ipairs(t.events) do s[e[1]] = (s[e[1]] or 0) + 1 end
+    end
+  end
+  for _, k in ipairs({ "fail", "ok" }) do
+    local parts = {}
+    for ev, n in pairs(seen[k]) do parts[#parts + 1] = ev .. " " .. n end
+    table.sort(parts)
+    out[#out + 1] = ("events after first tries that %s: %s"):format(k == "fail" and "failed" or "worked",
+      #parts > 0 and table.concat(parts, ", ") or "none")
+  end
+  local shown = 0
+  for _, x in ipairs(L.items) do
+    if not firstOK(x) and shown < 6 then
+      shown = shown + 1
+      local evs = {}
+      for _, e in ipairs(x.tries[1].events) do evs[#evs + 1] = e[1] .. "+" .. e[2] end
+      out[#out + 1] = ("  %s (pause %ss, loaded %s, %s): %s -> retry %s"):format(x.name, x.gap, x.loaded, x.commodity,
+        #evs > 0 and table.concat(evs, " ") or "nothing", x.tries[2] and (x.tries[2].outcome or "?") or "-")
+    end
+  end
+  out[#out + 1] = "Full log: SkillRouteDB.scanLog in SavedVariables\\SkillRoute.lua (after /reload or logout)."
+  return out
 end
 
 -- What you pay on the AH (stackable goods: cloth, herbs, meat...) ---------------------
@@ -443,10 +534,14 @@ for _, ev in ipairs({ "PLAYER_LOGIN", "AUCTION_HOUSE_SHOW", "AUCTION_HOUSE_CLOSE
   "AUCTION_HOUSE_BROWSE_RESULTS_UPDATED", "AUCTION_HOUSE_BROWSE_RESULTS_ADDED", "AUCTION_HOUSE_BROWSE_FAILURE",
   "COMMODITY_PRICE_UPDATED", "COMMODITY_PURCHASE_SUCCEEDED", "COMMODITY_PURCHASE_FAILED",
   "AUCTION_HOUSE_THROTTLED_SYSTEM_READY", "AUCTION_HOUSE_THROTTLED_MESSAGE_DROPPED",
-  "COMMODITY_SEARCH_RESULTS_UPDATED", "ITEM_SEARCH_RESULTS_UPDATED" }) do
+  "AUCTION_HOUSE_THROTTLED_MESSAGE_QUEUED", "AUCTION_HOUSE_THROTTLED_MESSAGE_SENT",
+  "AUCTION_HOUSE_THROTTLED_MESSAGE_RESPONSE_RECEIVED",
+  "COMMODITY_SEARCH_RESULTS_UPDATED", "COMMODITY_SEARCH_RESULTS_ADDED",
+  "ITEM_SEARCH_RESULTS_UPDATED", "ITEM_SEARCH_RESULTS_ADDED" }) do
   pcall(f.RegisterEvent, f, ev) -- an event this client doesn't have is just skipped
 end
 f:SetScript("OnEvent", function(_, ev, a, b)
+  if scan and scan.phase == "depth" and ev ~= "AUCTION_HOUSE_SHOW" then logEvent(ev, a) end
   if ev == "PLAYER_LOGIN" or ev == "AUCTION_HOUSE_SHOW" then
     hookAH()
     if ev == "AUCTION_HOUSE_SHOW" then
