@@ -10,6 +10,9 @@
 - **What you paid:** AH purchases of stackable goods are remembered. An item that isn't on
   the AH now is priced at what you last paid (within 30 days). Hover an item in the
   shopping list to see its price, where it came from and how old it is, and what you paid.
+- **Working Overtime is read from your Legacy Tree** (at login, after loading screens and
+  when you change it), so there's no slider any more. `/sr overtime <pct>` is only used if
+  the tree can't be read.
 
 ## 0.34.1 (beta)
 

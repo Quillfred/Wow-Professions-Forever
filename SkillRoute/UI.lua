@@ -1073,7 +1073,12 @@ SlashCmdList.SKILLROUTE = function(msg)
     if v and v >= 0 and v <= 100 then
       Core.Bonus(); Core.Char().bonus = v / 100
       Core.InvalidatePatterns(); Core.Changed()
-      print(("SkillRoute: Working Overtime bonus set to %d%% for this character"):format(v))
+      local o = Core.OvertimeInfo()
+      if o.rank then
+        print(("SkillRoute: your Legacy Tree says Working Overtime rank %d (+%d%%); that's used. %d%% is kept for when it can't be read."):format(o.rank, o.rank * o.per * 100, v))
+      else
+        print(("SkillRoute: Working Overtime set to %d%% for this character (your Legacy Tree couldn't be read)."):format(v))
+      end
     else
       print("SkillRoute: /sr overtime <0-100>  (your Working Overtime talent %, 0 if you don't have it)")
     end

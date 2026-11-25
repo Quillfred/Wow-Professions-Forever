@@ -194,6 +194,33 @@ local function separator(parent, y)
   return y - 10
 end
 
+-- A read-only row: label, value on the right, a blue line below (all refreshed on show).
+local function readout(parent, y, label, value, text)
+  local t = parent:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+  t:SetPoint("TOPLEFT", 20, y); t:SetText(label)
+  local v = parent:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
+  v:SetPoint("TOPRIGHT", -24, y)
+  local line = parent:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+  line:SetPoint("TOPLEFT", 20, y - 20); line:SetWidth(WIDTH); line:SetJustifyH("LEFT")
+  line:SetTextColor(0.56, 0.78, 1)
+  line:SetText(text()); local h = line:GetStringHeight() or 26
+  refreshers[#refreshers + 1] = function() v:SetText(value()); line:SetText(text()) end
+  return y - 20 - math.max(h, 26) - 8
+end
+
+-- Working Overtime: read from the Legacy Tree, nothing to set.
+function Options.OvertimeText()
+  local o = Core.OvertimeInfo()
+  if o.rank == nil then
+    return ("Couldn't read your Legacy Tree, so this uses %d%% (set it with /sr overtime <pct>). It's read again at every loading screen.")
+      :format(math.floor(Core.Bonus() * 100 + 0.5))
+  elseif o.rank == 0 then
+    return ("Not learned. Read from your Legacy Tree (Professions); each rank of %s adds %d%% skill-up chance."):format(o.name, o.per * 100)
+  end
+  return ("Rank %d of %d, read from your Legacy Tree (+%d%% skill-up chance per rank). Updates when you change it.")
+    :format(o.rank, o.max, o.per * 100)
+end
+
 -- Silver amount as text: 44 -> "44s", 138 -> "1g 38s".
 local function silver(n)
   n = math.floor(n + 0.5)
@@ -288,11 +315,9 @@ local function build()
     function() return S().margin or 90 end, function(v) Options.Set("margin", v) end,
     { ends = { "Expected amount", "Almost never short" }, example = Options.MarginExample })
   y = separator(panel, y)
-  y = number(panel, y, "Working Overtime talent",
-    "Extra skill-up chance from the talent; 0 if you don't have it.",
-    0, 20, 1, function(v) return ("%d%%"):format(v) end,
-    function() return math.floor(Core.Bonus() * 100 + 0.5) end, function(v) Options.Set("bonus", v / 100) end,
-    { example = function() return ("Saved for %s only; each character has its own."):format(UnitName("player") or "this character") end })
+  y = readout(panel, y, "Working Overtime",
+    function() return ("+%d%%"):format(math.floor(Core.Bonus() * 100 + 0.5)) end,
+    Options.OvertimeText)
   y = separator(panel, y)
   y = number(panel, y, "Expect to sell what you make",
     "Recipes whose items sell well get picked more often. Counts this share of each item's AH price (after the 5% cut) as money back. Nothing is listed for you; the route shows it as \"~X back from sales\".",

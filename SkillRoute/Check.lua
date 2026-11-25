@@ -32,6 +32,7 @@ local APIS = {
   { "Item cooldown", { "C_Container.GetItemCooldown", "GetItemCooldown" }, "hearthstone cooldown" },
   { "Bind location", { "GetBindLocation" }, "where your hearthstone goes" },
   { "Reputation", { "C_Reputation.GetFactionDataByID", "GetFactionInfoByID" }, "reputation patterns" },
+  { "Legacy Tree", { "C_Traits.GetConfigIDByTreeID", "C_Traits.GetTreeNodes" }, "read your Working Overtime rank" },
   { "AH scan", { "C_AuctionHouse.SendBrowseQuery" }, "SkillRoute's own AH scan (Scan AH button)" },
   { "AH purchases", { "C_AuctionHouse.StartCommoditiesPurchase" }, "remember what you paid" },
   { "Auctionator prices", { "Auctionator.API.v1.GetAuctionPriceByItemID" }, "prices (or use Scan AH)" },

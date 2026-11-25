@@ -31,12 +31,89 @@ function Core.Char()
   return d.chars[k]
 end
 
--- Working Overtime is a talent, so its bonus is saved per character. The old
+-- Working Overtime: a Legacy Tree (Professions) talent, 5 ranks of +4% skill-up chance.
+-- Read from the game: the tree's nodes are searched for the talent's spell (never its
+-- name, so any language works). Read only; nothing is ever bought or changed.
+local WO_SPELL, WO_PER_RANK, WO_MAX, WO_TREE = 1225451, 0.04, 5, 1187
+local woRank -- nil until the tree has been read
+
+-- Returns the rank (0 = not learned), or nil if the game can't tell yet.
+local function readOvertime()
+  local T = C_Traits
+  if not (T and T.GetConfigIDByTreeID and T.GetTreeNodes and T.GetNodeInfo and T.GetEntryInfo
+          and T.GetDefinitionInfo) then return nil end
+  local L = Constants and Constants.LegacyConsts
+  local tree = (L and L.LEGACY_TREE_PROFESSIONS_ID) or WO_TREE
+  local ok, config = pcall(T.GetConfigIDByTreeID, tree)
+  if not ok or not config then return nil end -- not loaded yet
+  local ok2, nodes = pcall(T.GetTreeNodes, tree)
+  if not ok2 or type(nodes) ~= "table" then return nil end
+  local function spellOf(entry)
+    local okE, e = pcall(T.GetEntryInfo, config, entry)
+    if not okE or not e or not e.definitionID then return nil end
+    local okD, d = pcall(T.GetDefinitionInfo, e.definitionID)
+    return okD and d and d.spellID or nil
+  end
+  for _, node in ipairs(nodes) do
+    local okN, info = pcall(T.GetNodeInfo, config, node)
+    if okN and type(info) == "table" then
+      local entries = {}
+      if info.activeEntry and info.activeEntry.entryID then entries[1] = info.activeEntry.entryID end
+      for _, e in ipairs(info.entryIDs or {}) do entries[#entries + 1] = e end
+      for _, e in ipairs(entries) do
+        if spellOf(e) == WO_SPELL then
+          local r = math.floor(tonumber(info.activeRank or info.ranksPurchased or 0) or 0)
+          return math.max(0, math.min(WO_MAX, r))
+        end
+      end
+    end
+  end
+  return 0 -- the whole tree read, no Working Overtime
+end
+
+-- Read again; re-plan if the rank changed. Returns whether the tree could be read.
+function Core.ReadOvertime()
+  local r = readOvertime()
+  if r ~= nil and r ~= woRank then
+    woRank = r
+    Core.InvalidatePatterns(); Core.Changed()
+  end
+  return r ~= nil
+end
+
+-- { rank (nil = couldn't read), max, per, name }
+function Core.OvertimeInfo()
+  local name = C_Spell and C_Spell.GetSpellName and C_Spell.GetSpellName(WO_SPELL)
+  return { rank = woRank, max = WO_MAX, per = WO_PER_RANK, name = name or "Working Overtime" }
+end
+
+-- The skill-up bonus (0-1): your rank from the Legacy Tree; only when the game can't tell,
+-- what you set with /sr overtime (saved per character: it's a talent). An older
 -- account-wide value moves to the first character that logs in after the update.
 function Core.Bonus()
+  if woRank then return woRank * WO_PER_RANK end
   local c, d = Core.Char(), db()
   if c.bonus == nil then c.bonus = d.settings.bonus or 0; d.settings.bonus = nil end
   return c.bonus
+end
+
+-- Read at login and after every loading screen (retrying every 5 s for ~30 s while the
+-- tree loads), and straight away when a talent changes.
+do
+  local tries = 0
+  local function attempt()
+    if not Core.ReadOvertime() and tries < 6 then
+      tries = tries + 1
+      C_Timer.After(5, attempt)
+    end
+  end
+  local f = CreateFrame("Frame")
+  for _, ev in ipairs({ "PLAYER_ENTERING_WORLD", "TRAIT_CONFIG_LIST_UPDATED", "TRAIT_CONFIG_UPDATED", "TRAIT_NODE_CHANGED" }) do
+    pcall(f.RegisterEvent, f, ev) -- an event this client doesn't have is skipped
+  end
+  f:SetScript("OnEvent", function(_, ev)
+    if ev == "PLAYER_ENTERING_WORLD" then tries = 0; attempt() else Core.ReadOvertime() end
+  end)
 end
 
 -- Professions ------------------------------------------------------------------

@@ -1332,6 +1332,30 @@ do
   print(("own AH scan: %d items in one search, freshest-price rules and paid prices OK"):format(b.count))
 end
 
+-- Working Overtime read from the Legacy Tree (by spell ID), no slider
+do
+  local O = ns.Options
+  local manual = Core.Bonus()
+  assert(Core.OvertimeInfo().rank == nil and O.OvertimeText():find("Couldn't read"), "no C_Traits: manual value")
+  local rank = 3
+  _G.C_Traits = {
+    GetConfigIDByTreeID = function(tree) return tree == 1187 and 77 or nil end,
+    GetTreeNodes = function() return { 10, 11 } end,
+    GetNodeInfo = function(_, node) return node == 11 and { activeEntry = { entryID = 501 }, entryIDs = { 501 }, activeRank = rank }
+                                          or { entryIDs = { 500 }, activeRank = 1 } end,
+    GetEntryInfo = function(_, e) return { definitionID = e + 1000 } end,
+    GetDefinitionInfo = function(d) return { spellID = d == 1501 and 1225451 or 999 } end,
+  }
+  assert(Core.ReadOvertime() and math.abs(Core.Bonus() - 0.12) < 1e-9, "rank 3 = 12%: " .. Core.Bonus())
+  assert(O.OvertimeText():find("Rank 3 of 5"), O.OvertimeText())
+  rank = 9; Core.ReadOvertime(); assert(math.abs(Core.Bonus() - 0.20) < 1e-9, "capped at rank 5")
+  rank = 0; Core.ReadOvertime(); assert(Core.Bonus() == 0 and O.OvertimeText():find("Not learned"), "not learned")
+  _G.C_Traits.GetConfigIDByTreeID = function() return nil end
+  assert(not Core.ReadOvertime() and Core.Bonus() == 0, "tree not loaded yet: keeps the last rank read")
+  _G.C_Traits = nil
+  print(("working overtime: read from the Legacy Tree (rank 3 = 12%%); manual value %d%% only without it"):format(manual * 100))
+end
+
 -- /sr check runs and reports; errors are caught, not thrown
 do
   local out = {}

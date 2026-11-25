@@ -107,7 +107,8 @@ Copy the `SkillRoute` folder into `World of Warcraft/_forever_/Interface/AddOns/
   close it. `/sr auto off` turns the automatic opening off.
 - Set **Target**, then switch between **Route** and **Shopping list**.
 - Hover a step to see why it was picked and what the next-best option costs.
-- `/sr overtime <pct>` sets your Working Overtime talent bonus.
+- `/sr overtime <pct>` Working Overtime bonus, only used if your Legacy Tree can't be read
+  (normally it's read from the game, per character).
 - `/sr estimate on|off` turns price estimates for unpriced items on or off.
 - `/sr cdmats on|off` includes recipes using Mooncloth / Arcanite Bar (default off).
 - **Minimap button:** left-click opens SkillRoute, right-click the options, drag to
