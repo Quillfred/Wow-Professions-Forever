@@ -207,7 +207,9 @@ end
 -- Second pass: the materials your routes will buy, one search each, to price the amount
 -- you need along the price ladder (the full read only has each item's cheapest listing).
 -- Results are kept item by item, so closing the AH partway keeps what was priced.
-local DEPTH_TIMEOUT = 4
+local DEPTH_TIMEOUT = 4    -- second try: give it time
+local FIRST_TIMEOUT = 1.5  -- answers normally come within a second; retry sooner
+local GAP = 0.25           -- pause after an answer: a search sent the same moment is often ignored
 local sendDepth -- below
 function Prices.DepthPass()
   local want = (SkillRouteDB.settings or {}).depth ~= false and Core.BuyList and Core.BuyList() or {}
@@ -286,22 +288,23 @@ function sendDepth(d)
     ours = false
     d.sentAt = GetTime()
     local tries = d.tries or 0
-    -- check every 0.25 s whether the answer is in (it often comes without its event)
+    local limit = tries == 0 and FIRST_TIMEOUT or DEPTH_TIMEOUT
+    -- check every 0.25 s whether the answer is in (it can come without its event)
     local function check()
       if not (scan and scan.current == d and (d.tries or 0) == tries) then return end
-      if GetTime() - d.sentAt >= DEPTH_TIMEOUT - 0.01 then return end
+      if GetTime() - d.sentAt >= limit - 0.01 then return end
       local tiers = readCommodity(d.item) or readItems(AH.MakeItemKey(d.item))
       if tiers then scan.byPoll = (scan.byPoll or 0) + 1; Prices.DepthResult(d.item, tiers)
       else C_Timer.After(0.25, check) end
     end
     C_Timer.After(0.25, check)
-    C_Timer.After(DEPTH_TIMEOUT, function()
+    C_Timer.After(limit, function()
       if not (scan and scan.current == d and (d.tries or 0) == tries) then return end
       -- no "results" event: the answer may be there anyway; else retry once, then skip
       local tiers = readCommodity(d.item) or readItems(AH.MakeItemKey(d.item))
       if tiers then Prices.DepthResult(d.item, tiers)
       elseif tries < 1 then d.tries = tries + 1; scan.retries = (scan.retries or 0) + 1; sendDepth(d)
-      else scan.current = nil; Prices.NextDepth() end
+      else scan.current = nil; C_Timer.After(GAP, Prices.NextDepth) end
     end)
   end)
 end
@@ -319,7 +322,7 @@ function Prices.DepthResult(item, tiers)
       local q = 0 for _, t in ipairs(tiers) do q = q + t[2] end return q end)() }
     scan.priced = scan.priced + 1
   end
-  Prices.NextDepth()
+  C_Timer.After(GAP, Prices.NextDepth) -- a short pause, or the next search may be ignored
 end
 
 local function nextPage()

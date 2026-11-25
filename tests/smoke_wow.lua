@@ -1411,12 +1411,11 @@ do
   silent[2589] = { { unitPrice = 45, quantity = 99 } }
   -- the timeouts: answer was there without the event -> used; next material no answer at all
   local function timeouts() local q = queue; queue = {}; for _, f in ipairs(q) do f() end end
-  timeouts()
-  assert(P.Own(2589) == 45 and sends[#sends] == 4306, "read at the timeout, moved on: " .. tostring(P.Own(2589)))
-  timeouts()
-  assert(sends[#sends] == 4306 and #sends == 4, "no answer: retried once")
-  timeouts()
-  assert(not P.Scanning(), "then skipped and finished")
+  local function until_(cond) for _ = 1, 30 do if cond() then return true end; timeouts() end return cond() end
+  assert(until_(function() return sends[#sends] == 4306 end) and P.Own(2589) == 45,
+    "answer read without its event, then the next material after a pause: " .. tostring(P.Own(2589)))
+  assert(until_(function() return #sends == 4 end) and sends[4] == 4306, "no answer: retried once")
+  assert(until_(function() return not P.Scanning() end), "then skipped and finished")
   assert(said[#said]:find("1 of 2 materials"), said[#said])
   Core.BuyList = savedBuy
   realPrint("scan summary: " .. line)
