@@ -1458,10 +1458,12 @@ do
     GetContainerItemInfo = function(bag, slot) if bag == -1 and slot == 1 then return { itemID = item, stackCount = 20 } end end,
     UseContainerItem = function(bag, slot) moved[#moved + 1] = bag .. ":" .. slot end,
   }
-  _G.print = function() end
+  local said
+  _G.print = function(x) said = x end
   local n = H.TakeFromBank()
   _G.print = realPrint
   assert(n == 1 and moved[1] == "-1:1", "took the stack from the bank")
+  assert(said:find("took 1 stack from the bank %(20 ") and not said:find("Still short"), "short message: " .. said)
   _G.C_Container = nil
   -- bank tabs (newer clients): only the tabs; a reagent bag you carry is never "the bank"
   _G.Enum = { BagIndex = { Backpack = 0, ReagentBag = 5, Bank = -1, CharacterBankTab_1 = 6, CharacterBankTab_2 = 7 } }

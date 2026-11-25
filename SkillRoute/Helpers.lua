@@ -171,22 +171,33 @@ function H.TakeFromBank()
     print("|cff33ccffSkillRoute:|r your bags already hold what the next steps need.")
     return 0
   end
-  local moved = 0
+  local moved, took, order = 0, {}, {}
   for _, bag in ipairs(bankBags()) do
     for slot = 1, slots(bag) do
       local id, count, locked = slotItem(bag, slot)
       if id and want[id] and not locked then
         useSlot(bag, slot)
         moved = moved + 1
+        if not took[id] then order[#order + 1] = id end
+        took[id] = (took[id] or 0) + (count or 1)
         want[id] = want[id] - (count or 1)
         if want[id] <= 0 then want[id] = nil end
       end
     end
   end
-  local left = {}
-  for item, n in pairs(want) do left[#left + 1] = n .. " " .. UI.ItemName(item) end
-  print(("|cff33ccffSkillRoute:|r took %d stack%s from the bank.%s"):format(moved, moved == 1 and "" or "s",
-    #left > 0 and (" Still short: " .. table.concat(left, ", ") .. ".") or ""))
+  -- one line: what was taken; what's still missing only as a count (the shopping list
+  -- has the details)
+  local parts = {}
+  for _, id in ipairs(order) do parts[#parts + 1] = took[id] .. " " .. UI.ItemName(id) end
+  local left = 0
+  for _ in pairs(want) do left = left + 1 end
+  local msg = moved > 0 and ("took %d stack%s from the bank (%s)."):format(moved, moved == 1 and "" or "s", table.concat(parts, ", "))
+              or "nothing your routes need is in your bank."
+  if left > 0 then
+    msg = msg .. (" %d %smaterial%s not in your bank: see the shopping list."):format(left, moved > 0 and "other " or "",
+      left == 1 and " is" or "s are")
+  end
+  print("|cff33ccffSkillRoute:|r " .. msg)
   return moved
 end
 
