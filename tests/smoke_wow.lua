@@ -68,7 +68,7 @@ local ns = {}
 _G.Minimap = setmetatable({ GetWidth = function() return 140 end, GetCenter = function() return 1000, 700 end,
   GetEffectiveScale = function() return 1 end }, { __index = function() return function() end end })
 _G.GetCursorPosition = function() return 1000, 800 end -- straight above the minimap
-for _, f in ipairs({ "Data", "Planner", "Core", "Prices", "UI", "Options", "Recorder", "Check" }) do
+for _, f in ipairs({ "Data", "Planner", "Core", "Prices", "UI", "MiniPanel", "TrainerPanel", "Helpers", "Options", "Recorder", "Check" }) do
   local chunk = assert(loadfile("SkillRoute/" .. f .. ".lua"))
   chunk("SkillRoute", ns)
 end
@@ -205,6 +205,31 @@ assert(SkillRouteDB.lastError == "TEST: boom", "a current version's error is kep
 SkillRouteDB.lastError, SkillRouteDB.lastErrorVersion, SkillRouteDB.lastErrorTime = nil, nil, nil
 _G.C_AddOns = nil
 assert(not UI.IsShown())
+-- the mini panel docks to the profession window by default, instead of the full window
+do
+  local M = ns.Mini
+  fire("TRADE_SKILL_SHOW")
+  assert(M.IsShown() and not UI.IsShown(), "mini panel, not the full window")
+  local main, head, costR
+  for _, t in ipairs(texts) do
+    local v = rawget(t, "text")
+    if type(v) == "string" then
+      if v:find("^Craft |cffffffff%d+ x|r") or v:find("^|cffffd100Train") or v:find("^|cffffd100Buy") then main = v end
+      if v:find("steps? left$") then head = v end
+    end
+  end
+  assert(main and head, "next step and steps left shown: " .. tostring(main) .. " / " .. tostring(head))
+  local plan = Core.Plan(197, Core.Char().targets[197] or 300)
+  local e = M.Entries(plan)
+  assert(#e > 2 and e[1].text, "route entries")
+  local kinds = {}
+  for _, x in ipairs(e) do kinds[x.kind] = true end
+  assert(kinds.craft and kinds.rank, "crafts and rank-ups in order")
+  M.Refresh() -- live update path runs
+  print(("mini panel: %s  |  %s  |  then: %s"):format(main:gsub("|c%x%x%x%x%x%x%x%x", ""):gsub("|r", ""), head, e[2].text))
+  fire("TRADE_SKILL_CLOSE")
+  SkillRouteDB.settings.mini = false -- the rest checks the full window's auto-open
+end
 fire("TRADE_SKILL_SHOW"); assert(UI.IsShown(), "opens with the profession window")
 fire("TRADE_SKILL_CLOSE"); assert(not UI.IsShown(), "closes with it when it opened itself")
 SlashCmdList.SKILLROUTE("")            -- opened by hand
@@ -217,6 +242,7 @@ C_TradeSkillUI.IsTradeSkillLinked = nil
 SlashCmdList.SKILLROUTE("auto off")
 fire("TRADE_SKILL_SHOW"); assert(not UI.IsShown(), "auto off respected")
 SlashCmdList.SKILLROUTE("auto on")
+SkillRouteDB.settings.mini = nil
 -- money is drawn like the game's: coloured g/s/c, surrounding colour resumed
 do
   local foot
@@ -1354,6 +1380,81 @@ do
   assert(not Core.ReadOvertime() and Core.Bonus() == 0, "tree not loaded yet: keeps the last rank read")
   _G.C_Traits = nil
   print(("working overtime: read from the Legacy Tree (rank 3 = 12%%); manual value %d%% only without it"):format(manual * 100))
+end
+
+-- essence swap, rank-up reminder, bank grab, trainer panel
+do
+  -- essences: 3 lesser = 1 greater; the cheaper form prices both
+  local savedP = { prices[10938], prices[10939] }
+  prices[10938], prices[10939] = 500, 900        -- greater is cheaper per lesser (300)
+  assert(Core.Price(10938) == 300, "lesser priced via greater: " .. tostring(Core.Price(10938)))
+  assert(Core.Price(10939) == 900, "greater stays")
+  local other, n2, _, how = Core.EssenceSwap(10938, 7)
+  assert(other == 10939 and n2 == 3 and how == "split", "buy 3 greater for 7 lesser, split")
+  prices[10938], prices[10939] = 200, 900         -- 3 lesser (600) beat a greater
+  assert(Core.Price(10939) == 600 and select(4, Core.EssenceSwap(10939, 2)) == "combine")
+  assert(Core.EssenceSwap(10938, 5) == nil, "lesser is fine as it is")
+  prices[10938], prices[10939] = savedP[1], savedP[2]
+
+  -- rank-up reminder: capped at 150 with a higher target -> one message, once
+  local H = ns.Helpers
+  local savedSkills = Core.Skills
+  Core.Skills = function() return { [197] = { rank = 150, max = 150 } } end
+  Core.Char().targets[197] = 300
+  local msg = H.RankMessage(197, { rank = 150, max = 150 })
+  assert(msg and msg:find("capped at 150") and msg:find("Expert"), tostring(msg))
+  assert(not H.RankMessage(197, { rank = 149, max = 150 }), "not capped yet")
+  local out, realPrint = {}, print
+  _G.print = function(s) out[#out + 1] = s end
+  H.CheckRanks(); H.CheckRanks()
+  _G.print = realPrint
+  assert(#out == 1, "reminded once per cap: " .. #out)
+  Core.Skills = savedSkills
+
+  -- bank: moves whole stacks of what the next steps need
+  local plan = Core.Plan(197, 300)
+  Core.Char().lastLine = 197
+  local want = H.BagNeeds()
+  local item = next(want)
+  assert(item, "the next steps need something")
+  local moved = {}
+  _G.C_Container = {
+    GetContainerNumSlots = function(bag) return bag == -1 and 2 or 0 end,
+    GetContainerItemInfo = function(bag, slot) if bag == -1 and slot == 1 then return { itemID = item, stackCount = 20 } end end,
+    UseContainerItem = function(bag, slot) moved[#moved + 1] = bag .. ":" .. slot end,
+  }
+  _G.print = function() end
+  local n = H.TakeFromBank()
+  _G.print = realPrint
+  assert(n == 1 and moved[1] == "-1:1", "took the stack from the bank")
+  _G.C_Container = nil
+
+  -- trainer panel: route recipes this trainer offers, with Learn buttons
+  local TP = ns.TrainerPanel
+  local st
+  for _, s in ipairs(plan.steps) do if s.spell and s.learn == "trainer" then st = s; break end end
+  if st then
+    local saved = { GetNumTrainerServices, GetTrainerServiceInfo, GetTrainerServiceSkillReq, GetTrainerServiceItemLink, GetTrainerServiceCost }
+    _G.GetNumTrainerServices = function() return 1 end
+    _G.GetTrainerServiceInfo = function() return st.name, "", "available" end
+    _G.GetTrainerServiceSkillReq = function() return "Tailoring", st.from, true end
+    _G.GetTrainerServiceItemLink = nil
+    _G.GetTrainerServiceCost = function() return 500 end
+    local d = TP.Collect()
+    assert(d and #d.items == 1 and d.items[1].spell == st.spell and d.items[1].now and d.totalNow == 500, "route recipe at this trainer")
+    _G.ClassTrainerFrame = stubObj(); _G.wipe = function(t) for k in pairs(t) do t[k] = nil end end
+    SkillRouteDB.lastError = nil
+    TP.Refresh()
+    assert(not SkillRouteDB.lastError, "trainer panel draws: " .. tostring(SkillRouteDB.lastError))
+    local learnAll = false
+    for _, t in ipairs(texts) do local v = rawget(t, "text"); if type(v) == "string" and v:find("^1 recipe your route uses") then learnAll = true end end
+    assert(learnAll, "panel lists it")
+    _G.ClassTrainerFrame = nil
+    GetNumTrainerServices, GetTrainerServiceInfo, GetTrainerServiceSkillReq, GetTrainerServiceItemLink, GetTrainerServiceCost =
+      saved[1], saved[2], saved[3], saved[4], saved[5]
+    print(("trainer panel: %s (used %d-%d) at this trainer"):format(st.name, st.from, st.to))
+  end
+  print("essence swap, rank reminder (" .. msg:gsub("|c%x%x%x%x%x%x%x%x", ""):gsub("|r", "") .. "), bank grab OK")
 end
 
 -- /sr check runs and reports; errors are caught, not thrown

@@ -262,25 +262,33 @@ end
 -- that fires TRAINER_UPDATE, which would re-run the scan in a loop.
 local recordTrainer -- defined with the places code below
 
+-- Trainer service i -> profession line, recipe spell, skill required, cost, and the
+-- service type ("available", "unavailable", "used"). nil if it isn't a recipe we know.
+function Core.TrainerService(i)
+  local name, _, kind = GetTrainerServiceInfo(i)
+  local skillName, req = GetTrainerServiceSkillReq(i)
+  local line = skillName and nameToLine[skillName]
+  local out = line and GetTrainerServiceItemLink and itemIdFromLink(GetTrainerServiceItemLink(i))
+  local spells = line and ((out and recipesMaking(line, out)) or (name and recipesNamed(line, name)))
+  if not spells then return nil end
+  local recipes = Data.professions[line].recipes
+  local match, matchScore = nil, -1
+  for _, spell in ipairs(spells) do -- same name can exist twice (e.g. Earthen Vest)
+    local r = recipes[spell]
+    local score = (out and r.out == out and 2 or 0) + ((r.src == "T" or r.src == "t") and 1 or 0)
+    if score > matchScore then match, matchScore = spell, score end
+  end
+  local cost = GetTrainerServiceCost and GetTrainerServiceCost(i) or nil
+  return line, match, req, cost, kind
+end
+
 function Core.ScanTrainer()
   if not (GetNumTrainerServices and GetTrainerServiceInfo and GetTrainerServiceSkillReq) then return end
   recordTrainer()
   local d, found = db(), 0
   for i = 1, GetNumTrainerServices() do
-    local name = GetTrainerServiceInfo(i)
-    local skillName, req = GetTrainerServiceSkillReq(i)
-    local line = skillName and nameToLine[skillName]
-    local out = line and GetTrainerServiceItemLink and itemIdFromLink(GetTrainerServiceItemLink(i))
-    local spells = line and ((out and recipesMaking(line, out)) or (name and recipesNamed(line, name)))
-    if spells then
-      local recipes = Data.professions[line].recipes
-      local match, matchScore = nil, -1
-      for _, spell in ipairs(spells) do -- same name can exist twice (e.g. Earthen Vest)
-        local r = recipes[spell]
-        local score = (out and r.out == out and 2 or 0) + ((r.src == "T" or r.src == "t") and 1 or 0)
-        if score > matchScore then match, matchScore = spell, score end
-      end
-      local cost = GetTrainerServiceCost and GetTrainerServiceCost(i) or nil
+    local line, match, req, cost = Core.TrainerService(i)
+    if match then
       d.trainer[line] = d.trainer[line] or {}
       local old = d.trainer[line][match]
       if not old or old.req ~= (req or 0) or old.cost ~= cost then
@@ -1083,7 +1091,38 @@ local function vendorForMe(item)
   return not me or pv[1]:find(me, 1, true) ~= nil or Core.Place("vendor", item) ~= nil
 end
 
+-- Enchanting essences: 3 lesser make 1 greater (combine) and 1 greater splits into 3
+-- lesser (right-click), for free. lesser -> greater and greater -> lesser.
+local ESSENCE = {}
+for _, p in ipairs({ { 10938, 10939 }, { 10998, 11082 }, { 11134, 11135 }, { 11174, 11175 }, { 16202, 16203 } }) do
+  ESSENCE[p[1]] = { other = p[2], ratio = 1 / 3 } -- 1 lesser = 1/3 greater
+  ESSENCE[p[2]] = { other = p[1], ratio = 3 }     -- 1 greater = 3 lesser
+end
+local basePrice
+
+-- Price of an item, or of its other essence form when that's cheaper (converted).
 function Core.Price(item)
+  local p, est, kind = basePrice(item)
+  local e = ESSENCE[item]
+  if e then
+    local op, oest, okind = basePrice(e.other)
+    if op and okind ~= "farm" and (not p or op * e.ratio < p) then return op * e.ratio, oest or false end
+  end
+  return p, est, kind
+end
+
+-- For the shopping list: buying the other form is cheaper. Returns other item, how
+-- many of it for n, its unit price and "split"/"combine"; nil if this form is fine.
+function Core.EssenceSwap(item, n)
+  local e = ESSENCE[item]
+  if not e then return nil end
+  local p = basePrice(item)
+  local op = basePrice(e.other)
+  if not op or (p and op * e.ratio >= p) then return nil end
+  return e.other, math.ceil(n * e.ratio - 1e-9), op, e.ratio < 1 and "split" or "combine"
+end
+
+function basePrice(item)
   local api = auctionator()
   local ah, vendor = (ahQuote(item))
   if api and api.GetVendorPriceByItemID then
@@ -1321,6 +1360,26 @@ function Core.OpenRecipe(spell)
     if ok then return true end
   end
   return false
+end
+
+-- Craft a known recipe n times (from a click: the game needs one). Returns true if the
+-- client took it.
+function Core.Craft(spell, n)
+  local T = C_TradeSkillUI
+  if not (T and T.CraftRecipe) then return false end
+  return (pcall(T.CraftRecipe, spell, n or 1))
+end
+
+-- How many crafts the materials in your bags (not the bank) allow.
+function Core.CraftableNow(line, spell)
+  local r = Data.professions[line].recipes[spell]
+  if not (r and r.r) then return 0 end
+  local n = math.huge
+  for i = 1, #r.r, 2 do
+    local have = GetItemCount and GetItemCount(r.r[i]) or 0
+    n = math.min(n, math.floor(have / r.r[i + 1]))
+  end
+  return n == math.huge and 0 or n
 end
 
 -- Send the shopping list to Auctionator as a shopping list (exact names, amounts).
@@ -1607,9 +1666,14 @@ end
 local pending = false
 function Core.Changed()
   needsVersion = needsVersion + 1 -- prices, bags or recipes changed: re-plan Enchanting's needs
-  if pending or not (ns.UI and ns.UI.IsShown()) then return end
+  local mini = ns.Mini and ns.Mini.IsShown()
+  if pending or not ((ns.UI and ns.UI.IsShown()) or mini) then return end
   pending = true
-  C_Timer.After(0.1, function() pending = false; ns.UI.Refresh() end)
+  C_Timer.After(0.1, function()
+    pending = false
+    if ns.UI.IsShown() then ns.UI.Refresh() end
+    if ns.Mini and ns.Mini.IsShown() then ns.Mini.Refresh() end
+  end)
 end
 
 -- Events -------------------------------------------------------------------------

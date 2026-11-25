@@ -27,6 +27,12 @@ Leveling guides written for Classic don't match Forever: many recipes changed sk
 - **Where to learn it:** trainer, vendor, quest or your bank.
 - **What to do with what you make:** list it on the AH, disenchant it (if you're an enchanter, counting materials your Enchanting route still needs) or sell it to a vendor, whichever is worth most.
 
+### At the profession window, trainer and bank
+- **Mini panel** next to your profession window: the next step, materials you have against what it needs, **Craft 1** / **Craft all**, and what comes after.
+- **At the trainer:** the recipes this trainer has that your route uses, what each is for, and **Learn** buttons.
+- **Rank-up reminder** when you hit a cap, with where to train (or the book or quest).
+- **At the bank:** one button takes the next steps' materials into your bags.
+
 ### Shopping, made easy
 - **Shopping list:** everything to buy, minus what you have, with a safety margin so you don't run short.
 - **At the auction house:** a **Buy** button on every step opens Auctionator's Shopping tab with that step's materials and the amounts you need.

@@ -51,6 +51,8 @@ local function itemName(item)
   return n or (Data.items[item] and Data.items[item][1]) or ("item " .. item)
 end
 
+UI.Money, UI.Icon, UI.ItemName = money, icon, itemName -- shared with the mini panel
+
 -- "Afterwards: sell the 5 Formal White Shirts to a vendor (5s 50c each) - AH 5s 40c
 -- after the cut, can't be disenchanted. Not counted in the cost." Same comparison as
 -- the shopping list's crafted-items section.
@@ -710,6 +712,13 @@ local function shoppingRows(plan)
       tip[#tip + 1] = { note = "Click: waypoint" }
     end
     if b.est then tags[#tags + 1] = "|cffff8040estimated price|r" end
+    do -- essences: the other form can be cheaper (3 lesser = 1 greater)
+      local other, n2, _, how = Core.EssenceSwap(b.item, b.buy)
+      if other and b.buy > 0 then
+        tags[#tags + 1] = ("|cff40bf40cheaper as %d x %s (%s)|r"):format(n2, itemName(other),
+          how == "split" and "right-click each to split into 3" or "combine 3 into 1")
+      end
+    end
     if not tip and not b.farm and not b.vendor then
       local pi = Core.PriceInfo(b.item)
       if pi.ah or pi.paid then
@@ -1025,6 +1034,8 @@ end
 
 function UI.AutoOpen(line)
   firstRunTips()
+  -- the mini panel docked to the profession window, unless switched off in the options
+  if ns.Mini and (SkillRouteDB.settings or {}).mini ~= false and ns.Mini.Show(line) then return end
   if not frame then build() end
   state.line = line
   if frame:IsShown() then

@@ -10,6 +10,17 @@
 - **What you paid:** AH purchases of stackable goods are remembered. An item that isn't on
   the AH now is priced at what you last paid (within 30 days). Hover an item in the
   shopping list to see its price, where it came from and how old it is, and what you paid.
+- **Mini panel** docked to the profession window: the next step, its materials (have /
+  need), **Craft 1** and **Craft all**, the two steps after it and what's left to buy. It
+  opens instead of the full window (Options: "Dock a mini panel"); **Full route** opens it.
+- **At the trainer:** a "your route here" panel lists the recipes this trainer has that
+  your route uses, with the skill range each is for, the cost, **Learn** and **Learn all**.
+- **Rank-up reminder:** when a profession hits 75, 150 or 225 and your target is higher,
+  SkillRoute says what to do next (trainer, book or quest), where, and how far.
+- **At the bank:** **Take <profession> mats** moves what your next 3 steps still need from
+  the bank into your bags (whole stacks).
+- **Essences:** 3 lesser = 1 greater, so each is priced at the cheaper form, and the
+  shopping list says when to buy the other one and split or combine.
 - **Working Overtime is read from your Legacy Tree** (at login, after loading screens and
   when you change it), so there's no slider any more. `/sr overtime <pct>` is only used if
   the tree can't be read.

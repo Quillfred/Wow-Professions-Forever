@@ -119,6 +119,11 @@ Copy the `SkillRoute` folder into `World of Warcraft/_forever_/Interface/AddOns/
 - `/sr margin <50-99>` how often the shopping list should be enough to finish
   (default 90; 50 = the expected amount).
 - `/sr ah` (or the button in the shopping list) sends the list to Auctionator.
+- **Mini panel** (default): opens docked to the profession window with the next step,
+  Craft 1 / Craft all and what's next; Options "Dock a mini panel" switches back to the
+  full window. **At the trainer**, a panel lists the route's recipes there with Learn
+  buttons. **At the bank**, "Take <profession> mats" moves the next 3 steps' materials to
+  your bags. A reminder appears when a profession hits a rank cap you need to pass.
 - `/sr scan` (or **Scan AH**, with the auction house open) scans the AH for prices.
 - `/sr craftcost <copper>` prefer fewer crafts: the extra material cost you accept per
   craft saved (route choice only, never charged).

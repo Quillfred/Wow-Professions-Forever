@@ -296,6 +296,9 @@ local function build()
   y = check(panel, y, "Open with the profession window",
     "Opening a crafting profession window opens SkillRoute too.",
     function() return S().auto ~= false end, function(v) Options.Set("auto", v) end)
+  y = check(panel, y, "Dock a mini panel to the profession window",
+    "Shows the next step, Craft buttons and what's left to buy next to the profession window, instead of opening the full SkillRoute window. The full route is one click away.",
+    function() return S().mini ~= false end, function(v) Options.Set("mini", v) end)
   y = check(panel, y, "Count materials on my alts",
     "Uses Syndicator or DataStore, if installed.",
     function() return S().alts ~= false end, function(v) Options.Set("alts", v) end)
