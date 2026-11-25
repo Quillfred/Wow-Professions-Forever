@@ -20,7 +20,7 @@ function TP.Collect()
   local byLine, lineOf = {}, nil
   for i = 1, GetNumTrainerServices() do
     local line, spell, req, cost, kind = Core.TrainerService(i)
-    if spell and kind ~= "used" then
+    if spell and kind ~= "used" and not Core.IsRecipeKnown(line, spell) then
       lineOf = lineOf or line
       byLine[line] = byLine[line] or {}
       byLine[line][spell] = { index = i, req = req or 0, cost = cost or 0, kind = kind }
@@ -32,11 +32,16 @@ function TP.Collect()
   local plan = Core.Plan(lineOf, Core.Char().targets[lineOf] or 300)
   if not plan then return nil end
   local out, seen, totalNow = {}, {}, 0
+  local skill = skills[lineOf].rank or 0
+  local myLevel = UnitLevel and UnitLevel("player") or 0
   for _, st in ipairs(plan.steps) do
     local svc = st.spell and byLine[lineOf][st.spell]
     if svc and not seen[st.spell] then
       seen[st.spell] = true
-      local now = svc.kind == "available"
+      -- learnable now: your skill (and level, if the trainer says) is enough. Decided
+      -- here rather than from the service type, which clients report differently.
+      local lvl = GetTrainerServiceLevelReq and GetTrainerServiceLevelReq(svc.index) or 0
+      local now = skill >= svc.req and myLevel >= (lvl or 0)
       if now then totalNow = totalNow + svc.cost end
       out[#out + 1] = { index = svc.index, spell = st.spell, name = st.name, from = st.from, to = st.to,
                         cost = svc.cost, req = svc.req, now = now }

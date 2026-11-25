@@ -226,6 +226,21 @@ do
   for _, x in ipairs(e) do kinds[x.kind] = true end
   assert(kinds.craft and kinds.rank, "crafts and rank-ups in order")
   M.Refresh() -- live update path runs
+  SkillRouteDB.lastError = nil
+  local after, short
+  for _, t in ipairs(texts) do
+    local v = rawget(t, "text")
+    if type(v) == "string" and v:find("Afterwards:", 1, true) then after = v end
+    if type(v) == "string" and v:find("Short of %d") then short = v end
+  end
+  assert(after or e[1].kind ~= "craft", "Afterwards line on a craft step")
+  -- hovering the step shows the full route's tooltip
+  local hit
+  for _, f in ipairs(frames) do if rawget(f, "OnEnter") and rawget(f, "OnClick") and not rawget(f, "events") then hit = f end end
+  local ok, r, tip = pcall(UI.StepTip, Core.Plan(197, 300), (function() for _, x in ipairs(e) do if x.kind == "craft" then return x.st end end end)())
+  assert(ok and tip and #tip > 3, "step tooltip builds for the mini panel: " .. tostring(r))
+  assert(not SkillRouteDB.lastError, tostring(SkillRouteDB.lastError))
+  print("mini panel extras: " .. (after or "?"):gsub("|c%x%x%x%x%x%x%x%x", ""):gsub("|r", "") .. (short and ("; " .. short:gsub("|c%x%x%x%x%x%x%x%x", ""):gsub("|r", "")) or ""))
   print(("mini panel: %s  |  %s  |  then: %s"):format(main:gsub("|c%x%x%x%x%x%x%x%x", ""):gsub("|r", ""), head, e[2].text))
   fire("TRADE_SKILL_CLOSE")
   SkillRouteDB.settings.mini = false -- the rest checks the full window's auto-open
@@ -1436,8 +1451,8 @@ do
   if st then
     local saved = { GetNumTrainerServices, GetTrainerServiceInfo, GetTrainerServiceSkillReq, GetTrainerServiceItemLink, GetTrainerServiceCost }
     _G.GetNumTrainerServices = function() return 1 end
-    _G.GetTrainerServiceInfo = function() return st.name, "", "available" end
-    _G.GetTrainerServiceSkillReq = function() return "Tailoring", st.from, true end
+    _G.GetTrainerServiceInfo = function() return st.name, "", "AVAILABLE?" end -- odd type: skill decides
+    _G.GetTrainerServiceSkillReq = function() return "Tailoring", 100, true end -- your skill is 110
     _G.GetTrainerServiceItemLink = nil
     _G.GetTrainerServiceCost = function() return 500 end
     local d = TP.Collect()

@@ -247,6 +247,186 @@ end
 
 local function shortTravel(loc) local t = loc and Core.TravelText(loc); return t and t:gsub("^about ", "~"):gsub(" away", "") end
 
+-- A craft step's tooltip (the full route's rows and the mini panel share it). Returns
+-- the recipe, the tooltip lines, the waypoint, the learn text for the row and the step
+-- for the AH Buy button (nil when the AH isn't open).
+local function stepTip(plan, st)
+  local r = Data.professions[plan.line].recipes[st.spell]
+  local learn = ""
+  local trainerLoc, exact, questLoc
+  local specName = r.spec and Data.specNames and Data.specNames[r.spec]
+  if (st.learn == "trainer" or st.learn == "trainer?") and not specName then
+    trainerLoc, exact = Core.NearestRecipeTrainer(plan.line, st.spell, r.learn or r.y)
+  end
+  if st.learn == "trainer" and specName then
+    learn = "  |cffffd100Learn at your " .. specName .. " trainer"
+            .. (st.learnCost and (" (" .. money(st.learnCost, YELLOW) .. ")") or "") .. "|r"
+  elseif st.learn == "trainer" then
+    learn = "  |cffffd100Learn at " .. (trainerLoc and trainerLoc.npc or "trainer")
+            .. (st.learnCost and (" (" .. money(st.learnCost, YELLOW) .. ")") or "") .. "|r"
+  elseif st.learn == "pattern" then
+    if st.unlock and st.unlock.via == "owned" then
+      learn = "  |cffffd100Learn from your " .. itemName(st.unlock.item) .. " (" .. st.unlock.owned .. ")|r"
+    elseif st.unlock and st.unlock.via == "ah" then
+      learn = "  |cffffd100Buy pattern on the AH (last seen " .. money(st.learnCost, YELLOW) .. ")|r"
+              .. ahWhy(st.unlock.item)
+    else
+      local p = st.unlock and (Core.Place("vendor", st.unlock.item) or Core.NearestVendor(st.unlock.item))
+      local who = (p and p.npc) or (st.unlock and st.unlock.vendorNames and st.unlock.vendorNames:match("^[^,]+")) or "a vendor"
+      learn = "  |cffffd100Buy pattern from " .. who .. " (" .. money(st.learnCost, YELLOW) .. ")|r"
+              .. ((not p and st.unlock and st.unlock.unverified) and " |cff808080(vendor faction unverified)|r" or "")
+    end
+  elseif st.learn == "trainer?" then
+    learn = "  |cffffd100Learn at trainer (not confirmed yet)|r"
+  elseif st.learn == "quest" then
+    questLoc = Core.RecipeQuest(st.spell)
+    learn = questLoc and ("  |cffffd100Quest \"%s\" from %s|r"):format(questLoc.title, questLoc.loc.npc)
+            or "  |cffffd100Learn from a quest|r"
+  end
+  -- tooltip: label / value rows, details in grey under them (see UI.AddTipLines)
+  local tip = { { header = "SkillRoute" } }
+  local function row(l, v) tip[#tip + 1] = { l, v } end
+  local function sub(l, v) if v and v ~= "" then tip[#tip + 1] = { l, v, sub = true } end end
+  local function note(t) tip[#tip + 1] = { note = t } end
+  local function gap() tip[#tip + 1] = { gap = true } end
+  local function travel(loc) local t = Core.TravelText(loc); return t and t:gsub("^about ", "~"):gsub(" away", "") end
+  row("Cost per craft", money(st.perCraft) .. (st.est and " |cffff8040(estimated)|r" or ""))
+  -- the last skill at which the recipe is each colour (Planner.Color: green from the
+  -- midpoint of yellow and grey)
+  do
+    local greenFrom = math.floor((r.y + r.g) / 2)
+    local learnAt = math.min(r.learn or r.y, r.y)
+    local bands = {}
+    if r.y - 1 >= learnAt then bands[#bands + 1] = ("|cff%s%d|r"):format(COLORS.orange, r.y - 1) end
+    if greenFrom - 1 >= r.y then bands[#bands + 1] = ("|cff%s%d|r"):format(COLORS.yellow, greenFrom - 1) end
+    if r.g - 1 >= greenFrom then bands[#bands + 1] = ("|cff%s%d|r"):format(COLORS.green, r.g - 1) end
+    row("Skill-ups through", table.concat(bands, " · "))
+    sub("", ("last skill-up at each colour; no more from %d"):format(r.g))
+  end
+  local sv = st.learn == "pattern" and st.unlock and st.unlock.savesShown
+  local w = st.why
+  local points = st.to - st.from
+  if sv then
+    row("Why this one", "the pattern pays off")
+    sub("saves", money(sv) .. " over the route, price included")
+  elseif w and w.gap >= 1 then
+    row("Why this one", "cheapest here, saves " .. money(w.gap) .. " / point")
+  elseif w then
+    row("Why this one", "about as cheap as the next best")
+  elseif st.only then
+    row("Why this one", "only option here")
+    sub("", ("no other recipe you can get covers %d-%d"):format(st.from, st.to))
+  end
+  if w then
+    sub("next best", ("%s, %s / point"):format(w.name, money(w.perPoint)))
+    if not sv and w.gap >= 1 and points > 1 then sub("over this step", "~" .. money(w.gap * points)) end
+    local because = w.because == "reliable" and ("skills up more reliably (%.1f vs %.1f crafts per point)"):format(w.craftsOurs, w.craftsAlt)
+      or w.because == "feeds" and "what it makes is used by later steps"
+      or w.because == "resale" and ("sells back well (your Expect to sell setting, %d%%)"):format((SkillRouteDB.settings and SkillRouteDB.settings.resale) or 0)
+      or w.because == "fee" and "the next best needs a trainer fee"
+      or w.because == "time" and "fewer crafts (your craft's-time setting)"
+      or w.because == "sticky" and "keeps going with the next step's recipe (within 3%)"
+      or nil
+    sub("because", because)
+  end
+  gap()
+  -- where the recipe comes from
+  local waypoint = trainerLoc
+  if questLoc then
+    local ql = questLoc.loc
+    waypoint = ql
+    row("Recipe", ('Quest "%s"'):format(questLoc.title))
+    sub("from", ql.npc .. ", " .. (Core.Where(ql) or "?"))
+    sub("travel", travel(ql))
+    if questLoc.skill > 0 then sub("needs", ("skill %d"):format(questLoc.skill)) end
+    note("A quest counts as 1g of effort when choosing recipes (time, sometimes materials); not added to what you spend.")
+  elseif st.learn == "trainer" and specName then
+    row("Recipe", ("Learn at your %s trainer%s"):format(specName, st.learnCost and (", " .. money(st.learnCost)) or ""))
+  elseif st.learn == "trainer" then
+    row("Recipe", ("Learn at %s%s"):format(trainerLoc and trainerLoc.npc or "your trainer",
+      st.learnCost and (", " .. money(st.learnCost)) or ""))
+    if trainerLoc then
+      sub("where", Core.Where(trainerLoc))
+      sub("travel", travel(trainerLoc))
+      if not exact then sub("", "tier estimated from the skill level") end
+    end
+  elseif st.learn == "trainer?" then
+    row("Recipe", "a trainer (not confirmed yet)")
+    sub("", "open your trainer once: SkillRoute records what it teaches")
+  elseif st.learn == "pattern" and st.unlock then
+    local p, n = Core.Place("vendor", st.unlock.item)
+    local buy = st.unlock.via ~= "ah" and st.unlock.via ~= "owned"
+    local near = not p and buy and Core.NearestVendor(st.unlock.item)
+    waypoint = buy and (p or near) or nil
+    if st.unlock.via == "owned" then
+      row("Recipe", "your " .. itemName(st.unlock.item))
+      sub("", st.unlock.owned .. (st.unlock.owned == "in your bank" and ": take it out and use it"
+        or st.unlock.owned == "on an alt" and ": mail it to this character" or ""))
+    elseif st.unlock.via == "ah" then
+      row("Recipe", "AH, last seen " .. money(st.learnCost))
+      local why = ahWhy(st.unlock.item, true):gsub("|c%x%x%x%x%x%x%x%x", ""):gsub("|r", ""):gsub("^ %(", ""):gsub("%)$", "")
+      if why ~= "" then note(why) end
+    else
+      local v = p or near
+      row("Recipe", ("%s, %s"):format(v and v.npc or (st.unlock.vendorNames and st.unlock.vendorNames:match("^[^,]+")) or "a vendor",
+        money(st.learnCost)))
+      if p then
+        sub("where", Core.FormatPlace(p, true):gsub("^[^,]+, ", "") .. (p.limited and " (limited stock)" or ""))
+        if n > 1 then sub("", ("%d vendors known"):format(n)) end
+      elseif near then
+        sub("where", Core.Where(near))
+        sub("travel", travel(near))
+      elseif st.unlock.vendorNames then
+        sub("sold by", st.unlock.vendorNames)
+      elseif r.where then
+        sub("where", r.where)
+      end
+      if not p and st.unlock.unverified then
+        note("|cffff8040New in Forever: no vendor data yet, so it's not certain a vendor of your faction sells it.|r")
+      end
+    end
+  end
+  if specName then row("Needs", specName .. " |cff9d9d9d(your specialisation)|r") end
+  for _, u in ipairs(st.tools or {}) do
+    row("Needs", u.name .. " |cff9d9d9d(in your bags)|r")
+    sub("", u.craftSpell and "craft one first (on the shopping list)" or ("buy one, " .. money(u.price)))
+  end
+  gap()
+  -- what to do with what you make
+  if st.credited then
+    row("Afterwards", "used by later steps")
+    sub("materials", money(st.grossCost) .. ", counted there")
+  elseif st.resale then
+    row("Afterwards", "|cff40bf40Sell on the AH|r")
+    sub("brings back", money(st.resale) .. " at your Expect to sell setting")
+  elseif r.out then
+    local action, compared, used = afterCrafting(r.out, math.ceil(st.crafts - 1e-9) * (r.outN or 1))
+    row("Afterwards", action)
+    sub("compared", compared)
+    if used then sub("", used) end
+  end
+  gap()
+  local hints = {}
+  if Core.IsRecipeKnown(plan.line, st.spell) then
+    hints[#hints + 1] = "Click: open recipe"
+    if waypoint then hints[#hints + 1] = "Shift-click: waypoint" end
+  elseif waypoint then
+    hints[#hints + 1] = "Click: waypoint"
+  end
+  hints[#hints + 1] = "Right-click: skip recipe"
+  if st.tools then
+    local names = {}
+    for _, u in ipairs(st.tools) do names[#names + 1] = u.name end
+    learn = learn .. "  |cffff8040needs " .. table.concat(names, ", ") .. "|r"
+  end
+  local ahStep = Core.ahOpen and Core.CanExportToAuctionator() and st or nil
+  if ahStep then hints[#hints + 1] = "Buy: add reagents to Auctionator" end
+  tip[#tip + 1] = { note = table.concat(hints, " · ") }
+  return r, tip, waypoint, learn, ahStep
+end
+UI.StepTip = stepTip
+UI.AfterCrafting = function(item, n) return afterCrafting(item, n) end
+
 local function routeRows(plan)
   local n = 0
   local stopCap, stopNeed, stopMine = levelStop(plan)
@@ -442,177 +622,7 @@ local function routeRows(plan)
         end
       end
     else
-      local r = Data.professions[plan.line].recipes[st.spell]
-      local learn = ""
-      local trainerLoc, exact, questLoc
-      local specName = r.spec and Data.specNames and Data.specNames[r.spec]
-      if (st.learn == "trainer" or st.learn == "trainer?") and not specName then
-        trainerLoc, exact = Core.NearestRecipeTrainer(plan.line, st.spell, r.learn or r.y)
-      end
-      if st.learn == "trainer" and specName then
-        learn = "  |cffffd100Learn at your " .. specName .. " trainer"
-                .. (st.learnCost and (" (" .. money(st.learnCost, YELLOW) .. ")") or "") .. "|r"
-      elseif st.learn == "trainer" then
-        learn = "  |cffffd100Learn at " .. (trainerLoc and trainerLoc.npc or "trainer")
-                .. (st.learnCost and (" (" .. money(st.learnCost, YELLOW) .. ")") or "") .. "|r"
-      elseif st.learn == "pattern" then
-        if st.unlock and st.unlock.via == "owned" then
-          learn = "  |cffffd100Learn from your " .. itemName(st.unlock.item) .. " (" .. st.unlock.owned .. ")|r"
-        elseif st.unlock and st.unlock.via == "ah" then
-          learn = "  |cffffd100Buy pattern on the AH (last seen " .. money(st.learnCost, YELLOW) .. ")|r"
-                  .. ahWhy(st.unlock.item)
-        else
-          local p = st.unlock and (Core.Place("vendor", st.unlock.item) or Core.NearestVendor(st.unlock.item))
-          local who = (p and p.npc) or (st.unlock and st.unlock.vendorNames and st.unlock.vendorNames:match("^[^,]+")) or "a vendor"
-          learn = "  |cffffd100Buy pattern from " .. who .. " (" .. money(st.learnCost, YELLOW) .. ")|r"
-                  .. ((not p and st.unlock and st.unlock.unverified) and " |cff808080(vendor faction unverified)|r" or "")
-        end
-      elseif st.learn == "trainer?" then
-        learn = "  |cffffd100Learn at trainer (not confirmed yet)|r"
-      elseif st.learn == "quest" then
-        questLoc = Core.RecipeQuest(st.spell)
-        learn = questLoc and ("  |cffffd100Quest \"%s\" from %s|r"):format(questLoc.title, questLoc.loc.npc)
-                or "  |cffffd100Learn from a quest|r"
-      end
-      -- tooltip: label / value rows, details in grey under them (see UI.AddTipLines)
-      local tip = { { header = "SkillRoute" } }
-      local function row(l, v) tip[#tip + 1] = { l, v } end
-      local function sub(l, v) if v and v ~= "" then tip[#tip + 1] = { l, v, sub = true } end end
-      local function note(t) tip[#tip + 1] = { note = t } end
-      local function gap() tip[#tip + 1] = { gap = true } end
-      local function travel(loc) local t = Core.TravelText(loc); return t and t:gsub("^about ", "~"):gsub(" away", "") end
-      row("Cost per craft", money(st.perCraft) .. (st.est and " |cffff8040(estimated)|r" or ""))
-      -- the last skill at which the recipe is each colour (Planner.Color: green from the
-      -- midpoint of yellow and grey)
-      do
-        local greenFrom = math.floor((r.y + r.g) / 2)
-        local learnAt = math.min(r.learn or r.y, r.y)
-        local bands = {}
-        if r.y - 1 >= learnAt then bands[#bands + 1] = ("|cff%s%d|r"):format(COLORS.orange, r.y - 1) end
-        if greenFrom - 1 >= r.y then bands[#bands + 1] = ("|cff%s%d|r"):format(COLORS.yellow, greenFrom - 1) end
-        if r.g - 1 >= greenFrom then bands[#bands + 1] = ("|cff%s%d|r"):format(COLORS.green, r.g - 1) end
-        row("Skill-ups through", table.concat(bands, " · "))
-        sub("", ("last skill-up at each colour; no more from %d"):format(r.g))
-      end
-      local sv = st.learn == "pattern" and st.unlock and st.unlock.savesShown
-      local w = st.why
-      local points = st.to - st.from
-      if sv then
-        row("Why this one", "the pattern pays off")
-        sub("saves", money(sv) .. " over the route, price included")
-      elseif w and w.gap >= 1 then
-        row("Why this one", "cheapest here, saves " .. money(w.gap) .. " / point")
-      elseif w then
-        row("Why this one", "about as cheap as the next best")
-      elseif st.only then
-        row("Why this one", "only option here")
-        sub("", ("no other recipe you can get covers %d-%d"):format(st.from, st.to))
-      end
-      if w then
-        sub("next best", ("%s, %s / point"):format(w.name, money(w.perPoint)))
-        if not sv and w.gap >= 1 and points > 1 then sub("over this step", "~" .. money(w.gap * points)) end
-        local because = w.because == "reliable" and ("skills up more reliably (%.1f vs %.1f crafts per point)"):format(w.craftsOurs, w.craftsAlt)
-          or w.because == "feeds" and "what it makes is used by later steps"
-          or w.because == "resale" and ("sells back well (your Expect to sell setting, %d%%)"):format((SkillRouteDB.settings and SkillRouteDB.settings.resale) or 0)
-          or w.because == "fee" and "the next best needs a trainer fee"
-          or w.because == "time" and "fewer crafts (your craft's-time setting)"
-          or w.because == "sticky" and "keeps going with the next step's recipe (within 3%)"
-          or nil
-        sub("because", because)
-      end
-      gap()
-      -- where the recipe comes from
-      local waypoint = trainerLoc
-      if questLoc then
-        local ql = questLoc.loc
-        waypoint = ql
-        row("Recipe", ('Quest "%s"'):format(questLoc.title))
-        sub("from", ql.npc .. ", " .. (Core.Where(ql) or "?"))
-        sub("travel", travel(ql))
-        if questLoc.skill > 0 then sub("needs", ("skill %d"):format(questLoc.skill)) end
-        note("A quest counts as 1g of effort when choosing recipes (time, sometimes materials); not added to what you spend.")
-      elseif st.learn == "trainer" and specName then
-        row("Recipe", ("Learn at your %s trainer%s"):format(specName, st.learnCost and (", " .. money(st.learnCost)) or ""))
-      elseif st.learn == "trainer" then
-        row("Recipe", ("Learn at %s%s"):format(trainerLoc and trainerLoc.npc or "your trainer",
-          st.learnCost and (", " .. money(st.learnCost)) or ""))
-        if trainerLoc then
-          sub("where", Core.Where(trainerLoc))
-          sub("travel", travel(trainerLoc))
-          if not exact then sub("", "tier estimated from the skill level") end
-        end
-      elseif st.learn == "trainer?" then
-        row("Recipe", "a trainer (not confirmed yet)")
-        sub("", "open your trainer once: SkillRoute records what it teaches")
-      elseif st.learn == "pattern" and st.unlock then
-        local p, n = Core.Place("vendor", st.unlock.item)
-        local buy = st.unlock.via ~= "ah" and st.unlock.via ~= "owned"
-        local near = not p and buy and Core.NearestVendor(st.unlock.item)
-        waypoint = buy and (p or near) or nil
-        if st.unlock.via == "owned" then
-          row("Recipe", "your " .. itemName(st.unlock.item))
-          sub("", st.unlock.owned .. (st.unlock.owned == "in your bank" and ": take it out and use it"
-            or st.unlock.owned == "on an alt" and ": mail it to this character" or ""))
-        elseif st.unlock.via == "ah" then
-          row("Recipe", "AH, last seen " .. money(st.learnCost))
-          local why = ahWhy(st.unlock.item, true):gsub("|c%x%x%x%x%x%x%x%x", ""):gsub("|r", ""):gsub("^ %(", ""):gsub("%)$", "")
-          if why ~= "" then note(why) end
-        else
-          local v = p or near
-          row("Recipe", ("%s, %s"):format(v and v.npc or (st.unlock.vendorNames and st.unlock.vendorNames:match("^[^,]+")) or "a vendor",
-            money(st.learnCost)))
-          if p then
-            sub("where", Core.FormatPlace(p, true):gsub("^[^,]+, ", "") .. (p.limited and " (limited stock)" or ""))
-            if n > 1 then sub("", ("%d vendors known"):format(n)) end
-          elseif near then
-            sub("where", Core.Where(near))
-            sub("travel", travel(near))
-          elseif st.unlock.vendorNames then
-            sub("sold by", st.unlock.vendorNames)
-          elseif r.where then
-            sub("where", r.where)
-          end
-          if not p and st.unlock.unverified then
-            note("|cffff8040New in Forever: no vendor data yet, so it's not certain a vendor of your faction sells it.|r")
-          end
-        end
-      end
-      if specName then row("Needs", specName .. " |cff9d9d9d(your specialisation)|r") end
-      for _, u in ipairs(st.tools or {}) do
-        row("Needs", u.name .. " |cff9d9d9d(in your bags)|r")
-        sub("", u.craftSpell and "craft one first (on the shopping list)" or ("buy one, " .. money(u.price)))
-      end
-      gap()
-      -- what to do with what you make
-      if st.credited then
-        row("Afterwards", "used by later steps")
-        sub("materials", money(st.grossCost) .. ", counted there")
-      elseif st.resale then
-        row("Afterwards", "|cff40bf40Sell on the AH|r")
-        sub("brings back", money(st.resale) .. " at your Expect to sell setting")
-      elseif r.out then
-        local action, compared, used = afterCrafting(r.out, math.ceil(st.crafts - 1e-9) * (r.outN or 1))
-        row("Afterwards", action)
-        sub("compared", compared)
-        if used then sub("", used) end
-      end
-      gap()
-      local hints = {}
-      if Core.IsRecipeKnown(plan.line, st.spell) then
-        hints[#hints + 1] = "Click: open recipe"
-        if waypoint then hints[#hints + 1] = "Shift-click: waypoint" end
-      elseif waypoint then
-        hints[#hints + 1] = "Click: waypoint"
-      end
-      hints[#hints + 1] = "Right-click: skip recipe"
-      if st.tools then
-        local names = {}
-        for _, u in ipairs(st.tools) do names[#names + 1] = u.name end
-        learn = learn .. "  |cffff8040needs " .. table.concat(names, ", ") .. "|r"
-      end
-      local ahStep = Core.ahOpen and Core.CanExportToAuctionator() and st or nil
-      if ahStep then hints[#hints + 1] = "Buy: add reagents to Auctionator" end
-      tip[#tip + 1] = { note = table.concat(hints, " · ") }
+      local r, tip, waypoint, learn, ahStep = stepTip(plan, st)
       add({ item = r.out, spell = st.spell, tip = tip, skipSpell = st.spell, skipName = st.name, waypoint = waypoint,
             recipe = st.spell, ahStep = ahStep,
             text = ("|cff%s~%d|r x %s"):format(COLORS[st.color] or "ffffff", math.ceil(st.crafts - 1e-9), st.name),

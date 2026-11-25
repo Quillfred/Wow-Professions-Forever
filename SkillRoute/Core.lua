@@ -1725,6 +1725,7 @@ local function onEvent(_, ev, arg1)
   elseif ev == "AUCTION_HOUSE_SHOW" or ev == "AUCTION_HOUSE_CLOSED" then
     Core.ahOpen = ev == "AUCTION_HOUSE_SHOW"
     if ns.UI and ns.UI.IsShown() then ns.UI.Refresh() end
+    if ns.Mini and ns.Mini.IsShown() then ns.Mini.Refresh() end
   elseif ev == "HEARTHSTONE_BOUND" then
     Core.RecordBind()
   elseif ev == "TAXIMAP_OPENED" then

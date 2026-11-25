@@ -114,12 +114,29 @@ local function build(parent)
   -- clicking the step selects its recipe in the profession window
   ui.hit = CreateFrame("Button", nil, panel)
   ui.hit:SetScript("OnClick", function() if ui.spell then Core.OpenRecipe(ui.spell) end end)
+  -- hover: the same tooltip as the step in the full route
+  ui.hit:SetScript("OnEnter", function(self)
+    if not (ui.plan and ui.st) then return end
+    local ok, r, tip = pcall(UI.StepTip, ui.plan, ui.st)
+    if not ok or not tip then return end
+    GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+    if r.out and GameTooltip.SetItemByID then GameTooltip:SetItemByID(r.out)
+    elseif GameTooltip.SetSpellByID then GameTooltip:SetSpellByID(ui.st.spell) end
+    UI.AddTipLines(tip)
+    GameTooltip:Show()
+  end)
+  ui.hit:SetScript("OnLeave", function() GameTooltip:Hide() end)
   ui.mats = {}
   for i = 1, MAT_ROWS do
     local l, r = font("GameFontHighlightSmall"), font("GameFontHighlightSmall")
     l:SetJustifyH("LEFT"); l:SetWidth(W - 110)
     ui.mats[i] = { l = l, r = r }
   end
+  ui.short = font("GameFontHighlightSmall"); ui.short:SetWidth(W - 90); ui.short:SetJustifyH("LEFT")
+  ui.buy = button("Buy", 60, function()
+    if ui.plan and ui.st then Core.AddStepToAuctionator(ui.plan, ui.st) end
+  end)
+  ui.after = font("GameFontHighlightSmall"); ui.after:SetWidth(W - 24); ui.after:SetJustifyH("LEFT")
   ui.note = font("GameFontHighlightSmall"); ui.note:SetWidth(W - 24); ui.note:SetJustifyH("LEFT")
   ui.note:SetTextColor(1, 0.5, 0.25)
   ui.craft1 = button("Craft 1", 72, function()
@@ -162,7 +179,8 @@ local function draw()
   local y = -30
   for _, m in ipairs(ui.mats) do m.l:SetText(""); m.r:SetText("") end
   ui.note:SetText(""); ui.then1:SetText(""); ui.then2:SetText("")
-  ui.spell, ui.allN, ui.crafts, ui.learn = nil, 0, 0, nil
+  ui.spell, ui.allN, ui.crafts, ui.learn, ui.st, ui.plan = nil, 0, 0, nil, nil, plan
+  ui.short:SetText(""); ui.after:SetText(""); ui.buy:Hide()
   local entries = plan and Mini.Entries(plan) or {}
   local nCraft = 0
   for _, e in ipairs(entries) do if e.kind == "craft" then nCraft = nCraft + 1 end end
@@ -180,7 +198,7 @@ local function draw()
   elseif e.kind == "craft" then
     local st = e.st
     local r = Data.professions[line].recipes[st.spell]
-    ui.spell, ui.crafts, ui.learn = st.spell, math.ceil(st.crafts - 1e-9), st.learn
+    ui.spell, ui.crafts, ui.learn, ui.st = st.spell, math.ceil(st.crafts - 1e-9), st.learn, st
     ui.icon:SetTexture(UI.Icon(r.out, st.spell))
     ui.main:SetText(("Craft |cffffffff%d x|r %s"):format(ui.crafts, st.name))
     ui.sub:SetText(("|cff999999skill %d -> %d|r  %s"):format(st.from, st.to, bands(r)))
@@ -215,6 +233,38 @@ local function draw()
         (have < need and it and it[3]) and " |cff999999vendor|r" or ""))
       place(m.l, 12, y); m.r:ClearAllPoints(); m.r:SetPoint("TOPRIGHT", -12, y)
       y = y - 14
+    end
+    -- what you're short of, at AH prices (vendor items say "vendor" on their row)
+    local shortCost, shortN, unpriced = 0, 0, false
+    for i = 1, #r.r, 2 do
+      local item, need = r.r[i], r.r[i + 1] * crafts
+      local miss = need - Core.InBags(item)
+      local it = Data.items[item]
+      if miss > 0 and not (it and it[3]) then
+        local p = Core.Price(item)
+        shortN = shortN + 1
+        if p then shortCost = shortCost + p * miss else unpriced = true end
+      end
+    end
+    if shortN > 0 then
+      ui.short:SetText(("|cffff6060Short of %d material%s|r: ~%s on the AH%s"):format(shortN, shortN == 1 and "" or "s",
+        UI.Money(shortCost), unpriced and " (some unpriced)" or ""))
+      place(ui.short, 12, y - 2)
+      if ui.st and Core.ahOpen and Core.CanExportToAuctionator() then
+        ui.buy:ClearAllPoints(); ui.buy:SetPoint("TOPRIGHT", -12, y + 2); ui.buy:Show()
+      end
+      y = y - math.max(h(ui.short), 16) - 4
+    end
+    -- afterwards: what to do with what you make (the full tooltip has the comparison)
+    if ui.st then
+      local after
+      if ui.st.credited then after = "used by later steps"
+      elseif ui.st.resale then after = "|cff40bf40sell on the AH|r"
+      elseif r.out then after = UI.AfterCrafting(r.out, crafts * (r.outN or 1)) end
+      if after then
+        ui.after:SetText("|cff999999Afterwards:|r " .. after)
+        place(ui.after, 12, y - 2); y = y - h(ui.after) - 4
+      end
     end
     known = Core.IsRecipeKnown(line, ui.spell)
     ui.allN = math.min(crafts, Core.CraftableNow(line, ui.spell))
