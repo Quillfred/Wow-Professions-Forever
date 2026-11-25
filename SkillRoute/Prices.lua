@@ -225,8 +225,11 @@ function Prices.NextDepth()
   scan.depthI = scan.depthI + 1
   local d = scan.depthList[scan.depthI]
   if not d then
-    stop(summary((" + %d of %d materials priced for the amounts you need (%.0f s)")
-      :format(scan.priced, #scan.depthList, GetTime() - scan.depthStart)))
+    local how = {}
+    if (scan.byPoll or 0) > 0 then how[#how + 1] = scan.byPoll .. " without the AH's event" end
+    if (scan.retries or 0) > 0 then how[#how + 1] = scan.retries .. " retried" end
+    stop(summary((" + %d of %d materials priced for the amounts you need (%.0f s%s)")
+      :format(scan.priced, #scan.depthList, GetTime() - scan.depthStart, #how > 0 and (": " .. table.concat(how, ", ")) or "")))
     Core.InvalidatePatterns(); Core.Changed()
     return
   end
@@ -283,12 +286,21 @@ function sendDepth(d)
     ours = false
     d.sentAt = GetTime()
     local tries = d.tries or 0
+    -- check every 0.25 s whether the answer is in (it often comes without its event)
+    local function check()
+      if not (scan and scan.current == d and (d.tries or 0) == tries) then return end
+      if GetTime() - d.sentAt >= DEPTH_TIMEOUT - 0.01 then return end
+      local tiers = readCommodity(d.item) or readItems(AH.MakeItemKey(d.item))
+      if tiers then scan.byPoll = (scan.byPoll or 0) + 1; Prices.DepthResult(d.item, tiers)
+      else C_Timer.After(0.25, check) end
+    end
+    C_Timer.After(0.25, check)
     C_Timer.After(DEPTH_TIMEOUT, function()
       if not (scan and scan.current == d and (d.tries or 0) == tries) then return end
       -- no "results" event: the answer may be there anyway; else retry once, then skip
       local tiers = readCommodity(d.item) or readItems(AH.MakeItemKey(d.item))
       if tiers then Prices.DepthResult(d.item, tiers)
-      elseif tries < 1 then d.tries = tries + 1; sendDepth(d)
+      elseif tries < 1 then d.tries = tries + 1; scan.retries = (scan.retries or 0) + 1; sendDepth(d)
       else scan.current = nil; Prices.NextDepth() end
     end)
   end)
