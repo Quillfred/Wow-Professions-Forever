@@ -1474,6 +1474,16 @@ do
   _G.UIParent = setmetatable({ GetChildren = function() return tiny, offscreen, clear, bagAddon end,
     GetWidth = function() return 1920 end, GetHeight = function() return 1080 end }, { __index = savedUIP })
   assert(H.BankWindow() == bagAddon, "the bag addon's on-screen bank window, not off-screen or transparent ones")
+  local holder = frameAt("BagAddonBankHolder", 0, 0, 1920, 1080)
+  local kids = { tiny, offscreen, clear, bagAddon, holder }
+  _G.UIParent = setmetatable({ GetChildren = function() return unpack(kids) end,
+    GetWidth = function() return 1920 end, GetHeight = function() return 1080 end }, { __index = savedUIP })
+  assert(H.BankWindow() == bagAddon, "a full-screen holder frame isn't the bank window")
+  local said = {}
+  local rp = print; _G.print = function(x) said[#said + 1] = x end
+  SlashCmdList.SKILLROUTE("bank")
+  _G.print = rp
+  assert(#said >= 3 and table.concat(said, "\n"):find("docks to: Baganator_BankViewFrame", 1, true), "/sr bank explains")
   _G.UIParent = setmetatable({ GetChildren = function() return tiny end,
     GetWidth = function() return 1920 end, GetHeight = function() return 1080 end }, { __index = savedUIP })
   assert(H.BankWindow() == nil, "Blizzard's bank moved off screen: not docked to it")

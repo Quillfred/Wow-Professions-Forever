@@ -172,11 +172,34 @@ function H.BankWindow()
     if name and name ~= "BankFrame" and name ~= "SkillRouteBankButton" and name:lower():find("bank", 1, true)
        and onScreen(f) then
       local w, h = f:GetWidth() or 0, f:GetHeight() or 0
-      if w > 150 and h > 150 and w * h > area then best, area = f, w * h end
+      -- a window, not a full-screen holder frame
+      if w > 150 and h > 150 and w < UIParent:GetWidth() * 0.9 and h < UIParent:GetHeight() * 0.9
+         and w * h > area then best, area = f, w * h end
     end
   end
   if best then return best end
   if BankFrame and onScreen(BankFrame) then return BankFrame end
+end
+
+-- /sr bank: what SkillRoute sees of the bank windows, to find where the button went.
+function H.BankDebug()
+  local out = {}
+  local function desc(f)
+    local n = f.GetName and f:GetName() or "?"
+    return ("%s %dx%d at %d,%d alpha %.2f %s"):format(n, f:GetWidth() or 0, f:GetHeight() or 0,
+      f:GetLeft() or -1, f:GetBottom() or -1, f.GetEffectiveAlpha and f:GetEffectiveAlpha() or 1,
+      onScreen(f) and "on screen" or "OFF screen")
+  end
+  for _, f in ipairs({ UIParent:GetChildren() }) do
+    local n = f.GetName and f:GetName()
+    if n and n:lower():find("bank", 1, true) and f.IsVisible and f:IsVisible() then out[#out + 1] = desc(f) end
+  end
+  if BankFrame then out[#out + 1] = "BankFrame: " .. (BankFrame:IsVisible() and desc(BankFrame) or "hidden") end
+  local host = H.BankWindow()
+  out[#out + 1] = "docks to: " .. (host and (host:GetName() or "?") or "nothing (floats)")
+  local b = SkillRouteBankButton
+  out[#out + 1] = "button: " .. (b and (b:IsVisible() and desc(b) or "hidden") or "not made yet")
+  for _, l in ipairs(out) do print("|cff33ccffSkillRoute bank:|r " .. l) end
 end
 
 local bankBtn

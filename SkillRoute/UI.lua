@@ -1090,6 +1090,8 @@ SlashCmdList.SKILLROUTE = function(msg)
   local settings = SkillRouteDB and SkillRouteDB.settings
   if cmd == "log" then
     if ns.Recorder then ns.Recorder.Command(arg) end
+  elseif cmd == "bank" then
+    if ns.Helpers then ns.Helpers.BankDebug() end
   elseif cmd == "scan" then
     if ns.Prices then ns.Prices.Scan() end
   elseif cmd == "overtime" and settings then
