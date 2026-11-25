@@ -336,7 +336,10 @@ local function routeRows(plan)
         toolShown[u] = true
         local learn = ""
         if u.learnHow == "trainer" then
-          learn = "  |cffffd100Learn at trainer" .. (u.learnCost and (" (" .. money(u.learnCost, YELLOW) .. ")") or "") .. "|r"
+          local r = u.craftSpell and Data.professions[plan.line].recipes[u.craftSpell]
+          local t = r and Core.NearestRecipeTrainer(plan.line, u.craftSpell, r.learn or r.y)
+          learn = "  |cffffd100Learn at " .. (t and t.npc or "trainer")
+                  .. (u.learnCost and (" (" .. money(u.learnCost, YELLOW) .. ")") or "") .. "|r"
         elseif u.learnHow == "trainer?" then
           learn = "  |cffffd100Learn at trainer (not confirmed yet)|r"
         end
