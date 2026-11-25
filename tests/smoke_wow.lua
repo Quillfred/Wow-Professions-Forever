@@ -1393,6 +1393,31 @@ do
   assert(line:find("pages:") and line:find("1 of 1 materials priced for the amounts you need"), line)
   local pi2 = Core.PriceInfo(2589)
   assert(pi2.ah == 56 and pi2.cheapest == 40 and pi2.forN == 10, "tooltip shows the amount and the cheapest")
+  -- a dropped search is sent again; a material with no answer is retried once, and an
+  -- answer that came without the event is read at the timeout
+  Core.BuyList = function() return { [2589] = 10, [4306] = 5 } end
+  results = { { itemKey = { itemID = 2589 }, minPrice = 40 }, { itemKey = { itemID = 4306 }, minPrice = 300 } }
+  local sends = {}
+  C_AuctionHouse.SendSearchQuery = function(key) sends[#sends + 1] = key.itemID end
+  local silent = {} -- item -> ladder the AH holds without firing the event
+  C_AuctionHouse.GetNumCommoditySearchResults = function(id) return silent[id] and #silent[id] or 0 end
+  C_AuctionHouse.GetCommoditySearchResultInfo = function(id, i) return silent[id][i] end
+  queue = {}
+  assert(P.Scan()); run()
+  fireP("AUCTION_HOUSE_BROWSE_RESULTS_UPDATED"); fireP("AUCTION_HOUSE_BROWSE_RESULTS_ADDED")
+  assert(sends[1] == 2589, "first material searched")
+  fireP("AUCTION_HOUSE_THROTTLED_MESSAGE_DROPPED")
+  assert(sends[2] == 2589, "dropped search sent again")
+  silent[2589] = { { unitPrice = 45, quantity = 99 } }
+  -- the timeouts: answer was there without the event -> used; next material no answer at all
+  local function timeouts() local q = queue; queue = {}; for _, f in ipairs(q) do f() end end
+  timeouts()
+  assert(P.Own(2589) == 45 and sends[#sends] == 4306, "read at the timeout, moved on: " .. tostring(P.Own(2589)))
+  timeouts()
+  assert(sends[#sends] == 4306 and #sends == 4, "no answer: retried once")
+  timeouts()
+  assert(not P.Scanning(), "then skipped and finished")
+  assert(said[#said]:find("1 of 2 materials"), said[#said])
   Core.BuyList = savedBuy
   realPrint("scan summary: " .. line)
 
@@ -1405,7 +1430,7 @@ do
   assert(P.LastPaid(999123) == 100, "paid 1s each")
   assert(Core.Price(999123) == 100, "no AH price: what you paid")
   local pi = Core.PriceInfo(2589)
-  assert(pi.ah == 56 and pi.src == "SkillRoute scan" and pi.age == 0, "tooltip info (the amount-priced average)")
+  assert(pi.ah == P.Own(2589) and pi.src == "SkillRoute scan" and pi.age == 0, "tooltip info (the amount-priced average)")
 
   _G.print = realPrint
   fire("AUCTION_HOUSE_CLOSED")

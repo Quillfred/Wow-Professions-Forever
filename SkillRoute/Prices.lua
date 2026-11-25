@@ -208,6 +208,7 @@ end
 -- you need along the price ladder (the full read only has each item's cheapest listing).
 -- Results are kept item by item, so closing the AH partway keeps what was priced.
 local DEPTH_TIMEOUT = 4
+local sendDepth -- below
 function Prices.DepthPass()
   local want = (SkillRouteDB.settings or {}).depth ~= false and Core.BuyList and Core.BuyList() or {}
   local list = {}
@@ -231,15 +232,7 @@ function Prices.NextDepth()
   end
   status(("Pricing the amounts you need... %d/%d"):format(scan.depthI, #scan.depthList))
   scan.current = d
-  local i = scan.depthI
-  whenReady(function()
-    ours = true
-    pcall(AH.SendSearchQuery, AH.MakeItemKey(d.item), { { sortOrder = (Enum and Enum.AuctionHouseSortOrder and Enum.AuctionHouseSortOrder.Price) or 0, reverseSort = false } }, false)
-    ours = false
-    C_Timer.After(DEPTH_TIMEOUT, function() -- no answer: move on
-      if scan and scan.phase == "depth" and scan.depthI == i then Prices.NextDepth() end
-    end)
-  end)
+  sendDepth(d)
 end
 
 -- Average price per unit of buying n from listings { {price, qty}, ... } (cheapest
@@ -254,6 +247,53 @@ function Prices.CostFor(tiers, n)
   if left > 0 and last then total = total + left * last end
   return n > 0 and total / n or nil
 end
+
+-- The price ladder the AH holds for an item after a search (commodity or not), or nil.
+local function readCommodity(item)
+  if not AH.GetNumCommoditySearchResults then return nil end
+  local n = AH.GetNumCommoditySearchResults(item) or 0
+  if n == 0 then return nil end
+  local tiers = {}
+  for i = 1, math.min(100, n) do
+    local r = AH.GetCommoditySearchResultInfo(item, i)
+    if r and r.unitPrice and r.quantity then tiers[#tiers + 1] = { r.unitPrice, r.quantity } end
+  end
+  return tiers
+end
+local function readItems(key)
+  if not AH.GetNumItemSearchResults then return nil end
+  local n = AH.GetNumItemSearchResults(key) or 0
+  if n == 0 then return nil end
+  local tiers = {}
+  for i = 1, math.min(100, n) do
+    local r = AH.GetItemSearchResultInfo(key, i)
+    if r and r.buyoutAmount and r.quantity and r.quantity > 0 then tiers[#tiers + 1] = { r.buyoutAmount / r.quantity, r.quantity } end
+  end
+  return tiers
+end
+Prices._readCommodity, Prices._readItems = readCommodity, readItems
+
+-- Send the search for the material being priced.
+function sendDepth(d)
+  whenReady(function()
+    if not (scan and scan.current == d) then return end
+    ours = true
+    pcall(AH.SendSearchQuery, AH.MakeItemKey(d.item),
+      { { sortOrder = (Enum and Enum.AuctionHouseSortOrder and Enum.AuctionHouseSortOrder.Price) or 0, reverseSort = false } }, false)
+    ours = false
+    d.sentAt = GetTime()
+    local tries = d.tries or 0
+    C_Timer.After(DEPTH_TIMEOUT, function()
+      if not (scan and scan.current == d and (d.tries or 0) == tries) then return end
+      -- no "results" event: the answer may be there anyway; else retry once, then skip
+      local tiers = readCommodity(d.item) or readItems(AH.MakeItemKey(d.item))
+      if tiers then Prices.DepthResult(d.item, tiers)
+      elseif tries < 1 then d.tries = tries + 1; sendDepth(d)
+      else scan.current = nil; Prices.NextDepth() end
+    end)
+  end)
+end
+Prices._resendDepth = function() if scan and scan.current then sendDepth(scan.current) end end
 
 -- A search answer for the material being priced: store its price for the amount needed.
 function Prices.DepthResult(item, tiers)
@@ -368,7 +408,8 @@ local f = CreateFrame("Frame")
 for _, ev in ipairs({ "PLAYER_LOGIN", "AUCTION_HOUSE_SHOW", "AUCTION_HOUSE_CLOSED",
   "AUCTION_HOUSE_BROWSE_RESULTS_UPDATED", "AUCTION_HOUSE_BROWSE_RESULTS_ADDED", "AUCTION_HOUSE_BROWSE_FAILURE",
   "COMMODITY_PRICE_UPDATED", "COMMODITY_PURCHASE_SUCCEEDED", "COMMODITY_PURCHASE_FAILED",
-  "AUCTION_HOUSE_THROTTLED_SYSTEM_READY", "COMMODITY_SEARCH_RESULTS_UPDATED", "ITEM_SEARCH_RESULTS_UPDATED" }) do
+  "AUCTION_HOUSE_THROTTLED_SYSTEM_READY", "AUCTION_HOUSE_THROTTLED_MESSAGE_DROPPED",
+  "COMMODITY_SEARCH_RESULTS_UPDATED", "ITEM_SEARCH_RESULTS_UPDATED" }) do
   pcall(f.RegisterEvent, f, ev) -- an event this client doesn't have is just skipped
 end
 f:SetScript("OnEvent", function(_, ev, a, b)
@@ -388,27 +429,26 @@ f:SetScript("OnEvent", function(_, ev, a, b)
     nextPage()
   elseif ev == "AUCTION_HOUSE_THROTTLED_SYSTEM_READY" then
     fire()
+  elseif ev == "AUCTION_HOUSE_THROTTLED_MESSAGE_DROPPED" then
+    -- the AH dropped a request (sent too soon): send it again when it allows
+    if scan and scan.phase == "depth" then Prices._resendDepth()
+    elseif scan and scan.phase == "read" and scan.sentAt then
+      whenReady(function()
+        scan.sentAt = GetTime()
+        if (scan.pages or 0) == 0 then -- the first search itself was dropped
+          ours = true
+          pcall(AH.SendBrowseQuery, { searchString = "", sorts = {}, filters = {}, itemClassFilters = {} })
+          ours = false
+        else AH.RequestMoreBrowseResults() end
+      end)
+    end
   elseif ev == "COMMODITY_SEARCH_RESULTS_UPDATED" then
     local item = a
-    if scan and scan.current and scan.current.item == item and AH.GetNumCommoditySearchResults then
-      local tiers = {}
-      for i = 1, math.min(100, AH.GetNumCommoditySearchResults(item) or 0) do
-        local r = AH.GetCommoditySearchResultInfo(item, i)
-        if r and r.unitPrice and r.quantity then tiers[#tiers + 1] = { r.unitPrice, r.quantity } end
-      end
-      Prices.DepthResult(item, tiers)
-    end
+    if scan and scan.current and scan.current.item == item then Prices.DepthResult(item, readCommodity(item) or {}) end
   elseif ev == "ITEM_SEARCH_RESULTS_UPDATED" then
     local key = a
     local item = type(key) == "table" and key.itemID
-    if item and scan and scan.current and scan.current.item == item and AH.GetNumItemSearchResults then
-      local tiers = {}
-      for i = 1, math.min(100, AH.GetNumItemSearchResults(key) or 0) do
-        local r = AH.GetItemSearchResultInfo(key, i)
-        if r and r.buyoutAmount and r.quantity and r.quantity > 0 then tiers[#tiers + 1] = { r.buyoutAmount / r.quantity, r.quantity } end
-      end
-      Prices.DepthResult(item, tiers)
-    end
+    if item and scan and scan.current and scan.current.item == item then Prices.DepthResult(item, readItems(key) or {}) end
   elseif ev == "AUCTION_HOUSE_BROWSE_FAILURE" then
     if scan and scan.phase == "read" then stop("the auction house refused the scan; nothing saved. Try again in a moment.") end
   elseif ev == "COMMODITY_PRICE_UPDATED" then
