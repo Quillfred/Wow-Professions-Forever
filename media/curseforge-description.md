@@ -77,7 +77,7 @@ Leveling guides written for Classic don't match Forever: many recipes changed sk
 
 ## Good to know
 
-- **This is a beta.** Forever is new and some data is still being confirmed. If a trainer, vendor or recipe is wrong, open a trainer or vendor window once (SkillRoute learns from it) and please report it.
+- **Forever is new** and some data is still being confirmed. If a trainer, vendor or recipe is wrong, open a trainer or vendor window once (SkillRoute learns from it) and please report it.
 - Prices are only as fresh as your last AH scan (SkillRoute uses whichever is newer: its own or Auctionator's).
 - Zone and NPC names in some places are English-only.
 

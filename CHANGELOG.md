@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.35.0 (beta)
+## 0.35.0
 
 - The full route window steps aside while Options is open and comes back when you close
   it; Options always draws on top.
