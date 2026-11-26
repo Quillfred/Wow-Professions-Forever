@@ -1288,6 +1288,7 @@ local patternCache = {}
 local needsCache, needsVersion = nil, 0
 function Core.InvalidatePatterns() patternCache = {}; needsVersion = needsVersion + 1 end
 
+local MAX_SKILL = 300
 function Core.Plan(line, target)
   local s = Core.Skills()[line]
   if not s then -- fall back to the open profession window, if it is this profession
@@ -1295,7 +1296,11 @@ function Core.Plan(line, target)
     if liveLine == line and liveRank then s = { rank = liveRank, max = liveMax } end
   end
   if not s then return nil, "This character doesn't have " .. Data.professions[line].name .. "." end
-  target = math.max(s.rank + 1, math.min(target or 300, 300))
+  -- maxed: nothing to plan (aiming one point above your skill would ask for 301)
+  if s.rank >= MAX_SKILL then
+    return nil, ("%s is maxed (%d/%d). Nothing left to level."):format(Data.professions[line].name, s.rank, MAX_SKILL), "maxed"
+  end
+  target = math.max(s.rank + 1, math.min(target or MAX_SKILL, MAX_SKILL))
   if Data.professions[line].gather then -- Mining, Herbalism, Skinning: a zone route
     local t0g = debugprofilestop and debugprofilestop()
     local plan = Planner.GatherPlan({ nodes = Data.gather and Data.gather[line], skinning = line == 393,

@@ -821,9 +821,11 @@ local function refresh()
   local target = c.targets[line] or 300
   if not targetBox:HasFocus() then targetBox:SetText(tostring(target)) end
 
-  local plan, err = Core.Plan(line, target)
+  local plan, err, why = Core.Plan(line, target)
   if not plan then
-    info:SetText(err)
+    info:SetText(why == "maxed" and ("|cff40bf40" .. err .. "|r") or err)
+    for _, r in ipairs(rows) do r:Hide() end -- not the last profession's route
+    footer:SetText("")
     return
   end
   local src = Core.PriceSource()

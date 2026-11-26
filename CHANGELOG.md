@@ -4,6 +4,8 @@
 
 - Tools you craft (e.g. the Runed Golden Rod) get a **Buy** button for their materials, on
   the mini panel and the full route, and "To buy" works for them too.
+- Fixed: a maxed profession (300/300) looked for a route to 301 and found none. It now
+  says it's maxed (and the full window no longer keeps the previous profession's rows).
 - Fixed: the mini panel listed a tool again under "Then" when a later step also needed it.
 
 ## 0.35.0

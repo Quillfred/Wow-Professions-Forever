@@ -1719,6 +1719,18 @@ do
   print("bag counts via C_Item.GetItemCount OK")
 end
 
+-- a maxed profession (300/300) says so instead of looking for a route to 301
+do
+  local saved = Core.Skills
+  Core.Skills = function() return { [129] = { rank = 300, max = 300 } } end
+  local plan, err, why = Core.Plan(129, 300)
+  assert(plan == nil and why == "maxed" and err:find("maxed %(300/300%)"), tostring(err))
+  local bn = ns.Helpers.BagNeeds()
+  assert(next(bn) == nil and next(Core.BuyList()) == nil, "nothing to buy or take for it")
+  Core.Skills = saved
+  print("maxed: " .. err)
+end
+
 -- /sr check runs and reports; errors are caught, not thrown
 do
   local out = {}

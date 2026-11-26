@@ -181,7 +181,7 @@ end
 local function draw()
   if not (panel and panel:IsShown() and line) then return end
   local c = Core.Char()
-  local plan, err = Core.Plan(line, c.targets[line] or 300)
+  local plan, err, why = Core.Plan(line, c.targets[line] or 300)
   local y = -30
   for _, m in ipairs(ui.mats) do m.l:SetText(""); m.r:SetText("") end
   ui.note:SetText(""); ui.then1:SetText(""); ui.then2:SetText("")
@@ -195,7 +195,10 @@ local function draw()
   place(ui.cap1, 12, y); y = y - 14
   local e = entries[1]
   place(ui.icon, 12, y); place(ui.main, 48, y)
-  if not plan then
+  if not plan and why == "maxed" then
+    ui.icon:SetTexture("Interface\\Icons\\Achievement_Profession_ChefHat")
+    ui.main:SetText("|cff40bf40" .. err .. "|r"); ui.sub:SetText("")
+  elseif not plan then
     ui.icon:SetTexture("Interface\\Icons\\INV_Misc_QuestionMark")
     ui.main:SetText(err or "No route"); ui.sub:SetText("")
   elseif not e then
