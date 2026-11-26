@@ -1,7 +1,13 @@
 # Changelog
 
-## 0.35.1
+## 0.36.0
 
+- **Your other professions help:** when one of your other professions can make a material
+  this one uses (a miner smelting Mithril Bars for Blacksmithing, a tailor's bolts...), and
+  making it is cheaper than buying, the route counts it that way. The shopping list says
+  "Make 12 x Mithril Bar (Mining: Smelt Mithril)", and uses the ore you have first.
+- Bars, bolts and other craftable materials you already own are used before making more
+  (before, the shopping list could ask for ore for bars you already had).
 - **Buy without Auctionator:** the Buy buttons now also work without Auctionator: they
   search the auction house's own search box for the step's materials, one per click
   ("Next 2/3"), and chat says how many you need. With Auctionator installed, Buy still

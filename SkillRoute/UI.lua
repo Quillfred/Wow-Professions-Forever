@@ -699,10 +699,17 @@ local function shoppingRows(plan)
   local n = 0
   local function add(o) n = n + 1; setRow(n, o) end
   for _, c in ipairs(plan.shopping.craft) do
-    local r = Data.professions[plan.line].recipes[c.spell]
+    local r = Data.professions[c.line or plan.line].recipes[c.spell]
+    if c.line then -- made with another of your professions (a miner's bars...)
+      local prof = Data.professions[c.line].name
+      add({ item = r.out, spell = c.spell,
+            text = ("Make %d x %s |cff9d9d9d(%s: %s)|r"):format(c.n * (r.outN or 1), itemName(r.out), prof, c.name),
+            sub = ("|cff40bf40You have %s:|r cheaper than buying. Uses the materials below, yours first."):format(prof) })
+    else
     add({ item = r.out, text = ("Craft %d x %s"):format(c.n, c.name),
           sub = c.tool and "|cffff8040Tool for later steps: keep it in your bags|r"
                 or "Cheaper to make than to buy; uses the reagents below" })
+    end
   end
   for _, b in ipairs(plan.shopping.buy) do
     local tags = {}

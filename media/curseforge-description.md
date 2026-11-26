@@ -11,6 +11,7 @@ Leveling guides written for Classic don't match Forever: many recipes changed sk
 ### A route built for you
 - **Every crafting profession:** Alchemy, Blacksmithing, Enchanting, Engineering, Leatherworking, Tailoring, Cooking and First Aid.
 - **Cheapest expected cost:** each skill point is planned with the real skill-up chances (orange, yellow, green), so it knows when a pricier recipe that skills up reliably beats a cheap one you'd craft three times.
+- **Your other professions help:** a miner smelts the bars a blacksmith needs, a tailor makes the bolts, when that's cheaper than buying.
 - **Uses what you have:** materials in your bags, bank and on your alts (with Syndicator or DataStore) come off the shopping list. Patterns you already own count as free.
 - **Updates live:** a new AH scan, a learned recipe or a skill-up re-plans the route straight away.
 

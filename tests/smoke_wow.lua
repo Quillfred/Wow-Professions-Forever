@@ -1759,6 +1759,55 @@ do
   print("buy: Auctionator first; without it the AH search, one material per click")
 end
 
+-- another profession can make a material: a blacksmith who mines smelts the bars
+do
+  local savedSkills, savedIPS, savedCount = Core.Skills, _G.IsPlayerSpell, _G.GetItemCount
+  Core.Skills = function() return { [164] = { rank = 200, max = 225 }, [186] = { rank = 200, max = 225 } } end
+  _G.IsPlayerSpell = function(id) return id == 10097 end -- Smelt Mithril
+  local savedP = {}
+  -- everything dear except mithril ore, so the route's recipes use Mithril Bar
+  for id in pairs(SkillRouteData.items) do savedP[id] = prices[id]; prices[id] = 1000000 end
+  prices[3860], prices[3858] = 8000, 1000 -- Mithril Bar 80s, Mithril Ore 10s
+  _G.GetItemCount = function(id, bank) return id == 3858 and 500 or 0 end -- plenty of ore in the bags
+  Core.InvalidatePatterns()
+  local other, from = Core.OtherMakers(164)
+  assert(other[10097] and from[10097] == 186, "Smelt Mithril offered to Blacksmithing")
+  local plan = Core.Plan(164, 225)
+  local smelt, barBuy, oreBuy
+  for _, c in ipairs(plan.shopping.craft) do if c.spell == 10097 then smelt = c end end
+  for _, b in ipairs(plan.shopping.buy) do
+    if b.item == 3860 then barBuy = b.buy end
+    if b.item == 3858 then oreBuy = b.buy end
+  end
+  if smelt then
+    assert(smelt.line == 186 and not barBuy and (oreBuy or 0) == 0, "smelt the bars from your ore, buy none: " .. tostring(barBuy) .. "/" .. tostring(oreBuy))
+    print(("cross-profession: Blacksmithing 200-225 smelts %d Mithril Bar from ore you have (Mining)"):format(smelt.n))
+    -- the shopping list says so
+    SkillRouteDB.settings.mini = false
+    UI.Toggle(164); UI.SetMode("shopping")
+    local row
+    for _, t in ipairs(texts) do local v = rawget(t, "text"); if type(v) == "string" and v:find("^Make %d+ x Mithril Bar") then row = v end end
+    assert(row and row:find("Mining: Smelt Mithril", 1, true), "shopping row: " .. tostring(row))
+    print("  shopping list: " .. row:gsub("|c%x%x%x%x%x%x%x%x", ""):gsub("|r", ""))
+    UI.SetMode("route"); UI.Toggle()
+    SkillRouteDB.settings.mini = nil
+  else
+    error("the test route should use Mithril Bar")
+  end
+  -- owned bars count first: with 40 bars, fewer are smelted
+  if smelt then
+    _G.GetItemCount = function(id) return (id == 3858 and 500) or (id == 3860 and 40) or 0 end
+    Core.InvalidatePatterns()
+    local plan2 = Core.Plan(164, 225)
+    local s2 = 0
+    for _, c in ipairs(plan2.shopping.craft) do if c.spell == 10097 then s2 = c.n end end
+    assert(s2 <= math.max(0, smelt.n - 40) + 1, "owned bars used first: " .. s2 .. " vs " .. smelt.n)
+  end
+  for id, v in pairs(savedP) do prices[id] = v end
+  Core.Skills, _G.IsPlayerSpell, _G.GetItemCount = savedSkills, savedIPS, savedCount
+  Core.InvalidatePatterns()
+end
+
 -- /sr check runs and reports; errors are caught, not thrown
 do
   local out = {}

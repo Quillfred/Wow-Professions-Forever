@@ -30,6 +30,9 @@ A WoW Forever addon that plans the cheapest way to level a crafting profession.
 - **Recipe data comes from the Forever client itself** (build in `SkillRoute/Data.lua`),
   not from Classic. Forever moved many skill-up ranges, which is why Classic-based
   guides and addons disagree.
+- **Your other professions:** if one of them can make a material this one uses (a
+  miner's bars, a tailor's bolts), and that's cheaper, the route makes it, using what you
+  have first. Mining's smelting recipes are in the data for this.
 - **Prices come from the freshest AH scan:** Auctionator's or SkillRoute's own (**Scan AH**,
   one search for the whole AH), item by item. Thread and dyes use the vendor price. An
   item not on the AH that you bought recently is priced at what you paid (hover it in the

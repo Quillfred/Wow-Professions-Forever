@@ -73,8 +73,16 @@ local function hasTool(ctx, key)
   return ctx.hasTool and ctx.hasTool(key) or false
 end
 
+-- A recipe of this profession, or one of your other professions' known recipes that
+-- makes something this one uses (ctx.otherRecipes: Mining's bars, Tailoring's bolts...).
+local function recipeOf(ctx, spell)
+  return ctx.recipes[spell] or (ctx.otherRecipes and ctx.otherRecipes[spell])
+end
+Planner.RecipeOf = recipeOf
+
 -- Unit prices. ctx.price(itemID) -> copper, estimated? (nil if unknown).
--- An item we can craft right now (e.g. bolts of cloth) costs min(buy, craft).
+-- An item we can craft right now (e.g. bolts of cloth) costs min(buy, craft), also
+-- with another profession you have (bars you can smelt).
 local function makePricer(ctx)
   local memo, busy = {}, {}
   local producers = {}
@@ -84,9 +92,15 @@ local function makePricer(ctx)
       table.insert(producers[r.out], spell)
     end
   end
+  for spell, r in pairs(ctx.otherRecipes or {}) do -- already known: Core passes only those
+    if r.out and r.r then
+      producers[r.out] = producers[r.out] or {}
+      table.insert(producers[r.out], spell)
+    end
+  end
   local unit
   local function craftCost(spell)
-    local r = ctx.recipes[spell]
+    local r = recipeOf(ctx, spell)
     local total, est = 0, false
     for i = 1, #r.r, 2 do
       local p, e = unit(r.r[i])
@@ -705,10 +719,26 @@ end
 -- reagent's need is mean + z * standard deviation (z = 1.28: enough 9 times in 10).
 function Planner.Shopping(ctx, steps, unit, extra)
   local need, needVar, pool, crafts, made = {}, {}, {}, {}, {}
+  -- what you already own of things you'd craft (bars, bolts) is used before making more
+  local ownedLeft = {}
+  local function owned(item)
+    if ownedLeft[item] == nil then
+      ownedLeft[item] = (ctx.have and ctx.have(item) or 0) + (ctx.haveAlts and ctx.haveAlts(item) or 0)
+    end
+    return ownedLeft[item]
+  end
   local function add(item, n, depth, v)
     local _, _, via = unit(item)
     if via and depth < 4 then
-      local r = ctx.recipes[via]
+      local use = math.min(n, owned(item))
+      if use > 0 then -- listed as needed and had: nothing to buy or make for that part
+        ownedLeft[item] = ownedLeft[item] - use
+        need[item] = (need[item] or 0) + use
+        if (v or 0) > 0 then v = v * ((n - use) / n) ^ 2 end
+        n = n - use
+        if n <= 1e-9 then return end
+      end
+      local r = recipeOf(ctx, via)
       local out = r.outN or 1
       local times, tv = n / out, (v or 0) / (out * out)
       crafts[via] = (crafts[via] or 0) + times
@@ -766,8 +796,9 @@ function Planner.Shopping(ctx, steps, unit, extra)
   end)
   local craftList = {}
   for spell, n in pairs(crafts) do
-    craftList[#craftList + 1] = { spell = spell, name = ctx.recipes[spell].n, n = ceil(n - 1e-9),
-                                  tool = toolCraft[spell] or nil }
+    craftList[#craftList + 1] = { spell = spell, name = recipeOf(ctx, spell).n, n = ceil(n - 1e-9),
+                                  tool = toolCraft[spell] or nil,
+                                  line = ctx.otherLine and ctx.otherLine[spell] or nil } -- made with another profession
   end
   table.sort(craftList, function(a, b)
     if (a.tool or false) ~= (b.tool or false) then return a.tool or false end

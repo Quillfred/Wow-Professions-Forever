@@ -12,6 +12,8 @@ actually teaches (until confirmed, assumed learnable at its yellow skill).
 """
 import csv, json, os, sys, urllib.request, concurrent.futures as cf
 
+# gathering professions with recipes other professions can use (Mining: smelting)
+MAKE_LINES = {186}
 PROFESSIONS = {171: "Alchemy", 164: "Blacksmithing", 333: "Enchanting", 202: "Engineering",
                165: "Leatherworking", 197: "Tailoring", 185: "Cooking", 129: "First Aid"}
 TABLES = ["SkillLineAbility", "SpellReagents", "SpellName", "SpellEffect",
@@ -131,7 +133,8 @@ def main():
     abil = {}  # spell -> SkillLineAbility row (crafting recipes only)
     for r in rows(p["SkillLineAbility"]):
         sl = int(r["SkillLine"])
-        if sl in PROFESSIONS and int(r["TrivialSkillLineRankHigh"]) > 0:
+        # plus Mining's smelting: other professions use its bars (a miner can make them)
+        if (sl in PROFESSIONS or sl in MAKE_LINES) and int(r["TrivialSkillLineRankHigh"]) > 0:
             abil[int(r["Spell"])] = r
     names = {int(r["ID"]): r["Name_lang"] for r in rows(p["SpellName"]) if int(r["ID"]) in abil}
 
@@ -243,7 +246,7 @@ def main():
                 rank_source[(line, st)] = "Q"
             elif av["items"]:
                 rank_source[(line, st)] = "B"
-    out = {sl: [] for sl in PROFESSIONS}
+    out = {sl: [] for sl in list(PROFESSIONS) + sorted(MAKE_LINES)}
     att_decided = {}
     supply_priced = 0
     # corrections from checking the Classic data against Wowhead's Forever pages
@@ -413,9 +416,12 @@ def main():
     for sl, name in PROFESSIONS.items():
         sp = f", spell = {rank1[sl]}" if sl in rank1 else ""
         lines += [f'  [{sl}] = {{ name = {lua_str(name)}{sp}, recipes = {{'] + out[sl] + ["  }},"]
-    for sl, name in GATHER.items():  # gathering: no recipes, a zone route instead
+    for sl, name in GATHER.items():  # gathering: a zone route; Mining's smelting recipes only for others to use
         sp = f", spell = {rank1[sl]}" if sl in rank1 else ""
-        lines.append(f'  [{sl}] = {{ name = {lua_str(name)}{sp}, recipes = {{}}, gather = true }},')
+        if out.get(sl):
+            lines += [f'  [{sl}] = {{ name = {lua_str(name)}{sp}, gather = true, recipes = {{'] + out[sl] + ["  }},"]
+        else:
+            lines.append(f'  [{sl}] = {{ name = {lua_str(name)}{sp}, recipes = {{}}, gather = true }},')
     # Disenchanting (tools/import_disenchant.py): each crafted item's bracket in Forever's
     # ItemDisenchantLoot (class, quality, item level), its Classic loot. Forever's table
     # leaves the skill at 0, so the Classic rule: item level 20 and below 1, then +25
@@ -764,7 +770,7 @@ def main():
           f"{gated} trainer recipes moved to their tier's gate")
     print(f"ATT decided {sum(att_decided.values())} recipe sources {att_decided}; "
           f"rank-ups from ATT: {len(rank_source)} not from trainers, {sum(1 for k in rq if k in rank_source)} with quests")
-    print(f"build {build}: " + ", ".join(f"{PROFESSIONS[sl]} {len(v)}" for sl, v in out.items())
+    print(f"build {build}: " + ", ".join(f"{PROFESSIONS.get(sl, 'Mining smelting')} {len(v)}" for sl, v in out.items())
           + f"; {len(used_items)} items -> {os.path.relpath(dst)}")
 
 

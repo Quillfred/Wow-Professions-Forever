@@ -1288,6 +1288,39 @@ local patternCache = {}
 local needsCache, needsVersion = nil, 0
 function Core.InvalidatePatterns() patternCache = {}; needsVersion = needsVersion + 1 end
 
+-- Items this profession's recipes use, per profession (fixed data: worked out once).
+local usesCache = {}
+local function itemsUsedBy(line)
+  local u = usesCache[line]
+  if u then return u end
+  u = {}
+  for _, r in pairs(Data.professions[line].recipes) do
+    for i = 1, #(r.r or {}), 2 do u[r.r[i]] = true end
+  end
+  usesCache[line] = u
+  return u
+end
+
+-- Known recipes of your other professions that make something `line` uses:
+-- { [spell] = recipe, n = how many }, { [spell] = their profession }.
+function Core.OtherMakers(line)
+  local uses, out, from, n = itemsUsedBy(line), {}, {}, 0
+  for other in pairs(Core.Skills()) do
+    local prof = Data.professions[other]
+    if other ~= line and prof and next(prof.recipes) then
+      local known
+      for spell, r in pairs(prof.recipes) do
+        if r.out and r.r and uses[r.out] and not r.cd then
+          known = known or knownSet(other)
+          if known[spell] or r.src == "a" then out[spell], from[spell], n = r, other, n + 1 end
+        end
+      end
+    end
+  end
+  out.n = n
+  return out, from
+end
+
 local MAX_SKILL = 300
 function Core.Plan(line, target)
   local s = Core.Skills()[line]
@@ -1345,8 +1378,14 @@ function Core.Plan(line, target)
   -- specialisations you have (they unlock recipes): part of the cache key
   local isKnown = IsPlayerSpell or IsSpellKnown
   for id in pairs(Data.specNames or {}) do if isKnown and isKnown(id) then key = key .. ":spec" .. id end end
+  -- your other professions' known recipes that make something this one uses (a miner's
+  -- bars for Blacksmithing, a tailor's bolts...): make it instead of buying when cheaper
+  local otherRecipes, otherLine = Core.OtherMakers(line)
+  key = key .. ":other" .. otherRecipes.n
+  otherRecipes.n = nil
   local cached = patternCache[line]
   local plan = Planner.Plan({
+    otherRecipes = otherRecipes, otherLine = otherLine,
     recipes = recipes, items = Data.items, tools = Data.tools,
     skill = s.rank, target = target, maxSkill = s.max,
     known = known, trainer = db().trainer[line] or {},
@@ -1441,13 +1480,19 @@ function Core.StepShopping(plan, st)
   local crafts = st.crafts + z * math.sqrt(st.var or 0)
   local made = {} -- items this route crafts itself -> recipe
   for _, c in ipairs(plan.shopping.craft or {}) do
-    local cr = recipes[c.spell]
+    local cr = recipes[c.spell] or (c.line and Data.professions[c.line].recipes[c.spell])
     if cr and cr.out then made[cr.out] = cr end
   end
-  local want = {}
+  local want, ownedLeft = {}, {}
   local function add(item, n, depth)
     local mr = made[item]
     if mr and depth < 2 then
+      -- bars or bolts you already have go first; only the rest is made from raw materials
+      if ownedLeft[item] == nil then ownedLeft[item] = (Core.Have(item) or 0) + (Core.HaveOnAlts(item) or 0) end
+      local use = math.min(n, ownedLeft[item])
+      ownedLeft[item] = ownedLeft[item] - use
+      n = n - use
+      if n <= 1e-9 then return end
       local times = math.ceil(n / (mr.outN or 1) - 1e-9)
       for i = 1, #mr.r, 2 do add(mr.r[i], mr.r[i + 1] * times, depth + 1) end
     else
