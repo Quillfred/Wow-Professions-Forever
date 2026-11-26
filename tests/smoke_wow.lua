@@ -1731,6 +1731,34 @@ do
   print("maxed: " .. err)
 end
 
+-- Buy: Auctionator's shopping list when installed; else the AH's own search, one per click
+do
+  local plan = { line = 197, shopping = { craft = {} } }
+  local st = { spell = 1, from = 140 }
+  local savedSS, savedAdd, savedAuc = Core.StepShopping, Core.AddStepToAuctionator, _G.Auctionator
+  Core.StepShopping = function() return { { item = 4338, name = "Mageweave Cloth", qty = 111 }, { item = 4291, name = "Silken Thread", qty = 6 } } end
+  local added = 0
+  Core.AddStepToAuctionator = function() added = added + 1; return true end
+  local searched = {}
+  _G.AuctionHouseFrame = { SearchBar = { SetSearchText = function(_, t) searched[#searched + 1] = t end, StartSearch = function() end } }
+  fire("AUCTION_HOUSE_SHOW")
+  _G.Auctionator = { API = { v1 = { GetAuctionPriceByItemID = function() end, CreateShoppingList = function() end } } }
+  assert(Core.CanBuyHere() and Core.BuyStep(plan, st) == "Buy" and added == 1 and #searched == 0, "Auctionator first")
+  _G.Auctionator = nil
+  local said = {}
+  local rp = print; _G.print = function(x) said[#said + 1] = x end
+  assert(Core.CanBuyHere(), "Buy still offered without Auctionator")
+  assert(Core.BuyStep(plan, st) == "Next 2/2" and searched[1] == "Mageweave Cloth", "first material searched")
+  assert(Core.BuyStep(plan, st) == "Buy" and searched[2] == "Silken Thread", "then the next")
+  assert(Core.BuyStep(plan, st) == "Next 2/2" and searched[3] == "Mageweave Cloth", "and round again")
+  _G.print = rp
+  assert(said[1]:find("you need 111") and said[1]:find("1 of 2"), said[1])
+  fire("AUCTION_HOUSE_CLOSED")
+  assert(not Core.CanBuyHere(), "no Buy with the AH closed")
+  Core.StepShopping, Core.AddStepToAuctionator, _G.Auctionator, _G.AuctionHouseFrame = savedSS, savedAdd, savedAuc, nil
+  print("buy: Auctionator first; without it the AH search, one material per click")
+end
+
 -- /sr check runs and reports; errors are caught, not thrown
 do
   local out = {}

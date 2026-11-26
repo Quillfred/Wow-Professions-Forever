@@ -2,6 +2,10 @@
 
 ## 0.35.1
 
+- **Buy without Auctionator:** the Buy buttons now also work without Auctionator: they
+  search the auction house's own search box for the step's materials, one per click
+  ("Next 2/3"), and chat says how many you need. With Auctionator installed, Buy still
+  fills its shopping list as before.
 - Tools you craft (e.g. the Runed Golden Rod) get a **Buy** button for their materials, on
   the mini panel and the full route, and "To buy" works for them too.
 - Fixed: a maxed profession (300/300) looked for a route to 301 and found none. It now

@@ -140,7 +140,7 @@ local function build(parent)
   end
   ui.short = font("GameFontHighlightSmall"); ui.short:SetWidth(W - 90); ui.short:SetJustifyH("LEFT")
   ui.buy = button("Buy", 60, function()
-    if ui.plan and ui.buyStep then Core.AddStepToAuctionator(ui.plan, ui.buyStep) end
+    if ui.plan and ui.buyStep then ui.buy:SetText(Core.BuyStep(ui.plan, ui.buyStep)) end
   end)
   ui.after = font("GameFontHighlightSmall"); ui.after:SetWidth(W - 24); ui.after:SetJustifyH("LEFT")
   ui.note = font("GameFontHighlightSmall"); ui.note:SetWidth(W - 24); ui.note:SetJustifyH("LEFT")
@@ -276,7 +276,9 @@ local function draw()
     if shortN > 0 then
       ui.short:SetText(buyText or ("|cffff6060Short:|r ~%s on the AH%s"):format(UI.Money(shortCost), unpriced and " (some unpriced)" or ""))
       place(ui.short, 12, y - 2)
-      if ui.buyStep and Core.ahOpen and Core.CanExportToAuctionator() then
+      local bk = ui.buyStep and ((ui.buyStep.spell or 0) .. ":" .. (ui.buyStep.from or 0))
+      if bk ~= ui.buyKey then ui.buyKey = bk; ui.buy:SetText("Buy") end -- a new step starts at its first material
+      if ui.buyStep and Core.CanBuyHere() then
         ui.buy:ClearAllPoints(); ui.buy:SetPoint("TOPRIGHT", -12, y + 2); ui.buy:Show()
       end
       y = y - math.max(h(ui.short), 16) - 4

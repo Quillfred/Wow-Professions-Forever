@@ -1664,6 +1664,63 @@ function Core.CanExportToAuctionator()
   return api and api.CreateShoppingList and true or false
 end
 
+-- Buy buttons: Auctionator's shopping list when it's installed (always first); without
+-- it, the auction house's own search, one material per click.
+function Core.CanSearchAH()
+  local bar = AuctionHouseFrame and AuctionHouseFrame.SearchBar
+  return (bar and bar.SetSearchText and bar.StartSearch) and true
+    or (C_AuctionHouse and C_AuctionHouse.SendBrowseQuery) and true or false
+end
+function Core.CanBuyHere()
+  return Core.ahOpen and (Core.CanExportToAuctionator() or Core.CanSearchAH()) or false
+end
+
+-- Search the auction house window for one item, as if typed in its search box.
+function Core.SearchAH(name)
+  local f = AuctionHouseFrame
+  if f and f.SetDisplayMode and AuctionHouseFrameDisplayMode and AuctionHouseFrameDisplayMode.Buy then
+    pcall(f.SetDisplayMode, f, AuctionHouseFrameDisplayMode.Buy) -- the Buy tab, not Sell
+  end
+  local bar = f and f.SearchBar
+  if bar and bar.SetSearchText and bar.StartSearch then
+    bar:SetSearchText(name)
+    bar:StartSearch()
+    return true
+  end
+  if C_AuctionHouse and C_AuctionHouse.SendBrowseQuery then
+    return (pcall(C_AuctionHouse.SendBrowseQuery, { searchString = name, sorts = {}, filters = {}, itemClassFilters = {} }))
+  end
+  return false
+end
+
+local searchQ -- { key, items, i }: the step being searched without Auctionator
+-- Buy for one step. Returns the label the button should show next ("Buy" or "Next 2/3").
+function Core.BuyStep(plan, st, remove)
+  if Core.CanExportToAuctionator() then
+    Core.AddStepToAuctionator(plan, st, remove)
+    return "Buy"
+  end
+  if remove then searchQ = nil; return "Buy" end
+  local key = (st.spell or 0) .. ":" .. (st.from or 0)
+  if not (searchQ and searchQ.key == key and searchQ.i < #searchQ.items) then
+    searchQ = { key = key, items = Core.StepShopping(plan, st), i = 0 }
+  end
+  local n = #searchQ.items
+  if n == 0 then
+    searchQ = nil
+    print("|cff33ccffSkillRoute:|r nothing to buy on the auction house for this step (vendor items aside).")
+    return "Buy"
+  end
+  searchQ.i = searchQ.i + 1
+  local x = searchQ.items[searchQ.i]
+  Core.SearchAH(x.name)
+  print(("|cff33ccffSkillRoute:|r searching the auction house for %s: you need %d.%s"):format(x.name, x.qty,
+    n > 1 and (" (%d of %d: click Buy again for the next)"):format(searchQ.i, n) or ""))
+  if searchQ.i < n then return ("Next %d/%d"):format(searchQ.i + 1, n) end
+  searchQ = nil
+  return "Buy"
+end
+
 function Core.ExportToAuctionator(plan)
   local api = Auctionator and Auctionator.API and Auctionator.API.v1
   if not (api and api.CreateShoppingList) then

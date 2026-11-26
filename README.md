@@ -63,7 +63,8 @@ A WoW Forever addon that plans the cheapest way to level a crafting profession.
   learnable when AllTheThings names a giver of your faction; the step names the quest
   and giver, with a waypoint. A quest counts as 1g of effort when choosing (time, and
   materials the data doesn't list), never in what you spend.
-- **At the auction house** (with Auctionator): each route step has a Buy button that
+- **At the auction house**: each route step has a Buy button. Without Auctionator it
+  searches the AH's own search box for the step's materials, one per click. With Auctionator it
   puts its reagents (crafts still needed x per craft, with your safety margin, minus
   what you have; vendor items left out) into the Auctionator list "SkillRoute
   <profession> (steps)". Clicking again updates the step; right-click removes it.

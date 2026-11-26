@@ -203,14 +203,16 @@ local function setRow(i, opts)
     b:RegisterForClicks("LeftButtonUp", "RightButtonUp")
     b:SetScript("OnClick", function(_, button)
       local st = rawget(r, "ahStep")
-      if st and lastPlan then Core.AddStepToAuctionator(lastPlan, st, button == "RightButton") end
+      if st and lastPlan then b:SetText(Core.BuyStep(lastPlan, st, button == "RightButton")) end
     end)
     b:SetScript("OnEnter", function(self)
       GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
-      GameTooltip:SetText("Add to Auctionator")
+      local auc = Core.CanExportToAuctionator()
+      GameTooltip:SetText(auc and "Add to Auctionator" or "Search the auction house")
       GameTooltip:AddLine("This step's reagents x the crafts it still needs (with your safety margin),"
         .. " minus what you have; vendor items left out.", 1, 1, 1, true)
-      GameTooltip:AddLine("Right-click: take them back out.", 1, 1, 1, true)
+      GameTooltip:AddLine(auc and "Right-click: take them back out."
+        or "Searches one material per click; chat says how many you need.", 1, 1, 1, true)
       GameTooltip:Show()
     end)
     b:SetScript("OnLeave", function() GameTooltip:Hide() end)
@@ -419,8 +421,8 @@ local function stepTip(plan, st)
     for _, u in ipairs(st.tools) do names[#names + 1] = u.name end
     learn = learn .. "  |cffff8040needs " .. table.concat(names, ", ") .. "|r"
   end
-  local ahStep = Core.ahOpen and Core.CanExportToAuctionator() and st or nil
-  if ahStep then hints[#hints + 1] = "Buy: add reagents to Auctionator" end
+  local ahStep = Core.CanBuyHere() and st or nil
+  if ahStep then hints[#hints + 1] = Core.CanExportToAuctionator() and "Buy: add reagents to Auctionator" or "Buy: search the AH for them" end
   tip[#tip + 1] = { note = table.concat(hints, " · ") }
   return r, tip, waypoint, learn, ahStep
 end
@@ -524,7 +526,7 @@ local function routeRows(plan)
           learn = "  |cffffd100Learn at trainer (not confirmed yet)|r"
         end
         if u.craftSpell then
-          add({ item = u.item, spell = u.craftSpell, ahStep = Core.ahOpen and Core.CanExportToAuctionator()
+          add({ item = u.item, spell = u.craftSpell, ahStep = Core.CanBuyHere()
                   and { spell = u.craftSpell, name = itemName(u.item), crafts = 1, var = 0, from = st.from, to = st.from } or nil,
                 text = ("|cffff8040Craft 1 x %s|r (tool)"):format(itemName(u.item)),
                 sub = mats(u.craftSpell, plan.line) .. learn,

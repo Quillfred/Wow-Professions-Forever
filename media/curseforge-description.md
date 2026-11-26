@@ -35,7 +35,7 @@ Leveling guides written for Classic don't match Forever: many recipes changed sk
 
 ### Shopping, made easy
 - **Shopping list:** everything to buy, minus what you have, with a safety margin so you don't run short.
-- **At the auction house:** a **Buy** button on every step opens Auctionator's Shopping tab with that step's materials and the amounts you need.
+- **At the auction house:** a **Buy** button on every step opens Auctionator's Shopping tab with that step's materials and the amounts you need. Without Auctionator, it searches the auction house for them, one material per click.
 - **Farming:** ingredients the AH doesn't have show where to farm them (mob, level, drop chance, zone) or where to fish them.
 
 ### Gathering and secondary skills
