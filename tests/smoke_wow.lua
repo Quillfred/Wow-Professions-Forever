@@ -239,6 +239,14 @@ do
     local list = Core.StepShopping(Core.Plan(197, 300), e[1].st)
     local n = tonumber(short:match("To buy (%d+)"))
     assert(#list == 1 and list[1].qty == n, "the panel's amount is what Buy sends: " .. n .. " vs " .. tostring(list[1] and list[1].qty))
+    -- moving the safety margin slider changes it straight away
+    ns.Options.Set("margin", 50)
+    M.Refresh()
+    local n50
+    for _, t in ipairs(texts) do local v = rawget(t, "text"); if type(v) == "string" and v:find("To buy %d+") and v:find("50%% sure") then n50 = tonumber(v:match("To buy (%d+)")) end end
+    assert(n50 and n50 < n, "50% sure buys less: " .. tostring(n50) .. " < " .. n)
+    ns.Options.Set("margin", nil)
+    print(("safety margin: 90%% sure -> buy %d, 50%% sure -> buy %d"):format(n, n50))
   end
   -- hovering the step shows the full route's tooltip
   local hit
