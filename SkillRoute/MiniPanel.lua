@@ -246,8 +246,26 @@ local function draw()
         if p then shortCost = shortCost + p * miss else unpriced = true end
       end
     end
+    -- a craft step: the same amounts the Buy button sends to Auctionator (your safety
+    -- margin included, bank and alts taken off), so the two always agree
+    local buyText
+    if ui.st and Core.StepShopping then
+      local list = Core.StepShopping(ui.plan, ui.st)
+      local cost, qty, missing = 0, 0, false
+      for _, x in ipairs(list) do
+        local p = Core.Price(x.item)
+        qty = qty + x.qty
+        if p then cost = cost + p * x.qty else missing = true end
+      end
+      shortN = #list
+      if shortN > 0 then
+        local sure = (SkillRouteDB.settings or {}).margin or 90
+        buyText = (#list == 1 and ("|cffff6060To buy %d|r (%d%% sure): ~%s on the AH%s"):format(qty, sure, UI.Money(cost), missing and " (unpriced)" or "")
+                   or ("|cffff6060To buy|r (%d%% sure): ~%s on the AH%s"):format(sure, UI.Money(cost), missing and " (some unpriced)" or ""))
+      end
+    end
     if shortN > 0 then
-      ui.short:SetText(("|cffff6060Short:|r ~%s on the AH%s"):format(UI.Money(shortCost), unpriced and " (some unpriced)" or ""))
+      ui.short:SetText(buyText or ("|cffff6060Short:|r ~%s on the AH%s"):format(UI.Money(shortCost), unpriced and " (some unpriced)" or ""))
       place(ui.short, 12, y - 2)
       if ui.st and Core.ahOpen and Core.CanExportToAuctionator() then
         ui.buy:ClearAllPoints(); ui.buy:SetPoint("TOPRIGHT", -12, y + 2); ui.buy:Show()

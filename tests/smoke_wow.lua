@@ -232,9 +232,14 @@ do
   for _, t in ipairs(texts) do
     local v = rawget(t, "text")
     if type(v) == "string" and v:find("Afterwards:", 1, true) then after = v end
-    if type(v) == "string" and v:find("Short:", 1, true) then short = v end
+    if type(v) == "string" and (v:find("Short:", 1, true) or v:find("To buy", 1, true)) then short = v end
   end
   assert(after or e[1].kind ~= "craft", "Afterwards line on a craft step")
+  if short and short:find("To buy %d") and e[1].kind == "craft" then
+    local list = Core.StepShopping(Core.Plan(197, 300), e[1].st)
+    local n = tonumber(short:match("To buy (%d+)"))
+    assert(#list == 1 and list[1].qty == n, "the panel's amount is what Buy sends: " .. n .. " vs " .. tostring(list[1] and list[1].qty))
+  end
   -- hovering the step shows the full route's tooltip
   local hit
   for _, f in ipairs(frames) do if rawget(f, "OnEnter") and rawget(f, "OnClick") and not rawget(f, "events") then hit = f end end

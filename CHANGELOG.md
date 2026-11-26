@@ -29,8 +29,8 @@
 - Fixed: the mini panel showed 0 of every material (so no Craft buttons) on clients
   without the old GetItemCount; the bank button had the same problem.
 - Mini panel: hover the step for the full route's tooltip; an **Afterwards** line says
-  what to do with what you make; when you're short of materials it says what the rest
-  costs on the AH, with a **Buy** button while the AH is open.
+  what to do with what you make; when you're short of materials it says how many to buy
+  (with your safety margin, the same amount the **Buy** button sends) and what that costs.
 - Fixed: the trainer panel's Learn buttons stayed disabled at the right skill (the
   client reports learnable recipes differently); it now goes by your skill and level.
 - The mini panel docks past the profession window's side tabs; drag it anywhere
