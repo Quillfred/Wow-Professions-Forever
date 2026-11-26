@@ -21,7 +21,7 @@ local ui = {}
 -- The route as a list of things to do, in order: rank-ups where they're needed, tools,
 -- crafts, gathering, gaps. Same rules as the full window's route.
 function Mini.Entries(plan)
-  local out, trained = {}, plan.max
+  local out, trained, toolShown = {}, plan.max, {}
   for _, st in ipairs(plan.steps) do
     while RANKS[trained] and st.from >= trained do
       local rank = RANKS[trained]
@@ -36,8 +36,14 @@ function Mini.Entries(plan)
       trained = trained + 75
     end
     for _, u in ipairs(st.tools or {}) do
-      out[#out + 1] = { kind = "tool", spell = u.craftSpell, item = u.item, learn = u.learnHow, at = st.from,
-                        text = ((u.craftSpell and "Craft" or "Buy") .. " 1 x " .. UI.ItemName(u.item) .. " (tool)") }
+      if not toolShown[u] then -- once, before the first step that needs it
+        toolShown[u] = true
+        out[#out + 1] = { kind = "tool", spell = u.craftSpell, item = u.item, learn = u.learnHow, at = st.from,
+                          text = ((u.craftSpell and "Craft" or "Buy") .. " 1 x " .. UI.ItemName(u.item) .. " (tool)"),
+                          -- a one-craft step, so Buy and "To buy" work for its materials too
+                          buy = u.craftSpell and { spell = u.craftSpell, name = UI.ItemName(u.item), crafts = 1, var = 0,
+                                                   from = st.from, to = st.from } or nil }
+      end
     end
     if st.gap then
       out[#out + 1] = { kind = "gap", text = ("No usable recipe for %d-%d: see the full route"):format(st.from, st.to), at = st.from }
@@ -134,7 +140,7 @@ local function build(parent)
   end
   ui.short = font("GameFontHighlightSmall"); ui.short:SetWidth(W - 90); ui.short:SetJustifyH("LEFT")
   ui.buy = button("Buy", 60, function()
-    if ui.plan and ui.st then Core.AddStepToAuctionator(ui.plan, ui.st) end
+    if ui.plan and ui.buyStep then Core.AddStepToAuctionator(ui.plan, ui.buyStep) end
   end)
   ui.after = font("GameFontHighlightSmall"); ui.after:SetWidth(W - 24); ui.after:SetJustifyH("LEFT")
   ui.note = font("GameFontHighlightSmall"); ui.note:SetWidth(W - 24); ui.note:SetJustifyH("LEFT")
@@ -179,7 +185,7 @@ local function draw()
   local y = -30
   for _, m in ipairs(ui.mats) do m.l:SetText(""); m.r:SetText("") end
   ui.note:SetText(""); ui.then1:SetText(""); ui.then2:SetText("")
-  ui.spell, ui.allN, ui.crafts, ui.learn, ui.st, ui.plan = nil, 0, 0, nil, nil, plan
+  ui.spell, ui.allN, ui.crafts, ui.learn, ui.st, ui.plan, ui.buyStep = nil, 0, 0, nil, nil, plan, nil
   ui.short:SetText(""); ui.after:SetText(""); ui.buy:Hide()
   local entries = plan and Mini.Entries(plan) or {}
   local nCraft = 0
@@ -198,12 +204,12 @@ local function draw()
   elseif e.kind == "craft" then
     local st = e.st
     local r = Data.professions[line].recipes[st.spell]
-    ui.spell, ui.crafts, ui.learn, ui.st = st.spell, math.ceil(st.crafts - 1e-9), st.learn, st
+    ui.spell, ui.crafts, ui.learn, ui.st, ui.buyStep = st.spell, math.ceil(st.crafts - 1e-9), st.learn, st, st
     ui.icon:SetTexture(UI.Icon(r.out, st.spell))
     ui.main:SetText(("Craft |cffffffff%d x|r %s"):format(ui.crafts, st.name))
     ui.sub:SetText(("|cff999999skill %d -> %d|r  %s"):format(st.from, st.to, bands(r)))
   elseif e.kind == "tool" and e.spell then -- a tool you craft: same as a craft, once
-    ui.spell, ui.crafts, ui.learn = e.spell, 1, e.learn
+    ui.spell, ui.crafts, ui.learn, ui.buyStep = e.spell, 1, e.learn, e.buy
     ui.icon:SetTexture(UI.Icon(e.item, e.spell))
     ui.main:SetText("|cffff8040" .. e.text .. "|r")
     ui.sub:SetText(("|cff999999needed from skill %d; keep it in your bags|r"):format(e.at))
@@ -249,8 +255,8 @@ local function draw()
     -- a craft step: the same amounts the Buy button sends to Auctionator (your safety
     -- margin included, bank and alts taken off), so the two always agree
     local buyText
-    if ui.st and Core.StepShopping then
-      local list = Core.StepShopping(ui.plan, ui.st)
+    if ui.buyStep and Core.StepShopping then
+      local list = Core.StepShopping(ui.plan, ui.buyStep)
       local cost, qty, missing = 0, 0, false
       for _, x in ipairs(list) do
         local p = Core.Price(x.item)
@@ -267,7 +273,7 @@ local function draw()
     if shortN > 0 then
       ui.short:SetText(buyText or ("|cffff6060Short:|r ~%s on the AH%s"):format(UI.Money(shortCost), unpriced and " (some unpriced)" or ""))
       place(ui.short, 12, y - 2)
-      if ui.st and Core.ahOpen and Core.CanExportToAuctionator() then
+      if ui.buyStep and Core.ahOpen and Core.CanExportToAuctionator() then
         ui.buy:ClearAllPoints(); ui.buy:SetPoint("TOPRIGHT", -12, y + 2); ui.buy:Show()
       end
       y = y - math.max(h(ui.short), 16) - 4

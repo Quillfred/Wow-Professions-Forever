@@ -256,6 +256,20 @@ do
   assert(not SkillRouteDB.lastError, tostring(SkillRouteDB.lastError))
   print("mini panel extras: " .. (after or "?"):gsub("|c%x%x%x%x%x%x%x%x", ""):gsub("|r", "") .. (short and ("; " .. short:gsub("|c%x%x%x%x%x%x%x%x", ""):gsub("|r", "")) or ""))
   print(("mini panel: %s  |  %s  |  then: %s"):format(main:gsub("|c%x%x%x%x%x%x%x%x", ""):gsub("|r", ""), head, e[2].text))
+  -- a tool two steps need shows once, and its Buy covers the tool's materials
+  local R = SkillRouteData.professions[197].recipes
+  local tspell, tr
+  for id, x in pairs(R) do if x.r and x.out and #x.r >= 2 then tspell, tr = id, x; break end end
+  local u = { craftSpell = tspell, item = tr.out, learnHow = "trainer" }
+  local fake = { max = 300, line = 197, shopping = { craft = {} }, steps = {
+    { from = 150, to = 155, spell = tspell, name = "a", crafts = 3, tools = { u } },
+    { from = 155, to = 160, spell = tspell, name = "b", crafts = 3, tools = { u } } } }
+  local te = M.Entries(fake)
+  local tools = 0
+  for _, x in ipairs(te) do if x.kind == "tool" then tools = tools + 1 end end
+  assert(tools == 1 and te[1].kind == "tool" and te[1].buy and te[1].buy.crafts == 1, "tool once, with a Buy step")
+  local tl = Core.StepShopping(fake, te[1].buy)
+  assert(type(tl) == "table", "tool materials for Auctionator")
   fire("TRADE_SKILL_CLOSE")
   SkillRouteDB.settings.mini = false -- the rest checks the full window's auto-open
 end

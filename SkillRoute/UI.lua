@@ -524,7 +524,8 @@ local function routeRows(plan)
           learn = "  |cffffd100Learn at trainer (not confirmed yet)|r"
         end
         if u.craftSpell then
-          add({ item = u.item, spell = u.craftSpell,
+          add({ item = u.item, spell = u.craftSpell, ahStep = Core.ahOpen and Core.CanExportToAuctionator()
+                  and { spell = u.craftSpell, name = itemName(u.item), crafts = 1, var = 0, from = st.from, to = st.from } or nil,
                 text = ("|cffff8040Craft 1 x %s|r (tool)"):format(itemName(u.item)),
                 sub = mats(u.craftSpell, plan.line) .. learn,
                 range = ("%d+"):format(math.max(u.from, st.from)), right = money(u.price),

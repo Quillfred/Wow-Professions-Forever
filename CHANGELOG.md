@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.35.1
+
+- Tools you craft (e.g. the Runed Golden Rod) get a **Buy** button for their materials, on
+  the mini panel and the full route, and "To buy" works for them too.
+- Fixed: the mini panel listed a tool again under "Then" when a later step also needed it.
+
 ## 0.35.0
 
 - The full route window steps aside while Options is open and comes back when you close
