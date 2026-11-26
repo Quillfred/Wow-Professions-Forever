@@ -2,6 +2,8 @@
 
 ## 0.35.0 (beta)
 
+- The full route window steps aside while Options is open and comes back when you close
+  it; Options always draws on top.
 - **SkillRoute's own AH scan:** a **Scan AH** button (and `/sr scan`) while the auction
   house is open reads the lowest price of everything listed in one search. Auctionator is
   no longer required for prices. The button sits on the auction house window's title bar
@@ -61,8 +63,6 @@
   and a live example of how much extra it buys.
 - **Working Overtime** is now saved per character (it's a talent); your current value
   moves to the first character you log in with.
-- The full route window steps aside while Options is open and comes back when you close
-  it; Options always draws on top.
 - Options: separators between options; the caution sits right under its example.
 - Fixed: the Options button (and /sr before a profession window was opened) needed two
   clicks the first time.
