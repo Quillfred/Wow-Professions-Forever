@@ -285,7 +285,12 @@ local function build()
   panel:SetScript("OnDragStart", panel.StartMoving)
   panel:SetScript("OnDragStop", panel.StopMovingOrSizing)
   panel:SetClampedToScreen(true)
-  panel:SetScript("OnShow", function() for _, f in ipairs(refreshers) do f() end end)
+  panel:SetFrameStrata("DIALOG"); panel:SetToplevel(true) -- always above the route window
+  panel:SetScript("OnShow", function()
+    UI.StepAside() -- the full route window hides while the options are open...
+    for _, f in ipairs(refreshers) do f() end
+  end)
+  panel:SetScript("OnHide", function() UI.ComeBack() end) -- ...and comes back after
   tinsert(UISpecialFrames, "SkillRouteOptions")
   local title = panel:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
   title:SetPoint("TOP", 0, -5)

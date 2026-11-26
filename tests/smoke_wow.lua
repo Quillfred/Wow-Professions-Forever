@@ -1190,6 +1190,19 @@ do
   end
   assert(seen88 and seenOrange, "dragging Prefer fewer crafts to 44s rewrites its value and example")
   SkillRouteDB.settings.craftValue, SkillRouteDB.settings.resale = nil, nil
+  -- the full route window steps aside while the options are open, then comes back
+  O.Toggle() -- close first
+  UI.Toggle(197); assert(UI.IsShown())
+  O.Toggle(); assert(O.IsShown() and not UI.IsShown(), "route window hidden while options are open")
+  O.Toggle(); assert(not O.IsShown() and UI.IsShown(), "and back when they close")
+  UI.Toggle(); assert(not UI.IsShown())
+  O.Toggle(); O.Toggle(); assert(not UI.IsShown(), "a closed route window stays closed")
+  SkillRouteDB.settings.mini = false
+  fire("TRADE_SKILL_SHOW"); assert(UI.IsShown(), "opened with the profession window")
+  O.Toggle(); fire("TRADE_SKILL_CLOSE"); O.Toggle()
+  assert(not UI.IsShown(), "profession window closed meanwhile: the route window doesn't come back")
+  SkillRouteDB.settings.mini = nil
+  O.Toggle()
   O.Toggle(); assert(not O.IsShown(), "options close")
   SkillRouteDB.settings.margin = nil
 end

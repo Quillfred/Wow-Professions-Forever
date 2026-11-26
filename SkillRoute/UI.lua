@@ -1060,7 +1060,25 @@ function UI.AutoOpen(line)
   end
 end
 
+-- Step aside while the options window is open, then come back as it was, still
+-- closing with the profession window if it opened with it.
+local steppedAside, wasAuto = false, false
+function UI.StepAside()
+  if frame and frame:IsShown() then
+    steppedAside, wasAuto = true, autoOpened
+    frame:Hide() -- (its OnHide clears autoOpened)
+  end
+end
+function UI.ComeBack()
+  if steppedAside and frame then
+    steppedAside = false
+    frame:Show()
+    autoOpened = wasAuto
+  end
+end
+
 function UI.AutoClose()
+  if steppedAside and wasAuto then steppedAside = false end -- closed with the profession: don't come back
   if autoOpened and frame and frame:IsShown() then frame:Hide() end
   autoOpened = false
 end

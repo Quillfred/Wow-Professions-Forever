@@ -61,6 +61,8 @@
   and a live example of how much extra it buys.
 - **Working Overtime** is now saved per character (it's a talent); your current value
   moves to the first character you log in with.
+- The full route window steps aside while Options is open and comes back when you close
+  it; Options always draws on top.
 - Options: separators between options; the caution sits right under its example.
 - Fixed: the Options button (and /sr before a profession window was opened) needed two
   clicks the first time.
