@@ -1745,7 +1745,13 @@ function Core.DisenchantOf(item)
   return key, skill, unverified
 end
 
-local CROWDED_MIN, CROWDED_TIMES, CROWDED_SHARE = 20, 3, 0.7
+local CROWDED_MIN, CROWDED_TIMES = 20, 3
+-- How much of the AH price a crowded listing counts for when choosing (Options slider,
+-- /sr crowded; 100 = full price, i.e. ignore crowding).
+function Core.CrowdedShare()
+  local v = tonumber(db().settings.crowded) or 70
+  return math.max(0, math.min(100, v)) / 100
+end
 function Core.ItemAdvice(item, enchantSkill, n, needs, opts)
   n = math.max(1, n or 1)
   local it = Data.items[item]
@@ -1781,7 +1787,7 @@ function Core.ItemAdvice(item, enchantSkill, n, needs, opts)
   end
   local best, bestV = "vendor", a.vendor
   if a.de and a.de > bestV then best, bestV = "de", a.de end
-  local ahV = a.ah and (a.crowded and a.ah * CROWDED_SHARE or a.ah)
+  local ahV = a.ah and (a.crowded and a.ah * Core.CrowdedShare() or a.ah)
   a.ahCounted = a.crowded and ahV and math.floor(ahV) or nil -- what a crowded AH counted for
   if ahV and ahV > bestV then best, bestV = "ah", ahV end
   a.best, a.bestValue = best, best == "ah" and a.ah or bestV

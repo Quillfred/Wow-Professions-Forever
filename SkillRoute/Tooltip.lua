@@ -125,8 +125,9 @@ function TT.Lines(item, bound, vendorPrice)
     for _, u in ipairs(a.deUsed or {}) do used[#used + 1] = UI.ItemName(u.item) end
     lines[#lines + 1] = { "Disenchanting", "~" .. UI.Money(a.de) }
     lines[#lines + 1] = { #used > 0
-      and ("|cff999999counts the %s your Enchanting route needs at what you'd pay|r"):format(table.concat(used, ", "))
-      or "|cff999999after the AH cut|r", "" }
+      and ("|cff999999counts %s at buy price (your Enchanting route needs %s)|r"):format(table.concat(used, ", "),
+        #used == 1 and "it" or "them")
+      or "|cff999999after the AH cut|r", "", wrap = true }
   elseif #missing == #rows then
     lines[#lines + 1] = { "Disenchanting", "|cff999999no fresh AH prices: scan the AH|r" }
   else -- some materials unpriced: what's known, as a lower bound
@@ -136,7 +137,7 @@ function TT.Lines(item, bound, vendorPrice)
   lines[#lines + 1] = { "|cffffd100Best: " .. WORDS[a.best] .. ", " .. UI.Money(a.bestValue) .. "|r", "" }
   -- what it beat (disenchanting is shown above)
   local compared = UI.Compared(a, item, true)
-  if compared ~= "" then lines[#lines + 1] = { "|cff999999compared: " .. compared .. "|r", "" } end
+  if compared ~= "" then lines[#lines + 1] = { "|cff999999compared: " .. compared .. "|r", "", wrap = true } end
   return lines
 end
 
@@ -178,7 +179,7 @@ local function addLines(tt, link)
   tt:AddLine(" ")
   for _, l in ipairs(lines) do
     if l[2] and l[2] ~= "" then tt:AddDoubleLine(l[1], l[2], l[3] or 1, l[4] or 1, l[5] or 1, 1, 1, 1)
-    else tt:AddLine(l[1], l[3] or 1, l[4] or 1, l[5] or 1) end
+    else tt:AddLine(l[1], l[3] or 1, l[4] or 1, l[5] or 1, l.wrap) end -- wrapped notes don't widen it
   end
   tt:Show() -- resize to fit
 end

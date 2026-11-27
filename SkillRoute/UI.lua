@@ -82,7 +82,8 @@ function UI.Compared(a, item, noDE)
   local listed = a.listed and ((a.crowded and " |cffff8040(%d listed: crowded)|r" or " (%d listed)"):format(a.listed)) or ""
   if a.best ~= "ah" and a.ahCounted then
     -- crowded: why a higher AH price lost - it counted for less (it may not sell)
-    listed = (" |cffff8040(%d listed: crowded, counted as %s)|r"):format(a.listed, money(a.ahCounted, "ff8040"))
+    listed = (" |cffff8040(%d listed: crowded, counted as %s (%d%%))|r"):format(a.listed, money(a.ahCounted, "ff8040"),
+      math.floor(Core.CrowdedShare() * 100 + 0.5))
   end
   if a.best ~= "ah" then
     parts[#parts + 1] = a.bound and "soulbound: no AH" or a.ah and ("AH " .. money(a.ah) .. listed) or "AH: no fresh price"
@@ -109,7 +110,8 @@ local function afterCrafting(item, n)
   local action = ("|cff40bf40%s, %s each|r"):format(ACTION_SHORT[a.best], money(a.bestValue))
     .. (a.best == "ah" and listed or "")
   return action, compared,
-         #used > 0 and ("counts " .. table.concat(used, ", ") .. " your Enchanting route needs at what you'd pay") or nil
+         #used > 0 and ("counts %s at buy price (your Enchanting route needs %s)"):format(table.concat(used, ", "),
+           #used == 1 and "it" or "them") or nil
 end
 
 local function mats(spell, line)
@@ -1259,6 +1261,16 @@ SlashCmdList.SKILLROUTE = function(msg)
     else
       print(("SkillRoute: /sr margin <50-99>  (now %d: buy enough to finish the route that many times in 100)"):format(settings.margin or 90))
     end
+  elseif cmd == "crowded" and settings then
+    local v = tonumber(arg)
+    if v and v >= 30 and v <= 100 then
+      settings.crowded = v
+      Core.InvalidatePatterns()
+      print(("SkillRoute: a crowded AH listing counts as %d%% of its price%s."):format(v, v == 100 and " (crowding ignored)" or ""))
+    else
+      print(("SkillRoute: /sr crowded <30-100>  (now %d: how much of the AH price counts when 20+ are already listed)")
+        :format(math.floor(Core.CrowdedShare() * 100 + 0.5)))
+    end
   elseif cmd == "ah" then
     if lastPlan then Core.ExportToAuctionator(lastPlan) else print("SkillRoute: open the window first (/sr).") end
     return
@@ -1285,7 +1297,7 @@ SlashCmdList.SKILLROUTE = function(msg)
     print("SkillRoute: open with the profession window is " .. (settings.auto and "ON" or "OFF"))
     return
   elseif cmd == "help" then
-    print("SkillRoute: /sr - open/close   /sr options   /sr minimap on|off   /sr check   /sr auto on|off   /sr overtime <pct>   /sr estimate on|off   /sr cdmats on|off   /sr margin <50-99>   /sr craftcost <copper>   /sr alts on|off   /sr resale <pct>   /sr ah   /sr scan   /sr log on|off|skip|boat   /sr unskip   (right-click a step to skip it)")
+    print("SkillRoute: /sr - open/close   /sr options   /sr minimap on|off   /sr check   /sr auto on|off   /sr overtime <pct>   /sr estimate on|off   /sr cdmats on|off   /sr margin <50-99>   /sr craftcost <copper>   /sr alts on|off   /sr resale <pct>   /sr crowded <pct>   /sr ah   /sr scan   /sr log on|off|skip|boat   /sr unskip   (right-click a step to skip it)")
     return
   else
     UI.Toggle()

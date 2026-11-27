@@ -10,10 +10,16 @@
   selling: "2 recipes left out: no Silk Cloth on the AH right now".
 - Disenchant tooltips: "Best" now says what it beat ("compared: AH 25s (12 listed) ·
   vendor 21s 30c"), as the route's tooltips do; soulbound items say "soulbound: no AH".
-  The "counts the … your Enchanting route needs" note is on its own line and names every
-  material it counted (it left out ones you need less than one of).
+  The "counts Vision Dust at buy price (your Enchanting route needs it)" note is shorter,
+  on its own line, and names every material it counted (it left out ones you need less
+  than one of). Long notes wrap instead of making the tooltip wider.
 - When a crowded AH loses to another choice despite a higher price, it says what it
-  counted as: "AH 23s 74c (47 listed: crowded, counted as 16s 62c)".
+  counted as, and the share used: "AH 23s 74c (47 listed: crowded, counted as 16s 61c (70%))".
+- **New option: "Crowded AH listings count for"** (30% to full price, default 70%; also
+  `/sr crowded <pct>`). When 20 or more of an item are already listed, this is how much of
+  the AH price counts when choosing between listing, disenchanting and selling to a
+  vendor. A live example shows what it does.
+- The options window shrinks to fit on small screens or large UI scales.
 
 ## 0.38.1
 

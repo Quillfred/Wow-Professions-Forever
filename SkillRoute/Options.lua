@@ -277,6 +277,20 @@ function Options.FewerExample(v)
     :format(silver(v), WIN, silver(2 * v))
 end
 
+-- Live example for "Crowded AH listings count for": an item listed at 24s (after the cut)
+-- that a vendor buys for 20s, with 47 already listed. Mirrors Core.ItemAdvice.
+function Options.CrowdedExample(pct)
+  if pct >= 100 then
+    return "Full price: crowding is ignored. 47 listed at 24s: the AH's 24s beats a vendor's 20s."
+  end
+  local counted = 24 * pct / 100
+  local shown = silver(counted)
+  if counted > 20 then
+    return ("At %d%%: 47 listed at 24s count as %s, still more than a vendor's 20s, so list it."):format(pct, shown)
+  end
+  return ("At %d%%: 47 listed at 24s count as %s, less than a vendor's 20s, so sell it to the vendor."):format(pct, shown)
+end
+
 local function build()
   panel = CreateFrame("Frame", "SkillRouteOptions", UIParent, "BasicFrameTemplateWithInset")
   panel:SetSize(380, 560)
@@ -286,7 +300,11 @@ local function build()
   panel:SetScript("OnDragStop", panel.StopMovingOrSizing)
   panel:SetClampedToScreen(true)
   panel:SetFrameStrata("DIALOG"); panel:SetToplevel(true) -- always above the route window
-  panel:SetScript("OnShow", function()
+  panel:SetScript("OnShow", function(self)
+    -- taller than the screen (small screen, large UI scale): shrink to fit
+    local room = UIParent and UIParent.GetHeight and UIParent:GetHeight()
+    local h = self:GetHeight()
+    if room and h and h > 0 then self:SetScale(math.min(1, (room - 40) / h)) end
     UI.StepAside() -- the full route window hides while the options are open...
     for _, f in ipairs(refreshers) do f() end
   end)
@@ -342,6 +360,12 @@ local function build()
     function() return S().resale or 0 end, function(v) Options.Set("resale", v) end,
     { ends = { "Ignore sales", "Full AH price" }, example = Options.ResaleExample,
       caution = "You may need to craft many of the same item. Listing them all at once drives the price down, and you lose the deposit on any that don't sell. Set this low unless you know they sell well." })
+  y = separator(panel, y)
+  y = number(panel, y, "Crowded AH listings count for",
+    "When 20 or more of an item are already listed (and at least 3 times as many as you'd sell), the market is crowded: yours may wait behind the others, get undercut, or expire and cost you the deposit. To choose between listing an item, disenchanting it and selling it to a vendor, SkillRoute counts a crowded listing at this share of its AH price. Prices shown stay the real AH price; tooltips say what it counted as.",
+    30, 100, 5, function(v) return v >= 100 and "full price" or ("%d%% of AH price"):format(v) end,
+    function() return math.floor(Core.CrowdedShare() * 100 + 0.5) end, function(v) Options.Set("crowded", v) end,
+    { ends = { "Avoid crowded markets", "Ignore crowding" }, example = Options.CrowdedExample })
   y = separator(panel, y)
   y = number(panel, y, "Prefer fewer crafts",
     "Picks a recipe that skills up more reliably even if its materials cost more for each craft it saves you. Nothing is charged; it only changes which recipe is chosen.",

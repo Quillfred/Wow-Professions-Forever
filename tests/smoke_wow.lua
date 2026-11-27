@@ -1235,14 +1235,15 @@ do
       moved = moved + 1
     end
   end
-  assert(moved >= 3, "sliders built: " .. moved)
+  assert(moved >= 4, "sliders built: " .. moved)
+  assert(SkillRouteDB.settings.crowded == 45, "the crowded slider sets its setting (44 -> step 45): " .. tostring(SkillRouteDB.settings.crowded))
   local seen88, seenOrange
   for _, fs in ipairs(texts) do
     if type(fs.text) == "string" and fs.text:find("88s to you") then seen88 = true end
     if fs.text == "up to 44s" then seenOrange = true end
   end
   assert(seen88 and seenOrange, "dragging Prefer fewer crafts to 44s rewrites its value and example")
-  SkillRouteDB.settings.craftValue, SkillRouteDB.settings.resale = nil, nil
+  SkillRouteDB.settings.craftValue, SkillRouteDB.settings.resale, SkillRouteDB.settings.crowded = nil, nil, nil
   -- the full route window steps aside while the options are open, then comes back
   O.Toggle() -- close first
   UI.Toggle(197); assert(UI.IsShown())
@@ -2026,7 +2027,7 @@ do
   a = Core.ItemAdvice(item, nil, 1)
   assert(a.crowded and a.best == "vendor", "80 listed: crowded, the vendor wins")
   local action, compared = UI.AfterCrafting(item, 1)
-  assert(compared:find("80 listed: crowded", 1, true), compared)
+  assert(compared:find("80 listed: crowded, counted as", 1, true) and compared:find("(70%))", 1, true), compared)
   P.Listed, prices[item] = savedListed, savedP
   print("crowded AH: " .. compared:gsub("|c%x%x%x%x%x%x%x%x", ""):gsub("|r", ""))
 end
@@ -2087,10 +2088,13 @@ do
   local all2 = {}
   for _, l in ipairs(TT.Lines(900001, false, 3218)) do
     if l[1] == "Disenchanting" then deLine = l[2] end
+    if l[1]:find("at buy price", 1, true) or l[1]:find("compared:", 1, true) then
+      assert(l.wrap, "long notes wrap instead of widening the tooltip: " .. l[1])
+    end
     all2[#all2 + 1] = l[1] .. " | " .. (l[2] or "")
   end
   local joined2 = table.concat(all2, "\n")
-  assert(adv2.deUsed and deLine == "~" .. UI.Money(adv2.de) and joined2:find("your Enchanting route needs", 1, true),
+  assert(adv2.deUsed and deLine == "~" .. UI.Money(adv2.de) and joined2:find("at buy price (your Enchanting route needs", 1, true),
     "route-needed material counted: " .. joined2)
   -- "Best" says what it beat (AH and vendor; disenchanting is shown above it)
   assert(joined2:find("compared: ", 1, true) and not joined2:find("compared:[^\n]*disenchant"), "compared line: " .. joined2)
@@ -2103,7 +2107,21 @@ do
     assert(ca.crowded and ca.best ~= "ah" and ca.ahCounted == math.floor(ca.ah * 0.7), "crowded AH counted at 70%")
     local cmp = UI.Compared(ca, 900001, true)
     assert(cmp:find("47 listed: crowded, counted as", 1, true) and cmp:find(UI.Money(ca.ahCounted, "ff8040"), 1, true), cmp)
+    assert(cmp:find("(70%))", 1, true), "the share used, after the amount: " .. cmp)
+    -- the slider's setting decides it: at 90% the same listing beats the vendor
+    ns.Options.Set("crowded", 90)
+    local ca90 = Core.ItemAdvice(900001, 170, 1, {}, { vendor = 2130 })
+    assert(ca90.best == "ah", "at 90% the crowded AH wins: " .. tostring(ca90.best))
+    ns.Options.Set("crowded", 50)
+    local cmp50 = UI.Compared(Core.ItemAdvice(900001, 170, 1, {}, { vendor = 2130 }), 900001, true)
+    assert(cmp50:find("(50%))", 1, true), cmp50)
+    ns.Options.Set("crowded", nil)
+    -- the slider's live example follows the same rule
+    assert(ns.Options.CrowdedExample(70):find("count as 17s, less than a vendor's 20s", 1, true), ns.Options.CrowdedExample(70))
+    assert(ns.Options.CrowdedExample(90):find("still more than a vendor's 20s", 1, true), ns.Options.CrowdedExample(90))
+    assert(ns.Options.CrowdedExample(100):find("crowding is ignored", 1, true))
     print("crowded: " .. cmp:gsub("|c%x%x%x%x%x%x%x%x", ""):gsub("|r", ""))
+    print("crowded slider: " .. ns.Options.CrowdedExample(70))
     ns.Prices.Listed, prices[900001] = savedListed, savedP
   end
   -- soulbound: no AH option, and it says so
