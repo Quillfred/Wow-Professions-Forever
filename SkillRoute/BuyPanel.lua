@@ -14,7 +14,8 @@ local W, ROWS = 330, 10
 local panel
 local rows = {}
 local items = {}      -- { item, name, qty, state, total, unit, quotedAt, err }
-local busy            -- the row whose quote or purchase is in flight
+local busy            -- the item whose quote or purchase is in flight
+local page = 0        -- first item shown minus 1 (pages of ROWS)
 local AH = function() return C_AuctionHouse end
 
 function BP.CanUse()
@@ -24,8 +25,9 @@ end
 
 local money = function(c) return UI.Money(c) end
 
-local function setRow(i)
-  local r, x = rows[i], items[i]
+local function setRow(row)
+  local i = page + row
+  local r, x = rows[row], items[i]
   if not x then r.name:Hide(); r.info:Hide(); r.btn:Hide(); return end
   r.name:Show(); r.info:Show(); r.btn:Show()
   r.name:SetText(("%d x %s"):format(x.qty, x.name))
@@ -40,7 +42,7 @@ local function setRow(i)
     if x.warn then info = info .. "  |cffff8040" .. x.warn .. "|r" end
   elseif x.state == "buying" then info, label, enabled = "|cff999999buying...|r", "Buy", false
   elseif x.state == "bought" then info, label, enabled = "|cff40bf40bought|r", "Done", false
-  elseif x.state == "search" then info, label = "|cffff8040not a stackable item|r", "Search"
+  elseif x.state == "search" then info, label = "|cffff8040the AH can't quote this (not stackable, or too few listed)|r", "Search"
   elseif x.state == "failed" then info, label = "|cffff4040" .. (x.err or "failed") .. ": try again|r", "Price" end
   r.info:SetText(info)
   r.btn:SetText(label)
@@ -49,11 +51,23 @@ end
 
 function BP.Refresh()
   if not panel then return end
-  for i = 1, ROWS do setRow(i) end
+  for row = 1, ROWS do setRow(row) end
   local left = 0
   for _, x in ipairs(items) do if x.state ~= "bought" then left = left + 1 end end
-  panel.foot:SetText(#items > ROWS and ("+ %d more after these"):format(#items - ROWS)
-    or left == 0 and "|cff40bf40All bought.|r" or "Price, then Buy: you pay exactly the price shown.")
+  local pages = math.max(1, math.ceil(#items / ROWS))
+  if pages > 1 then
+    panel.foot:SetText(("Page %d of %d"):format(page / ROWS + 1, pages))
+    panel.prev:Show(); panel.next:Show()
+    if page > 0 then panel.prev:Enable() else panel.prev:Disable() end
+    if page + ROWS < #items then panel.next:Enable() else panel.next:Disable() end
+  else
+    panel.prev:Hide(); panel.next:Hide()
+    panel.foot:SetText(left == 0 and "|cff40bf40All bought.|r" or "Price, then Buy: you pay exactly the price shown.")
+  end
+end
+function BP.Page(delta)
+  page = math.max(0, math.min(page + delta * ROWS, (math.ceil(#items / ROWS) - 1) * ROWS))
+  BP.Refresh()
 end
 
 -- Ask the AH for the exact total of one material.
@@ -122,9 +136,15 @@ local function build()
     r.info:SetPoint("TOPLEFT", 12, y - 15); r.info:SetWidth(W - 130); r.info:SetJustifyH("LEFT")
     r.btn = CreateFrame("Button", nil, panel, "UIPanelButtonTemplate")
     r.btn:SetSize(110, 22); r.btn:SetPoint("TOPRIGHT", -10, y - 3)
-    r.btn:SetScript("OnClick", function() click(i) end)
+    r.btn:SetScript("OnClick", function() click(page + i) end)
     rows[i] = r
   end
+  panel.prev = CreateFrame("Button", nil, panel, "UIPanelButtonTemplate")
+  panel.prev:SetSize(60, 20); panel.prev:SetPoint("BOTTOMRIGHT", -76, 8); panel.prev:SetText("< Prev")
+  panel.prev:SetScript("OnClick", function() BP.Page(-1) end)
+  panel.next = CreateFrame("Button", nil, panel, "UIPanelButtonTemplate")
+  panel.next:SetSize(60, 20); panel.next:SetPoint("BOTTOMRIGHT", -10, 8); panel.next:SetText("Next >")
+  panel.next:SetScript("OnClick", function() BP.Page(1) end)
   panel.foot = panel:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
   panel.foot:SetPoint("BOTTOMLEFT", 12, 12); panel.foot:SetWidth(W - 24); panel.foot:SetJustifyH("LEFT")
   panel:Hide()
@@ -134,7 +154,7 @@ end
 function BP.Open(list, title)
   if not panel then build() end
   if busy and items[busy] and AH() and AH().CancelCommoditiesPurchase then pcall(AH().CancelCommoditiesPurchase) end
-  busy = nil
+  busy, page = nil, 0
   wipe(items)
   for _, x in ipairs(list) do
     items[#items + 1] = { item = x.item, name = x.name, qty = x.qty, expect = x.expect, state = "new" }
@@ -160,6 +180,10 @@ f:SetScript("OnEvent", function(_, ev, a, b)
   end
   local x = busy and items[busy]
   if not x then return end
+  if ev == "COMMODITY_PRICE_UPDATED" and x.state ~= "quoting" and x.state ~= "quoted" then return end
+  if (ev == "COMMODITY_PURCHASE_SUCCEEDED" or ev == "COMMODITY_PURCHASE_FAILED") and x.state ~= "buying" then
+    return -- someone else's purchase (the AH's own window, another addon), not this one
+  end
   if ev == "COMMODITY_PRICE_UPDATED" then -- (unitPrice, totalPrice): a new quote, to be clicked again
     x.state, x.unit, x.total, x.quotedAt = "quoted", a, b, GetTime()
     if x.expect and x.expect > 0 and a and a > x.expect * 1.5 then x.warn = "much more than expected" end

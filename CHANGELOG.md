@@ -2,6 +2,12 @@
 
 ## 0.37.0
 
+- Fixed (buying panel): more than 10 materials (a full shopping list) couldn't all be
+  reached; there are pages now. A purchase made in the AH's own window was counted as
+  the panel's. "Can't quote" now says why (not stackable, or too few listed).
+- Fixed (arrow): standing at a flight master, it re-planned 20 times a second; it now
+  says "Flight master, ...: here" and checks for the next leg once a second.
+- Fixed: a Mining trainer showed an empty "your route here" panel.
 - NPCs inside dungeons (Annora in Uldaman, Blackrock Depths and Dire Maul vendors...) now
   have a location: the dungeon's entrance, from the game's own data, with a note. The
   route used to say "no Artisan trainer known" for Annora.

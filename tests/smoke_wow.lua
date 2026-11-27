@@ -1935,6 +1935,19 @@ do
   assert(calls[2] == "confirm 4338 111" and it[1].state == "buying", "bought at the quote shown")
   ev("COMMODITY_PURCHASE_SUCCEEDED")
   assert(it[1].state == "bought", "done")
+  -- more than 10 materials: pages reach them all
+  local many = {}
+  for k = 1, 12 do many[k] = { item = 5000 + k, name = "Thing " .. k, qty = 1 } end
+  BP.Open(many, "many")
+  BP.Page(1)
+  BP._click(11)
+  assert(calls[#calls] == "start 5011 1", "item 11 reachable on page 2")
+  -- a purchase made elsewhere (the AH's own window) while ours is only quoted: not ours
+  ev("COMMODITY_PRICE_UPDATED", 10, 10)
+  ev("COMMODITY_PURCHASE_SUCCEEDED")
+  assert(BP.Items()[11].state == "quoted", "someone else's purchase isn't marked bought here")
+  BP.Open({ { item = 4338, name = "Mageweave Cloth", qty = 111, expect = 407 }, { item = 9999, name = "Odd Thing", qty = 1 } }, "test")
+  it = BP.Items()
   -- not a stackable item: Search instead
   BP._click(2)
   ev("COMMODITY_PRICE_UNAVAILABLE")

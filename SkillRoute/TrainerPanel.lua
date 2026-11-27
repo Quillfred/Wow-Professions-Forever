@@ -29,6 +29,7 @@ function TP.Collect()
   if not lineOf then return nil end
   local skills = Core.Skills()
   if not skills[lineOf] then return nil end -- not your profession
+  if SkillRouteData.professions[lineOf].gather then return nil end -- a gathering route: nothing to learn here
   local plan = Core.Plan(lineOf, Core.Char().targets[lineOf] or 300)
   if not plan then return nil end
   local out, seen, totalNow = {}, {}, 0

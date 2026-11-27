@@ -1809,7 +1809,7 @@ function Core.BuyStep(plan, st, remove)
       print("|cff33ccffSkillRoute:|r nothing to buy on the auction house for this step (vendor items aside).")
       return "Buy"
     end
-    for _, x in ipairs(list) do x.expect = Core.Price(x.item) end
+    for _, x in ipairs(list) do x.expect = Core.AHPrice(x.item) end -- an AH price, not a farming time
     ns.BuyPanel.Open(list, "Buy for: " .. (st.name or "this step"))
     return "Buy"
   end

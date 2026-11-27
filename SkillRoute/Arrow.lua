@@ -193,7 +193,17 @@ function Arrow.Update()
   end
   local aim = leg or target
   local angle, dist = Arrow.Bearing(pc, px, py, facing, aim.cont, aim.x, aim.y, ax)
-  if leg and angle and dist <= LEG_REACHED then Arrow.Reroute(); return end
+  if leg and angle and dist <= LEG_REACHED then
+    -- at the flight master or dock: say so; check for the next leg now and then (not
+    -- every frame: standing here, the route still starts here until you take it)
+    if sinceRoute >= 1 then Arrow.Reroute() end
+    if target.leg == leg then
+      frame.arrow:Hide()
+      frame.dist:SetText(("|cff40bf40%s: here|r"):format(leg.label))
+      return
+    end
+    return Arrow.Update()
+  end
   if not angle then -- another continent: the route line says how
     frame.arrow:Hide()
     frame.dist:SetText("|cffffd100On another continent|r")
