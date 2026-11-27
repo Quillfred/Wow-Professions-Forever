@@ -18,7 +18,3 @@ ignore:
   - CHANGELOG.md
   - LICENSE
   - THIRD_PARTY_NOTICES.md
-
-optional-dependencies:
-  - auctionator
-  - tomtom
