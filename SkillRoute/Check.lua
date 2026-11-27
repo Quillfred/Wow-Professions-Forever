@@ -42,7 +42,8 @@ local APIS = {
   { "Auctionator scan updates", { "Auctionator.API.v1.RegisterForDBUpdate" }, "re-plan after a scan" },
   { "Auctionator listing age", { "Auctionator.API.v1.GetAuctionAgeByItemID" }, "ignore old AH sightings of patterns" },
   { "Auctionator shopping lists", { "Auctionator.API.v1.CreateShoppingList" }, "send the shopping list to Auctionator" },
-  { "TomTom", { "TomTom.AddWaypoint" }, "waypoints (else the game's map pin)" },
+  { "Waypoint arrow", { "GetPlayerFacing", "C_Map.GetWorldPosFromMapPos" }, "SkillRoute's own arrow" },
+  { "TomTom", { "TomTom.AddWaypoint" }, "waypoints (optional: SkillRoute's arrow otherwise)" },
   { "Map pin", { "C_Map.SetUserWaypoint" }, "waypoints without TomTom" },
   { "Alt inventories", { "Syndicator.API.GetInventoryInfoByItemID", "DataStore.GetContainerItemCount" }, "materials on your alts" },
 }

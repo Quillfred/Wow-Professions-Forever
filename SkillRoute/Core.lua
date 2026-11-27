@@ -867,7 +867,7 @@ whereRaw = function(loc)
   return loc.zone
 end
 
--- Waypoint to an NPC (TomTom, else the game's own map pin, else chat).
+-- Waypoint to an NPC: TomTom if installed, else SkillRoute's arrow and the game's map pin.
 function Core.Waypoint(loc, title)
   if not loc then return end
   local ui, x, y = loc.ui, loc.x, loc.y
@@ -877,17 +877,26 @@ function Core.Waypoint(loc, title)
     print(("SkillRoute: no coordinates known for %s."):format(title or "?"))
     return
   end
+  -- TomTom first when it's installed; else SkillRoute's own arrow, plus the game's map
+  -- pin (and its on-screen marker where the client has one)
   if TomTom and TomTom.AddWaypoint then
     TomTom:AddWaypoint(ui, x / 100, y / 100, { title = title, persistent = false, minimap = true, world = true })
     print(("SkillRoute: TomTom waypoint set to %s, %s."):format(title, Core.Where(loc) or ""))
-  elseif C_Map and C_Map.SetUserWaypoint and UiMapPoint and UiMapPoint.CreateFromCoordinates
-      and (not C_Map.CanSetUserWaypointOnMap or C_Map.CanSetUserWaypointOnMap(ui)) then
-    C_Map.SetUserWaypoint(UiMapPoint.CreateFromCoordinates(ui, x / 100, y / 100))
-    if C_SuperTrack and C_SuperTrack.SetSuperTrackedUserWaypoint then C_SuperTrack.SetSuperTrackedUserWaypoint(true) end
-    print(("SkillRoute: map pin set on %s, %s."):format(title, Core.Where(loc) or ""))
-  else
-    print(("SkillRoute: %s is at %s (install TomTom for waypoints)."):format(title, Core.Where(loc) or "?"))
+    return "tomtom"
   end
+  local pinned = false
+  if C_Map and C_Map.SetUserWaypoint and UiMapPoint and UiMapPoint.CreateFromCoordinates
+      and (not C_Map.CanSetUserWaypointOnMap or C_Map.CanSetUserWaypointOnMap(ui)) then
+    pinned = pcall(C_Map.SetUserWaypoint, UiMapPoint.CreateFromCoordinates(ui, x / 100, y / 100))
+    if pinned and C_SuperTrack and C_SuperTrack.SetSuperTrackedUserWaypoint then pcall(C_SuperTrack.SetSuperTrackedUserWaypoint, true) end
+  end
+  local via = loc.via and #loc.via > 0 and ("via " .. table.concat(loc.via, ", then ")) or nil
+  local arrow = ns.Arrow and ns.Arrow.Set(ui, x / 100, y / 100, title, Core.Where(loc), via)
+  if arrow or pinned then
+    print(("SkillRoute: %s to %s, %s."):format(arrow and "arrow pointing" or "map pin set", title, Core.Where(loc) or ""))
+    return arrow and "arrow" or "pin"
+  end
+  print(("SkillRoute: %s is at %s."):format(title, Core.Where(loc) or "?"))
 end
 
 -- pattern item -> true, built on first use

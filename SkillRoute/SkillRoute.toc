@@ -13,6 +13,7 @@ Data.lua
 Planner.lua
 Core.lua
 Prices.lua
+Arrow.lua
 UI.lua
 MiniPanel.lua
 TrainerPanel.lua

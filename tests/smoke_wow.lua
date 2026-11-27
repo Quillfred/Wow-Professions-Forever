@@ -69,7 +69,7 @@ local ns = {}
 _G.Minimap = setmetatable({ GetWidth = function() return 140 end, GetCenter = function() return 1000, 700 end,
   GetEffectiveScale = function() return 1 end }, { __index = function() return function() end end })
 _G.GetCursorPosition = function() return 1000, 800 end -- straight above the minimap
-for _, f in ipairs({ "Data", "Planner", "Core", "Prices", "UI", "MiniPanel", "TrainerPanel", "Helpers", "Options", "Recorder", "Check" }) do
+for _, f in ipairs({ "Data", "Planner", "Core", "Prices", "Arrow", "UI", "MiniPanel", "TrainerPanel", "Helpers", "Options", "Recorder", "Check" }) do
   local chunk = assert(loadfile("SkillRoute/" .. f .. ".lua"))
   chunk("SkillRoute", ns)
 end
@@ -1806,6 +1806,45 @@ do
   for id, v in pairs(savedP) do prices[id] = v end
   Core.Skills, _G.IsPlayerSpell, _G.GetItemCount = savedSkills, savedIPS, savedCount
   Core.InvalidatePatterns()
+end
+
+-- the waypoint arrow points the right way whichever order the game gives world axes in
+do
+  local A = ns.Arrow
+  local savedMap, savedV = _G.C_Map, _G.CreateVector2D
+  _G.CreateVector2D = function(x, y) return { x = x, y = y } end
+  local function check(northFirst)
+    _G.C_Map = setmetatable({ GetWorldPosFromMapPos = function(map, v)
+      local north, west = (1 - v.y) * 1000, (1 - v.x) * 1000
+      return 1, northFirst and { x = north, y = west } or { x = west, y = north }
+    end }, { __index = savedMap })
+    local ax = A._axes(northFirst and 101 or 102)
+    local function bearing(tx, ty, facing)
+      local pc, pa, pb = A._worldOf(1, 0.5, 0.5)
+      local tc, ta, tb = A._worldOf(1, tx, ty)
+      return A.Bearing(pc, pa, pb, facing, tc, ta, tb, ax)
+    end
+    local near = function(a, b) return math.abs((a - b + math.pi) % (2 * math.pi) - math.pi) < 1e-6 end
+    local a, d = bearing(0.5, 0.4, 0)
+    assert(near(a, 0) and math.abs(d - 100) < 1e-6, "north while facing north: straight ahead, 100 yd")
+    assert(near(bearing(0.6, 0.5, 0), -math.pi / 2), "east while facing north: to the right")
+    assert(near(bearing(0.4, 0.5, 0), math.pi / 2), "west: to the left")
+    assert(near(bearing(0.5, 0.6, 0), math.pi), "south: behind")
+    assert(near(bearing(0.5, 0.4, math.pi / 2), -math.pi / 2), "north while facing west: to the right")
+  end
+  check(true); check(false)
+  -- a waypoint click without TomTom opens SkillRoute's arrow
+  local savedTT = _G.TomTom
+  _G.TomTom = nil
+  local rp = print; _G.print = function() end
+  local how = Core.Waypoint({ npc = "Josef Gregorian", ui = 90, x = 70.8, y = 29.2, zone = "Undercity" })
+  _G.print = rp
+  assert(how == "arrow" and A.Target() and A.Target().title == "Josef Gregorian", "arrow set: " .. tostring(how))
+  A.Clear(); assert(not A.Target())
+  _G.TomTom = savedTT
+  assert(A.Bearing(1, 0, 0, 0, 2, 5, 5, { 1, 0, 0, 1 }) == nil, "another continent: no arrow")
+  _G.C_Map, _G.CreateVector2D = savedMap, savedV
+  print("waypoint arrow: right direction and distance with either world-axis order")
 end
 
 -- /sr check runs and reports; errors are caught, not thrown
