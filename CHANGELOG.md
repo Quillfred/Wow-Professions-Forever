@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.38.3 (not released yet)
+## 0.38.3
 
 - **Buying panel: one-of-a-kind items** (rods, tools, AH patterns) can now be bought
   from SkillRoute's panel instead of "Search". Price finds the cheapest listing that
