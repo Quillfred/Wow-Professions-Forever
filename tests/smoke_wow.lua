@@ -267,6 +267,32 @@ do
     ns.Options.Set("margin", nil)
     print(("safety margin: 90%% sure -> buy %d, 50%% sure -> buy %d"):format(n, n50))
   end
+  -- several things to buy: the price first, on one line, no dangling "buy"
+  do
+    local savedSS = Core.StepShopping
+    Core.StepShopping = function() return { { item = 4306, qty = 188, name = "Silk Cloth" }, { item = 6260, qty = 20, name = "Blue Dye" } } end
+    M.Refresh()
+    local multi
+    for _, t in ipairs(texts) do local v = rawget(t, "text"); if type(v) == "string" and v:find("This step:", 1, true) then multi = v end end
+    Core.StepShopping = savedSS
+    M.Refresh()
+    assert(multi and multi:find("This step:|r ~", 1, true) and multi:find("on the AH (90% sure)", 1, true)
+      and not multi:find("buy|r", 1, true), "multi-item line: " .. tostring(multi))
+  end
+  -- vendor or AH: a vendor item the AH sells cheaper is bought there, and its row says so
+  do
+    local vItem
+    for id, x in pairs(SkillRouteData.items) do if x[3] and x[3] > 10 then vItem = id; break end end
+    local savedP = prices[vItem]
+    prices[vItem] = nil
+    assert(Core.FromVendor(vItem), "no AH price: the vendor")
+    prices[vItem] = SkillRouteData.items[vItem][3] - 5
+    assert(not Core.FromVendor(vItem), "cheaper on the AH: the AH")
+    prices[vItem] = SkillRouteData.items[vItem][3] + 5
+    assert(Core.FromVendor(vItem), "dearer on the AH: the vendor")
+    prices[vItem] = savedP
+    assert(not Core.FromVendor(4306), "not sold by vendors: never the vendor")
+  end
   -- hovering the step shows the full route's tooltip
   local hit
   for _, f in ipairs(frames) do if rawget(f, "OnEnter") and rawget(f, "OnClick") and not rawget(f, "events") then hit = f end end

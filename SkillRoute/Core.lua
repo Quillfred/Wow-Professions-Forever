@@ -1562,6 +1562,15 @@ end
 -- step needs (with your safety margin), intermediates the route crafts (bolts) opened
 -- up into what they're made of, minus what you have (bags, bank, alts). Vendor-only
 -- items left out, as in the full export. Returns { {item, name, qty}, ... }.
+-- Buy it from a vendor rather than the AH: a vendor sells it, and the AH isn't cheaper.
+-- One rule for the step's buy list and the "vendor" tag on the mini panel's rows.
+function Core.FromVendor(item)
+  local it = Data.items[item]
+  if not (it and it[3]) then return false end
+  local ah = Core.Price(item)
+  return not ah or it[3] <= ah
+end
+
 function Core.StepShopping(plan, st)
   local recipes = Data.professions[plan.line].recipes
   local r = st.spell and recipes[st.spell]
@@ -1593,8 +1602,7 @@ function Core.StepShopping(plan, st)
   local out = {}
   for item, n in pairs(want) do
     local it = Data.items[item]
-    local ah = Core.Price(item)
-    local vendorOnly = it and it[3] and (not ah or it[3] <= ah)
+    local vendorOnly = Core.FromVendor(item)
     local qty = math.ceil(n - 1e-9) - (Core.Have(item) or 0) - (Core.HaveOnAlts(item) or 0)
     if qty > 0 and not vendorOnly then
       out[#out + 1] = { item = item, name = (GetItemInfo and GetItemInfo(item)) or (it and it[1]) or ("item " .. item), qty = qty }

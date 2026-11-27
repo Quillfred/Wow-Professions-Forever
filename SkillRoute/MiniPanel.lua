@@ -265,8 +265,12 @@ local function draw()
       local it = Data.items[item]
       local m = ui.mats[i]
       m.l:SetText(UI.ItemName(item))
-      m.r:SetText(("|cff%s%d / %d|r%s"):format(have >= need and "40bf40" or "ff6060", have, need,
-        (have < need and it and it[3]) and " |cff999999vendor|r" or ""))
+      -- where to get what's missing: the same rule as the step's buy list
+      local from = ""
+      if have < need and it and it[3] then
+        from = Core.FromVendor(item) and " |cff999999vendor|r" or " |cff999999AH: cheaper|r"
+      end
+      m.r:SetText(("|cff%s%d / %d|r%s"):format(have >= need and "40bf40" or "ff6060", have, need, from))
       place(m.l, 12, y); m.r:ClearAllPoints(); m.r:SetPoint("TOPRIGHT", -12, y)
       y = y - 14
     end
@@ -275,8 +279,7 @@ local function draw()
     for i = 1, #r.r, 2 do
       local item, need = r.r[i], r.r[i + 1] * crafts
       local miss = need - Core.InBags(item)
-      local it = Data.items[item]
-      if miss > 0 and not (it and it[3]) then
+      if miss > 0 and not Core.FromVendor(item) then
         local p = Core.Price(item)
         shortN = shortN + 1
         if p then shortCost = shortCost + p * miss else unpriced = true end
@@ -297,7 +300,7 @@ local function draw()
       if shortN > 0 then
         local sure = (SkillRouteDB.settings or {}).margin or 90
         buyText = (#list == 1 and ("|cffff6060This step: buy %d|r (%d%% sure): ~%s on the AH%s"):format(qty, sure, UI.Money(cost), missing and " (unpriced)" or "")
-                   or ("|cffff6060This step: buy|r (%d%% sure): ~%s on the AH%s"):format(sure, UI.Money(cost), missing and " (some unpriced)" or ""))
+                   or ("|cffff6060This step:|r ~%s on the AH (%d%% sure)%s"):format(UI.Money(cost), sure, missing and " (some unpriced)" or ""))
       end
     end
     if shortN > 0 then
