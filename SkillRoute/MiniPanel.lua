@@ -57,6 +57,13 @@ function Mini.Entries(plan)
   return out
 end
 
+-- How to learn a step's recipe: the full route's own words and waypoint (vendor, AH,
+-- your bank, quest, trainer), so the two panels always agree. nil if it says nothing.
+function Mini.LearnNote(plan, st)
+  local ok, _, _, waypoint, learnText = pcall(UI.StepTip, plan, st)
+  if ok and learnText and learnText ~= "" then return UI.Plain(learnText), waypoint end
+end
+
 local function font(tmpl, parent) return (parent or panel):CreateFontString(nil, "OVERLAY", tmpl) end
 local function button(text, w, onClick)
   local b = CreateFrame("Button", nil, panel, "UIPanelButtonTemplate")
@@ -326,12 +333,14 @@ local function draw()
     known = Core.IsRecipeKnown(line, ui.spell)
     ui.allN = math.min(crafts, Core.CraftableNow(line, ui.spell))
     if not known then
-      local how = LEARN[ui.learn] or "learn it first"
-      if ui.learn == "trainer" or ui.learn == "trainer?" or not ui.learn then
+      local how
+      if ui.st then how, ui.loc = Mini.LearnNote(ui.plan, ui.st) end
+      if not how then -- a tool: the trainer that teaches it, as on the full route's tool row
         local t = Core.NearestRecipeTrainer(line, ui.spell, r.learn or r.y)
-        if t then how = ("learn it at %s, %s (click for a waypoint)"):format(t.npc, Core.Where(t) or "?"); ui.loc = t end
+        if t then how = ("Learn at %s, %s"):format(t.npc, Core.Where(t) or "?"); ui.loc = t
+        else how = LEARN[ui.learn] or "learn it first" end
       end
-      ui.note:SetText("Not learned yet: " .. how .. ".")
+      ui.note:SetText("Not learned yet: " .. how .. (ui.loc and " (click for a waypoint)" or ""))
     end
   end
   ui.noteHit:Hide()

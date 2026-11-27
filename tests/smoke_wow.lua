@@ -233,6 +233,15 @@ do
   ann.note = SkillRouteData.npcNotes[11073]
   local w = Core.Where(ann)
   assert(ann.cx and w and w:find("Uldaman entrance", 1, true), "Annora: placed at the Uldaman entrance: " .. tostring(w))
+  -- an unlearned step: the mini panel says exactly what the full route says
+  local learnStep
+  for _, x in ipairs(e) do if x.kind == "craft" and x.st.learn then learnStep = x.st; break end end
+  assert(learnStep, "the test route has a step to learn")
+  local _, _, _, learnText = UI.StepTip(plan, learnStep)
+  local note = M.LearnNote(plan, learnStep)
+  assert(learnText ~= "" and note == UI.Plain(learnText) and not note:find("|c", 1, true),
+    "mini matches the full route: " .. tostring(note) .. " vs " .. tostring(learnText))
+  print("mini = full route: " .. note)
   M.Refresh() -- live update path runs
   SkillRouteDB.lastError = nil
   local after, short

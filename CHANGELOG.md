@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.38.1
+
+- Fixed: the mini panel's "Not learned yet" note was its own, vaguer wording ("get the
+  pattern first"). It now says exactly what the full route says, from the same code
+  ("Buy pattern from Naal Mistrunner (12s 0c)", AH patterns, your bank, quests), with the
+  same waypoint on click.
+
 ## 0.38.0
 
 - **"Keep it" in item tooltips:** anything one of your routes still uses (materials,

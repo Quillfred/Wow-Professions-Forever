@@ -52,6 +52,10 @@ local function itemName(item)
 end
 
 UI.Money, UI.Icon, UI.ItemName = money, icon, itemName -- shared with the mini panel
+-- text without colour codes or leading spaces (to reuse a row's words elsewhere)
+function UI.Plain(s)
+  return (s:gsub("|c%x%x%x%x%x%x%x%x", ""):gsub("|r", ""):gsub("^%s+", ""))
+end
 
 -- "Afterwards: sell the 5 Formal White Shirts to a vendor (5s 50c each) - AH 5s 40c
 -- after the cut, can't be disenchanted. Not counted in the cost." Same comparison as
