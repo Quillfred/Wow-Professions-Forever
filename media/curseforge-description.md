@@ -1,8 +1,18 @@
 # SkillRoute Forever
 
-**Plans the cheapest way to level any profession in WoW Forever, using the game's own recipe data and fresh auction house prices, with trainers, vendors and waypoints for every step.**
+**Plans the cheapest way to level any profession in WoW Forever, from your current skill to your target, with trainers, vendors and a waypoint for every step.**
 
-Leveling guides written for Classic don't match Forever: many recipes changed skill-up ranges, new recipes were added, and trainers and ranks work differently. SkillRoute reads Forever's actual recipe data, prices each step from your own AH scans (its own or Auctionator's, whichever is newer), and works out the cheapest route from your current skill to your target.
+Leveling guides written for Classic don't match Forever: many recipes have different skill-up ranges, there are new recipes, and trainers and ranks work differently. SkillRoute uses Forever's own recipes, trainers and disenchant tables, and prices every step from today's Auction House.
+
+## What makes SkillRoute stand out
+
+- **Routes from real prices.** Most guides give everyone the same fixed list. SkillRoute picks the cheapest path from today's AH prices, your skill, and what's in your bags, bank and alts.
+- **Plans for bad luck.** Skill-ups are random, so it buys enough to finish most of the time, at a confidence level you choose, not just the average.
+- **Its own AH scan, or Auctionator's.** One click scans the AH, including how many of each item are listed, so it avoids crowded markets. If you use Auctionator, it uses whichever prices are fresher.
+- **Buys in one click.** It sends your shopping list to Auctionator, or uses its own buy panel if Auctionator isn't installed.
+- **Takes you to the NPC.** A built-in arrow plans the whole trip, including flight masters, boats, zeppelins and hidden paths. No TomTom needed.
+- **Works where you are:** at the trainer, the bank and the profession window.
+- **Sell, list or disenchant?** Item tooltips show what gear disenchants into, what that's worth, and the best choice. Items your routes still use say "keep it".
 
 ---
 
@@ -17,7 +27,7 @@ Leveling guides written for Classic don't match Forever: many recipes changed sk
 
 ### Where to go, and why
 - **Trainers and vendors by name and location,** the nearest one for your faction, with travel time (flight paths you know, boats, zeppelins, even your hearthstone when it saves time).
-- **Click a step for a waypoint arrow** with the distance (SkillRoute's own, or TomTom's if you have it).
+- **Click a step for a waypoint arrow** with the distance (SkillRoute's own, or TomTom's if you have it). It leads you one leg at a time: to the flight master or dock first, then on to the NPC, and on a flight it points at where you're going.
 - **Rank-ups in the right place:** train at the right trainer, buy the Expert book, or do the Artisan quest (Triage, Clamlette Surprise, Nat Pagle), with the quest giver's location.
 - **Forever's trainer rules:** each trainer teaches the rank below its title and nothing until your skill reaches it; the route warns when your character level is too low for the next rank.
 - **Patterns:** bought from a vendor of your faction, or on the auction house when that's cheaper, with reputation requirements checked.
@@ -33,6 +43,11 @@ Leveling guides written for Classic don't match Forever: many recipes changed sk
 - **At the trainer:** the recipes this trainer has that your route uses, what each is for, and **Learn** buttons.
 - **Rank-up reminder** when you hit a cap, with where to train (or the book or quest).
 - **At the bank:** one button takes the next steps' materials for all your professions into your bags.
+
+### Item tooltips
+- **Disenchanting:** any weapon or armour shows what it disenchants into (with the chances and amounts), what that's worth at today's AH prices, and whether it's best to disenchant it, list it on the AH or sell it to a vendor. Materials your Enchanting route needs are counted at what you'd pay for them.
+- **Crowded markets:** when lots of an item are already listed, listing it counts for less, as it may not sell.
+- **Keep it:** materials, bolts and tools any of your routes still uses say so, with how many, so you don't sell them by mistake.
 
 ### Shopping, made easy
 - **Shopping list:** everything to buy, minus what you have, with a safety margin so you don't run short.
