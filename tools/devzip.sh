@@ -10,6 +10,10 @@ git fetch -q --tags origin 2>/dev/null || true
 ver=$(sed -n 's/^## Version: *//p' SkillRoute/SkillRoute.toc | tr -d '\r')
 last=$(git describe --tags --abbrev=0 2>/dev/null || true)
 n=$(git rev-list --count ${last:+$last..}HEAD)
+# the TOC still says the version just released: test builds are for the next one
+if [ "$last" = "v$ver" ]; then
+  ver=$(echo "$ver" | awk -F. '{ printf "%d.%d.%d", $1, $2, $3 + 1 }')
+fi
 dev="$ver-dev.$n"
 tmp=$(mktemp -d)
 cp -r SkillRoute "$tmp/"
