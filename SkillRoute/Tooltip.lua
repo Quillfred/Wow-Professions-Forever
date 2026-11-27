@@ -42,6 +42,24 @@ local function isSoulbound(tt)
   return false
 end
 
+-- An item's name in its quality colour (the game's colours: white, green, blue...).
+local function qualityName(item)
+  local info = (C_Item and C_Item.GetItemInfo) or GetItemInfo
+  local q = info and select(3, info(item))
+  local hex
+  if q and C_Item and C_Item.GetItemQualityColor then
+    local _, _, _, h = C_Item.GetItemQualityColor(q)
+    hex = h
+  elseif q and ITEM_QUALITY_COLORS and ITEM_QUALITY_COLORS[q] then
+    hex = ITEM_QUALITY_COLORS[q].hex and ITEM_QUALITY_COLORS[q].hex:gsub("^|c", "")
+  end
+  local name = UI.ItemName(item)
+  if not hex then return name end
+  if #hex == 6 then hex = "ff" .. hex end
+  return "|c" .. hex .. name .. "|r"
+end
+TT._qualityName = qualityName
+
 -- Per material: { item, chance, min, max, price (copper each, after the cut, or nil) },
 -- the expected value of one disenchant (sum over priced materials), and the names of
 -- materials with no fresh price (the value is then a lower bound).
@@ -79,10 +97,12 @@ function TT.Lines(item, bound, vendorPrice)
   lines[#lines + 1] = { "|cff33ccffSkillRoute: disenchants into|r", skillText }
   local rows, total, missing = TT.Value(key)
   for _, r in ipairs(rows) do
-    local qty = r.min == r.max and ("x%d"):format(r.min) or ("x%d-%d"):format(r.min, r.max)
+    -- left: icon, the name in its quality colour, the chance; right: how many x the price
+    local qty = r.min == r.max and tostring(r.min) or ("%d-%d"):format(r.min, r.max)
     local icon = (C_Item and C_Item.GetItemIconByID and C_Item.GetItemIconByID(r.item)) or (GetItemIcon and GetItemIcon(r.item))
-    lines[#lines + 1] = { ("%s%s %s"):format(icon and ("|T" .. icon .. ":0|t ") or "", UI.ItemName(r.item), qty),
-                          ("%d%%  %s"):format(math.floor(r.chance + 0.5), r.price and (UI.Money(r.price) .. " each") or "|cff999999no price|r"),
+    lines[#lines + 1] = { ("%s%s |cff999999(%d%%)|r"):format(icon and ("|T" .. icon .. ":0|t ") or "", qualityName(r.item),
+                            math.floor(r.chance + 0.5)),
+                          r.price and ("%s x %s"):format(qty, UI.Money(r.price)) or ("%s x |cff999999no price|r"):format(qty),
                           1, 1, 1 }
   end
   if #missing == #rows then

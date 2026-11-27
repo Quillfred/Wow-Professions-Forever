@@ -2037,6 +2037,17 @@ do
   for _, l in ipairs(lines) do text[#text + 1] = (l[1] or "") .. " | " .. (l[2] or "") end
   local joined = table.concat(text, "\n")
   assert(joined:find("at least", 1, true) and joined:find("no price:", 1, true) and joined:find("Best:", 1, true), joined)
+  -- material names in their quality colour; chance by the name, amount x price on the right
+  local savedCI2 = _G.C_Item
+  _G.C_Item = setmetatable({ GetItemInfo = function(id) if id == 11135 then return "Greater Mystic Essence", "l", 2 end
+    return savedCI2.GetItemInfo and savedCI2.GetItemInfo(id) end,
+    GetItemQualityColor = function(q) return 0.1, 1, 0, q == 2 and "ff1eff00" or "ffffffff" end }, { __index = savedCI2 })
+  local ql = TT.Lines(900001, false, 3218)
+  local essence
+  for _, l in ipairs(ql) do if l[1]:find("Greater Mystic Essence", 1, true) then essence = l end end
+  assert(essence and essence[1]:find("|cff1eff00", 1, true) and essence[1]:find("(20%)", 1, true) and essence[2]:find("^1%-2 x "),
+    "quality colour, chance by the name, amount x price: " .. tostring(essence and (essence[1] .. " | " .. essence[2])))
+  _G.C_Item = savedCI2
   -- the hook adds the lines once, until the tooltip is cleared
   local post
   _G.TooltipDataProcessor = { AddTooltipPostCall = function(_, fn) post = fn end }
