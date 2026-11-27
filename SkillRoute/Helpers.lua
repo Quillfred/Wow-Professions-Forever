@@ -116,10 +116,12 @@ function H.BagNeeds()
       for _, st in ipairs(plan.steps) do
         if st.spell and not st.gather and not st.gap then
           local r = prof.recipes[st.spell]
-          local crafts = math.ceil(st.crafts - 1e-9)
+          -- with your safety margin, as the Buy button and the shopping list
+          local crafts = st.crafts + Core.MarginZ(SkillRouteDB.settings and SkillRouteDB.settings.margin) * math.sqrt(st.var or 0)
           for i = 1, #(r.r or {}), 2 do
-            want[r.r[i]] = (want[r.r[i]] or 0) + r.r[i + 1] * crafts
-            total[r.r[i]] = (total[r.r[i]] or 0) + r.r[i + 1] * crafts
+            local n = math.ceil(r.r[i + 1] * crafts - 1e-9)
+            want[r.r[i]] = (want[r.r[i]] or 0) + n
+            total[r.r[i]] = (total[r.r[i]] or 0) + n
           end
           steps = steps + 1
           if steps >= LOOKAHEAD then break end

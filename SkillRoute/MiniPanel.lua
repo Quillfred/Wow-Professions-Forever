@@ -202,16 +202,7 @@ end
 local function place(fs, x, y) fs:ClearAllPoints(); fs:SetPoint("TOPLEFT", x, y) end
 local function h(fs) return (fs:GetStringHeight() or 12) end
 
--- Colour bands of a recipe: the last skill it's orange, yellow and green at.
-local function bands(r)
-  local greenFrom = math.floor((r.y + r.g) / 2)
-  local learnAt = math.min(r.learn or r.y, r.y)
-  local b = {}
-  if r.y - 1 >= learnAt then b[#b + 1] = ("|cff%s%d|r"):format(COLORS.orange, r.y - 1) end
-  if greenFrom - 1 >= r.y then b[#b + 1] = ("|cff%s%d|r"):format(COLORS.yellow, greenFrom - 1) end
-  if r.g - 1 >= greenFrom then b[#b + 1] = ("|cff%s%d|r"):format(COLORS.green, r.g - 1) end
-  return table.concat(b, " ")
-end
+local function bands(r) return UI.Bands(r, " ") end -- the full route's own
 
 local function draw()
   if not (panel and panel:IsShown() and line) then return end
@@ -305,8 +296,8 @@ local function draw()
       shortN = #list
       if shortN > 0 then
         local sure = (SkillRouteDB.settings or {}).margin or 90
-        buyText = (#list == 1 and ("|cffff6060To buy %d|r (%d%% sure): ~%s on the AH%s"):format(qty, sure, UI.Money(cost), missing and " (unpriced)" or "")
-                   or ("|cffff6060To buy|r (%d%% sure): ~%s on the AH%s"):format(sure, UI.Money(cost), missing and " (some unpriced)" or ""))
+        buyText = (#list == 1 and ("|cffff6060This step: buy %d|r (%d%% sure): ~%s on the AH%s"):format(qty, sure, UI.Money(cost), missing and " (unpriced)" or "")
+                   or ("|cffff6060This step: buy|r (%d%% sure): ~%s on the AH%s"):format(sure, UI.Money(cost), missing and " (some unpriced)" or ""))
       end
     end
     if shortN > 0 then

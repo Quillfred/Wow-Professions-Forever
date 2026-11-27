@@ -6,6 +6,18 @@
   pattern first"). It now says exactly what the full route says, from the same code
   ("Buy pattern from Naal Mistrunner (12s 0c)", AH patterns, your bank, quests), with the
   same waypoint on click.
+- Fixed: the disenchant tooltip's "Disenchanting" value now matches the value "Best:"
+  decides on. When a material is one your Enchanting route needs, it's counted at what
+  you'd pay for it, and the line says so ("counts the Vision Dust your Enchanting route
+  needs at what you'd pay").
+- Fixed: "keep it" in tooltips used the average amount while the shopping list adds your
+  safety margin, so the two could disagree. "Keep it" now reads the shopping list's own
+  amounts, including what bolts and bars are made from, plus anything a step makes for a
+  later step.
+- Fixed: "Take route mats" from the bank now takes the safety margin too, so it no longer
+  takes less than the shopping list says you need.
+- The mini panel's buy line now says it's for this step: "This step: buy 12 (90% sure)".
+- The mini panel's skill colour bands now come from the same code as the full route's.
 
 ## 0.38.0
 

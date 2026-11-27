@@ -52,6 +52,18 @@ local function itemName(item)
 end
 
 UI.Money, UI.Icon, UI.ItemName = money, icon, itemName -- shared with the mini panel
+
+-- The last skill at which a recipe is orange, yellow and green, in those colours (green
+-- from the midpoint of yellow and grey, as Planner.Color). One place for both panels.
+function UI.Bands(r, sep)
+  local greenFrom = math.floor((r.y + r.g) / 2)
+  local learnAt = math.min(r.learn or r.y, r.y)
+  local b = {}
+  if r.y - 1 >= learnAt then b[#b + 1] = ("|cff%s%d|r"):format(COLORS.orange, r.y - 1) end
+  if greenFrom - 1 >= r.y then b[#b + 1] = ("|cff%s%d|r"):format(COLORS.yellow, greenFrom - 1) end
+  if r.g - 1 >= greenFrom then b[#b + 1] = ("|cff%s%d|r"):format(COLORS.green, r.g - 1) end
+  return table.concat(b, sep or " ")
+end
 -- text without colour codes or leading spaces (to reuse a row's words elsewhere)
 function UI.Plain(s)
   return (s:gsub("|c%x%x%x%x%x%x%x%x", ""):gsub("|r", ""):gsub("^%s+", ""))
@@ -302,16 +314,8 @@ local function stepTip(plan, st)
   row("Cost per craft", money(st.perCraft) .. (st.est and " |cffff8040(estimated)|r" or ""))
   -- the last skill at which the recipe is each colour (Planner.Color: green from the
   -- midpoint of yellow and grey)
-  do
-    local greenFrom = math.floor((r.y + r.g) / 2)
-    local learnAt = math.min(r.learn or r.y, r.y)
-    local bands = {}
-    if r.y - 1 >= learnAt then bands[#bands + 1] = ("|cff%s%d|r"):format(COLORS.orange, r.y - 1) end
-    if greenFrom - 1 >= r.y then bands[#bands + 1] = ("|cff%s%d|r"):format(COLORS.yellow, greenFrom - 1) end
-    if r.g - 1 >= greenFrom then bands[#bands + 1] = ("|cff%s%d|r"):format(COLORS.green, r.g - 1) end
-    row("Skill-ups through", table.concat(bands, " · "))
-    sub("", ("last skill-up at each colour; no more from %d"):format(r.g))
-  end
+  row("Skill-ups through", UI.Bands(r, " · "))
+  sub("", ("last skill-up at each colour; no more from %d"):format(r.g))
   local sv = st.learn == "pattern" and st.unlock and st.unlock.savesShown
   local w = st.why
   local points = st.to - st.from

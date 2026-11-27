@@ -8,6 +8,7 @@ local TT = {}
 ns.Tooltip = TT
 
 local CUT = 0.95
+local WORDS = { ah = "list it on the AH", de = "disenchant it", vendor = "sell it to a vendor" }
 local MARK = "SkillRouteDE" -- set on a tooltip once our lines are in (until it's cleared)
 
 local function enabled() return (SkillRouteDB.settings or {}).deTooltip ~= false end
@@ -115,17 +116,22 @@ function TT.Lines(item, bound, vendorPrice)
                           r.price and ("%s x %s"):format(qty, UI.Money(r.price)) or ("%s x |cff999999no price|r"):format(qty),
                           1, 1, 1 }
   end
-  if #missing == #rows then
-    lines[#lines + 1] = { "Disenchanting", "|cff999999no fresh AH prices: scan the AH|r" }
-  else
-    lines[#lines + 1] = { "Disenchanting", (#missing > 0 and "at least ~%s" or "~%s"):format(UI.Money(total))
-                          .. " |cff999999after the AH cut|r" }
-    if #missing > 0 then lines[#lines + 1] = { "", "|cff999999no price: " .. table.concat(missing, ", ") .. "|r" } end
-  end
-  -- the advice, as on the route: counts what your Enchanting route needs, your skill
+  -- the advice, as on the route: counts what your Enchanting route needs, and soulbound
   local a = Core.ItemAdvice(item, ench and ench.rank, 1, ench and Core.EnchantingNeeds() or nil,
                             { bound = bound, vendor = vendorPrice })
-  local WORDS = { ah = "list it on the AH", de = "disenchant it", vendor = "sell it to a vendor" }
+  if a.de then
+    -- the same value "Best" decides on
+    local used = {}
+    for _, u in ipairs(a.deUsed or {}) do used[#used + 1] = UI.ItemName(u.item) end
+    lines[#lines + 1] = { "Disenchanting", "~" .. UI.Money(a.de) .. (#used > 0
+      and (" |cff999999counts the %s your Enchanting route needs at what you'd pay|r"):format(table.concat(used, ", "))
+      or " |cff999999after the AH cut|r") }
+  elseif #missing == #rows then
+    lines[#lines + 1] = { "Disenchanting", "|cff999999no fresh AH prices: scan the AH|r" }
+  else -- some materials unpriced: what's known, as a lower bound
+    lines[#lines + 1] = { "Disenchanting", ("at least ~%s"):format(UI.Money(total)) .. " |cff999999after the AH cut|r" }
+    lines[#lines + 1] = { "", "|cff999999no price: " .. table.concat(missing, ", ") .. "|r" }
+  end
   lines[#lines + 1] = { "|cffffd100Best: " .. WORDS[a.best] .. ", " .. UI.Money(a.bestValue) .. "|r", "" }
   return lines
 end

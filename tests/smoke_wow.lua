@@ -248,18 +248,20 @@ do
   for _, t in ipairs(texts) do
     local v = rawget(t, "text")
     if type(v) == "string" and v:find("Afterwards:", 1, true) then after = v end
-    if type(v) == "string" and (v:find("Short:", 1, true) or v:find("To buy", 1, true)) then short = v end
+    if type(v) == "string" and v:find("This step: buy", 1, true) then short = v end
   end
   assert(after or e[1].kind ~= "craft", "Afterwards line on a craft step")
-  if short and short:find("To buy %d") and e[1].kind == "craft" then
+  -- the test data's first step is a craft you're short for: this must run, not skip
+  assert(e[1].kind == "craft" and short and short:find("This step: buy %d"), "buy line on the step: " .. tostring(short))
+  do
     local list = Core.StepShopping(Core.Plan(197, 300), e[1].st)
-    local n = tonumber(short:match("To buy (%d+)"))
+    local n = tonumber(short:match("This step: buy (%d+)"))
     assert(#list == 1 and list[1].qty == n, "the panel's amount is what Buy sends: " .. n .. " vs " .. tostring(list[1] and list[1].qty))
     -- moving the safety margin slider changes it straight away
     ns.Options.Set("margin", 50)
     M.Refresh()
     local n50
-    for _, t in ipairs(texts) do local v = rawget(t, "text"); if type(v) == "string" and v:find("To buy %d+") and v:find("50%% sure") then n50 = tonumber(v:match("To buy (%d+)")) end end
+    for _, t in ipairs(texts) do local v = rawget(t, "text"); if type(v) == "string" and v:find("This step: buy %d+") and v:find("50%% sure") then n50 = tonumber(v:match("This step: buy (%d+)")) end end
     assert(n50 and n50 < n, "50% sure buys less: " .. tostring(n50) .. " < " .. n)
     ns.Options.Set("margin", nil)
     print(("safety margin: 90%% sure -> buy %d, 50%% sure -> buy %d"):format(n, n50))
@@ -2057,6 +2059,24 @@ do
   assert(TT.Lines(900001, false, 3218)[1][2] == "", "with Enchanting: no note")
   Core.Skills = function() return {} end
   assert(TT.Lines(900001, false, 3218)[1][2]:find("ff4040you don't have Enchanting", 1, true), "without: a red note")
+  -- all priced, with Enchanting: the Disenchanting line shows the advice's own value
+  prices[11139] = 5000
+  Core.Skills = function() return { [333] = { rank = 170, max = 225 } } end
+  local savedEN = Core.EnchantingNeeds
+  Core.EnchantingNeeds = function() return {} end
+  local adv = Core.ItemAdvice(900001, 170, 1, {}, { bound = false, vendor = 3218 })
+  local deLine
+  for _, l in ipairs(TT.Lines(900001, false, 3218)) do if l[1] == "Disenchanting" then deLine = l[2] end end
+  assert(adv.de and deLine and deLine:find("~" .. UI.Money(adv.de), 1, true), "tooltip value = advice value: " .. tostring(deLine))
+  -- a material your route needs: counted at what you'd pay, and said so
+  Core.EnchantingNeeds = function() return { [11137] = 100 } end
+  local adv2 = Core.ItemAdvice(900001, 170, 1, { [11137] = 100 }, { bound = false, vendor = 3218 })
+  for _, l in ipairs(TT.Lines(900001, false, 3218)) do if l[1] == "Disenchanting" then deLine = l[2] end end
+  assert(adv2.deUsed and deLine:find("~" .. UI.Money(adv2.de), 1, true) and deLine:find("your Enchanting route needs", 1, true),
+    "route-needed material counted: " .. tostring(deLine))
+  Core.EnchantingNeeds = savedEN
+  prices[11139] = nil
+  print("tooltip value = Best's value: " .. deLine:gsub("|c%x%x%x%x%x%x%x%x", ""):gsub("|r", ""))
   Core.Skills = savedSk
   local essence
   for _, l in ipairs(ql) do if l[1]:find("Greater Mystic Essence", 1, true) then essence = l end end
@@ -2112,6 +2132,17 @@ do
   local line = TT.NeedLine(item)
   assert(line and line:find("keep it", 1, true) and line:find("Your Tailoring route needs " .. list[1][2], 1, true), tostring(line))
   assert(TT.NeedLine(999999999) == nil, "nothing for an item no route uses")
+  -- the same amounts as the shopping list (same safety margin, bolts expanded)
+  local checked = 0
+  for _, b in ipairs(Core.Plan(197, 300).shopping.buy) do
+    if b.need > 0 then
+      local n = needs[b.item]
+      assert(n and n[1][2] >= b.need, ("keep it %s = shopping %d for %s"):format(tostring(n and n[1][2]), b.need, b.item))
+      checked = checked + 1
+    end
+  end
+  assert(checked > 0, "compared keep-it with the shopping list")
+
   -- shown on a tooltip even when the item can't be disenchanted
   local added = {}
   local tt = { GetItem = function() return "x", "|Hitem:" .. item .. "::|h[x]|h" end, NumLines = function() return 1 end,

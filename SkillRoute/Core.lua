@@ -1334,8 +1334,8 @@ local routeVersion = 0 -- recipes, prices or settings changed (not every bag upd
 function Core.InvalidatePatterns() patternCache = {}; needsVersion = needsVersion + 1; routeVersion = routeVersion + 1 end
 
 -- What your routes still use, for item tooltips: { [item] = { {prof, units}, ... } }.
--- Every crafting profession you have: each step's reagents for its crafts (materials the
--- route makes and uses later too), and tools. Worked out again when recipes, prices or
+-- Every crafting profession you have: its shopping list's amounts (what you'd buy or
+-- already own, with your safety margin), what its steps make for later steps, and tools. Worked out again when recipes, prices or
 -- settings change, or after a minute - not on every bag update (tooltips stay quick).
 local routeNeeds
 function Core.RouteNeeds()
@@ -1347,15 +1347,25 @@ function Core.RouteNeeds()
     if prof and not prof.gather then
       local ok, plan = pcall(Core.Plan, line, (c.targets and c.targets[line]) or 300)
       if ok and plan and plan.steps then
+        -- the shopping list's own amounts (bolts and bars expanded into what they're made
+        -- of, what earlier steps make taken off, the same safety margin), plus tools
         local per = {}
+        for _, b in ipairs(plan.shopping and plan.shopping.buy or {}) do
+          if b.need and b.need > 0 then per[b.item] = b.need end
+        end
+        -- what a step makes and a later step uses (bolts) isn't bought: count its use
+        local made, use = {}, {}
         for _, st in ipairs(plan.steps) do
           local r = st.spell and prof.recipes[st.spell]
           if r and r.r then
-            local crafts = math.ceil(st.crafts - 1e-9)
-            for i = 1, #r.r, 2 do per[r.r[i]] = (per[r.r[i]] or 0) + r.r[i + 1] * crafts end
+            for i = 1, #r.r, 2 do
+              if made[r.r[i]] then use[r.r[i]] = (use[r.r[i]] or 0) + r.r[i + 1] * st.crafts end
+            end
+            if r.out then made[r.out] = true end
           end
           for _, u in ipairs(st.tools or {}) do per[u.item] = math.max(per[u.item] or 0, 1) end
         end
+        for it, n in pairs(use) do per[it] = math.max(per[it] or 0, math.ceil(n - 1e-9)) end
         for item, n in pairs(per) do
           map[item] = map[item] or {}
           table.insert(map[item], { prof.name, n })
