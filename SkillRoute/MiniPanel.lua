@@ -304,11 +304,14 @@ local function draw()
       end
     end
     if shortN > 0 then
+      -- the Buy button only shows at the AH: elsewhere the line uses the whole width
+      local showBuy = ui.buyStep and Core.CanBuyHere()
+      ui.short:SetWidth(showBuy and (W - 90) or (W - 24))
       ui.short:SetText(buyText or ("|cffff6060Short:|r ~%s on the AH%s"):format(UI.Money(shortCost), unpriced and " (some unpriced)" or ""))
       place(ui.short, 12, y - 2)
       local bk = ui.buyStep and ((ui.buyStep.spell or 0) .. ":" .. (ui.buyStep.from or 0))
       if bk ~= ui.buyKey then ui.buyKey = bk; ui.buy:SetText("Buy") end -- a new step starts at its first material
-      if ui.buyStep and Core.CanBuyHere() then
+      if showBuy then
         ui.buy:ClearAllPoints(); ui.buy:SetPoint("TOPRIGHT", -12, y + 2); ui.buy:Show()
       end
       y = y - math.max(h(ui.short), 16) - 4

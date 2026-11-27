@@ -23,7 +23,8 @@
   note no longer makes the tooltip screen-wide.
 - Mini panel: when a step needs more than one thing from the AH, the buy line reads
   "This step: ~4g 0s 36c on the AH (90% sure)" (it said "This step: buy (90% sure): …"
-  and wrapped mid-price).
+  and wrapped mid-price). Away from the AH, where there's no Buy button, the line uses
+  the panel's full width.
 - Mini panel: a material a vendor sells but the AH has cheaper said "vendor" while the
   buy list got it from the AH. Both now use one rule, and the row says "AH: cheaper".
 - The options window shrinks to fit on small screens or large UI scales.

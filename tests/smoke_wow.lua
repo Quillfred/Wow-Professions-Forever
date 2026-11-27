@@ -11,6 +11,7 @@ local function stubObj()
     if k == "GetText" then return function(self) return self.text end end
     if k == "RegisterForClicks" then return function() end end
     if k == "SetAlpha" then return function(self, a) rawset(self, "alpha", a) end end
+    if k == "SetWidth" then return function(self, w) rawset(self, "width", w) end end
     if k == "SetScript" then return function(self, n, f) if n == "OnShow" then self.onShow = f end; self[n] = f end end
     if k == "RegisterEvent" then return function(self, ev) local e = rawget(self, "events") or {}; rawset(self, "events", e); e[ev] = true end end
     if k == "CreateTexture" then return function() return stubObj() end end
@@ -271,9 +272,19 @@ do
   do
     local savedSS = Core.StepShopping
     Core.StepShopping = function() return { { item = 4306, qty = 188, name = "Silk Cloth" }, { item = 6260, qty = 20, name = "Blue Dye" } } end
-    M.Refresh()
-    local multi
-    for _, t in ipairs(texts) do local v = rawget(t, "text"); if type(v) == "string" and v:find("This step:", 1, true) then multi = v end end
+    local savedCBH = Core.CanBuyHere
+    local multi, fsAway, fsAH
+    for _, atAH in ipairs({ false, true }) do
+      Core.CanBuyHere = function() return atAH end
+      M.Refresh()
+      for _, t in ipairs(texts) do
+        local v = rawget(t, "text")
+        if type(v) == "string" and v:find("This step:", 1, true) then multi = v; if atAH then fsAH = rawget(t, "width") else fsAway = rawget(t, "width") end end
+      end
+    end
+    Core.CanBuyHere = savedCBH
+    -- away from the AH (no Buy button) the line gets the whole width
+    assert(fsAway == 246 and fsAH == 180, "width: " .. tostring(fsAway) .. " away, " .. tostring(fsAH) .. " at the AH")
     Core.StepShopping = savedSS
     M.Refresh()
     assert(multi and multi:find("This step:|r ~", 1, true) and multi:find("on the AH (90% sure)", 1, true)
