@@ -120,6 +120,7 @@ assert(Core.mismatch[197] == 0, "live colours match data at 110: got " .. tostri
 -- no prices at all: plan must not invent any
 local plan = Core.Plan(197, 300)
 assert(plan.total == 0 and plan.unpriced > 0, "unpriced recipes skipped")
+assert(next(plan.unpricedItems), "the reagents with no price are named")
 -- prices for everything (3x vendor sell)
 for id, it in pairs(SkillRouteData.items) do prices[id] = math.max(1, it[2]) * 3 end
 plan = Core.Plan(197, 300)
@@ -2184,6 +2185,37 @@ do
   assert(scroll.bottom == 34, "one line again: " .. tostring(scroll.bottom))
   footer.GetStringHeight, footer.GetFont = nil, nil
   print("footer: timing dropped when long; list ends above a two-line footer")
+end
+
+-- recipes left out for unpriced reagents: "scan the AH" only before any scan; after one,
+-- the reagents nobody is selling are named
+do
+  local savedPlan, savedSrc = Core.Plan, Core.PriceSource
+  Core.Plan = function(...)
+    local p = savedPlan(...)
+    if not p then return p end
+    local copy = setmetatable({ unpriced = 2, unpricedItems = { [4306] = true } }, { __index = p }) -- not the cached plan
+    return copy
+  end
+  local wasShown = ns.UI.IsShown()
+  if not wasShown then ns.UI.Toggle(197) end
+  local function infoText()
+    ns.UI.Refresh()
+    for _, t in ipairs(texts) do
+      local v = rawget(t, "text")
+      if type(v) == "string" and v:find("recipes ", 1, true) and (v:find("left out", 1, true) or v:find("skipped:", 1, true)) then return v end
+    end
+  end
+  Core.PriceSource = function() return nil end
+  local before = infoText()
+  assert(before and before:find("scan the AH", 1, true), "no scan yet: scan the AH: " .. tostring(before))
+  Core.PriceSource = function() return "SkillRoute scan" end
+  local after = infoText()
+  assert(after and after:find("2 recipes left out: no ", 1, true) and after:find("on the AH right now", 1, true)
+    and not after:find("scan the AH", 1, true), "scanned: names the reagent: " .. tostring(after))
+  Core.Plan, Core.PriceSource = savedPlan, savedSrc
+  if not wasShown then ns.UI.Toggle() else ns.UI.Refresh() end
+  print("unpriced: " .. after:gsub("|c%x%x%x%x%x%x%x%x", ""):gsub("|r", ""))
 end
 
 -- /sr check runs and reports; errors are caught, not thrown

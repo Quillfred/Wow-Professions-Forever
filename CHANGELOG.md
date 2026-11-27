@@ -5,6 +5,9 @@
 - Fixed: when the route window's footer ran to two lines (a long total with training
   costs), it covered the last step. The "planned in" timing is now left off when the
   line is too long, and if it still wraps, the list ends above it.
+- "N recipes skipped: reagents with no price (scan the AH)" was shown even right after a
+  scan, when scanning again can't help. After a scan it now names the reagents nobody is
+  selling: "2 recipes left out: no Silk Cloth on the AH right now".
 
 ## 0.38.1
 

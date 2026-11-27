@@ -888,7 +888,18 @@ local function refresh()
     warn[#warn + 1] = ("|cffffd100%d recipe%s skipped by you (/sr unskip to bring back)|r"):format(nSkip, nSkip > 1 and "s" or "")
   end
   if plan.unpriced > 0 then
-    warn[#warn + 1] = ("|cffff8040%d recipes skipped: reagents with no price (scan the AH)|r"):format(plan.unpriced)
+    local n = plan.unpriced
+    local names = {}
+    for item in pairs(plan.unpricedItems or {}) do names[#names + 1] = UI.ItemName(item) end
+    table.sort(names)
+    if Core.PriceSource() and #names > 0 then
+      -- you've scanned: nobody is selling it right now (another scan won't help)
+      if #names > 3 then names = { names[1], names[2], ("%d more"):format(#names - 2) } end
+      warn[#warn + 1] = ("|cff9d9d9d%d recipe%s left out: no %s on the AH right now|r"):format(n, n == 1 and "" or "s",
+        table.concat(names, ", "))
+    else
+      warn[#warn + 1] = ("|cffff8040%d recipe%s skipped: reagents with no price (scan the AH)|r"):format(n, n == 1 and "" or "s")
+    end
   end
   if plan.mismatch and plan.mismatch > 0 then
     warn[#warn + 1] = ("|cffff4040%d recipe colours differ from the data: update SkillRoute|r"):format(plan.mismatch)

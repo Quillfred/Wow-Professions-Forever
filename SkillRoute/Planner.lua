@@ -502,7 +502,7 @@ function Planner.PlanOnce(ctx, credit)
 
   -- Candidates: usable recipes not grey at our skill. Probes: recipes one unlock
   -- away; never chosen here, we only measure what that unlock would save.
-  local cands, probes, unpriced = {}, {}, 0
+  local cands, probes, unpriced, unpricedItems = {}, {}, 0, {}
   local perCraft = ctx.craftValue or 0     -- your time per craft (copper), choice only
   local sur = ctx.surcharge or {}          -- trainer fee per point
   local avoid = ctx.avoidMats
@@ -518,7 +518,12 @@ function Planner.PlanOnce(ctx, credit)
       if learnAt and learnAt < to then
         local c, est = costOf(spell)
         if not c then
-          if not missing then unpriced = unpriced + 1 end -- skipped, not guessed
+          if not missing then -- skipped, not guessed; which reagents had no price
+            unpriced = unpriced + 1
+            for i = 1, #r.r, 2 do
+              if not unit(r.r[i]) then unpricedItems[r.r[i]] = true end
+            end
+          end
         elseif missing then
           probes[#probes + 1] = { key = missing, r = r, learnAt = learnAt, cost = c, spell = spell }
         else
@@ -679,7 +684,7 @@ function Planner.PlanOnce(ctx, credit)
   end
   local shopping, total, anyEst, made, leftover = Planner.Shopping(ctx, steps, unit, extra)
   return { steps = steps, gaps = gaps, shopping = shopping, total = total, estimated = anyEst,
-           expected = best[from], unpriced = unpriced, made = made, leftover = leftover,
+           expected = best[from], unpriced = unpriced, unpricedItems = unpricedItems, made = made, leftover = leftover,
            gapPoints = gapPoints, savings = savings, usedUnlocks = usedUnlocks }
 end
 
