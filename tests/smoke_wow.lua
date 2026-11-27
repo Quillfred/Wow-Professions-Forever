@@ -1282,6 +1282,14 @@ do
     end
   end
   assert(moved >= 4, "sliders built: " .. moved)
+  -- two tabs: General and Buying & selling; one page at a time, the last one remembered
+  local pg = O._pages
+  assert(pg and #pg == 2, "two pages")
+  O.ShowPage(2)
+  assert(not pg[1].shown and pg[2].shown and SkillRouteDB.settings.optionsTab == 2, "Buying & selling shown")
+  O.ShowPage(1)
+  assert(pg[1].shown and not pg[2].shown and SkillRouteDB.settings.optionsTab == 1, "General shown")
+  SkillRouteDB.settings.optionsTab = nil
   assert(SkillRouteDB.settings.crowded == 45, "the crowded slider sets its setting (44 -> step 45): " .. tostring(SkillRouteDB.settings.crowded))
   local seen88, seenOrange
   for _, fs in ipairs(texts) do

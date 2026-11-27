@@ -314,65 +314,103 @@ local function build()
   title:SetPoint("TOP", 0, -5)
   title:SetText("SkillRoute options")
 
+  -- two pages under tabs, so the window fits any screen at full size
+  local frame = panel
+  local TABS_Y, PAGE_Y = -28, -56
+  local pages = {}
+  local function newPage()
+    local pg = CreateFrame("Frame", nil, frame)
+    pg:SetPoint("TOPLEFT", 0, PAGE_Y); pg:SetPoint("TOPRIGHT", 0, PAGE_Y)
+    pages[#pages + 1] = pg
+    return pg
+  end
   local S = settings
-  local y = -34
-  y = check(panel, y, "Open with the profession window",
+  local page1 = newPage()
+  local pg = page1 -- the controls below go on the General page
+  local y = -8
+  y = check(pg, y, "Open with the profession window",
     "Opening a crafting profession window opens SkillRoute too.",
     function() return S().auto ~= false end, function(v) Options.Set("auto", v) end)
-  y = check(panel, y, "Dock a mini panel to the profession window",
+  y = check(pg, y, "Dock a mini panel to the profession window",
     "Shows the next step, Craft buttons and what's left to buy next to the profession window, instead of opening the full SkillRoute window. The full route is one click away.",
     function() return S().mini ~= false end, function(v) Options.Set("mini", v) end)
-  y = check(panel, y, "Price the amounts I need when scanning the AH",
+  y = check(pg, y, "Price the amounts I need when scanning the AH",
     "After the full scan, one search per material your routes buy, so a price is what buying all of it costs (not just the cheapest listing). Adds a few seconds per material.",
     function() return S().depth ~= false end, function(v) Options.Set("depth", v) end)
-  y = check(panel, y, "Disenchanting in item tooltips",
+  y = check(pg, y, "Disenchanting in item tooltips",
     "What a weapon or piece of armour disenchants into, what that's worth at today's AH prices, and whether to disenchant, list it or sell it to a vendor.",
     function() return S().deTooltip ~= false end, function(v) Options.Set("deTooltip", v) end)
-  y = check(panel, y, "Mark materials my routes need in item tooltips",
+  y = check(pg, y, "Mark materials my routes need in item tooltips",
     "\"Keep it\" on anything one of your routes still uses (and how many), so you don't sell it by accident.",
     function() return S().needTooltip ~= false end, function(v) Options.Set("needTooltip", v) end)
-  y = check(panel, y, "Count materials on my alts",
+  y = check(pg, y, "Count materials on my alts",
     "Uses Syndicator or DataStore, if installed.",
     function() return S().alts ~= false end, function(v) Options.Set("alts", v) end)
-  y = check(panel, y, "Estimate prices the AH hasn't shown",
+  y = check(pg, y, "Estimate prices the AH hasn't shown",
     "4x the vendor price, marked in orange. Off: recipes with unpriced materials are skipped.",
     function() return S().estimate == true end, function(v) Options.Set("estimate", v) end)
-  y = check(panel, y, "Allow cooldown materials (Mooncloth, Arcanite)",
+  y = check(pg, y, "Allow cooldown materials (Mooncloth, Arcanite)",
     "These are scarce and expensive; off by default.",
     function() return S().cdmats == true end, function(v) Options.Set("cdmats", v) end)
-  y = check(panel, y, "Show the minimap button",
+  y = check(pg, y, "Show the minimap button",
     "Left-click opens SkillRoute, right-click these options.",
     function() return not S().minimapHide end, function(v) Options.Set("minimapHide", not v) end)
-  y = separator(panel, y - 4)
-  y = number(panel, y, "Shopping list safety margin",
+  y = separator(pg, y - 4)
+  y = number(pg, y, "Shopping list safety margin",
     "Skill-ups are random, so a step can take more crafts than expected. This is how sure you want to be that the shopping list covers the whole route. Higher buys more spare materials, which you can sell or use later.",
     50, 99, 1, function(v) return ("%d%% sure"):format(v) end,
     function() return S().margin or 90 end, function(v) Options.Set("margin", v) end,
     { ends = { "Expected amount", "Almost never short" }, example = Options.MarginExample })
-  y = separator(panel, y)
-  y = readout(panel, y, "Working Overtime",
+  y = separator(pg, y)
+  y = readout(pg, y, "Working Overtime",
     function() return ("+%d%%"):format(math.floor(Core.Bonus() * 100 + 0.5)) end,
     Options.OvertimeText)
-  y = separator(panel, y)
-  y = number(panel, y, "Expect to sell what you make",
+  local y1 = y
+  local page2 = newPage()
+  pg = page2 -- and these on Buying & selling
+  y = -8
+  y = number(pg, y, "Expect to sell what you make",
     "Recipes whose items sell well get picked more often. Counts this share of each item's AH price (after the 5% cut) as money back. Nothing is listed for you; the route shows it as \"~X back from sales\".",
     0, 100, 5, function(v) return v == 0 and "off" or ("%d%% of AH price"):format(v) end,
     function() return S().resale or 0 end, function(v) Options.Set("resale", v) end,
     { ends = { "Ignore sales", "Full AH price" }, example = Options.ResaleExample,
       caution = "You may need to craft many of the same item. Listing them all at once drives the price down, and you lose the deposit on any that don't sell. Set this low unless you know they sell well." })
-  y = separator(panel, y)
-  y = number(panel, y, "Crowded AH listings count for",
+  y = separator(pg, y)
+  y = number(pg, y, "Crowded AH listings count for",
     "When 20 or more of an item are already listed (and at least 3 times as many as you'd sell), the market is crowded: yours may wait behind the others, get undercut, or expire and cost you the deposit. To choose between listing an item, disenchanting it and selling it to a vendor, SkillRoute counts a crowded listing at this share of its AH price. Prices shown stay the real AH price; tooltips say what it counted as.",
     30, 100, 5, function(v) return v >= 100 and "full price" or ("%d%% of AH price"):format(v) end,
     function() return math.floor(Core.CrowdedShare() * 100 + 0.5) end, function(v) Options.Set("crowded", v) end,
     { ends = { "Avoid crowded markets", "Ignore crowding" }, example = Options.CrowdedExample })
-  y = separator(panel, y)
-  y = number(panel, y, "Prefer fewer crafts",
+  y = separator(pg, y)
+  y = number(pg, y, "Prefer fewer crafts",
     "Picks a recipe that skills up more reliably even if its materials cost more for each craft it saves you. Nothing is charged; it only changes which recipe is chosen.",
     0, 100, 1, function(v) return v == 0 and "off" or ("up to " .. silver(v)) end,
     function() return math.floor((S().craftValue or 0) / 100) end, function(v) Options.Set("craftValue", v * 100) end,
     { ends = { "Cheapest materials", "Fewest crafts" }, example = Options.FewerExample })
 
+  local y2 = y
+  -- tabs: the page you last used opens again
+  local tabs = {}
+  local function showPage(i)
+    for j, pg in ipairs(pages) do
+      if j == i then pg:Show(); tabs[j]:LockHighlight() else pg:Hide(); tabs[j]:UnlockHighlight() end
+    end
+    settings().optionsTab = i
+  end
+  Options.ShowPage = showPage
+  Options._pages = pages
+  for i, name in ipairs({ "General", "Buying & selling" }) do
+    local t = CreateFrame("Button", nil, frame, "UIPanelButtonTemplate")
+    t:SetSize(i == 1 and 90 or 130, 22)
+    if i == 1 then t:SetPoint("TOPLEFT", 16, TABS_Y) else t:SetPoint("LEFT", tabs[i - 1], "RIGHT", 4, 0) end
+    t:SetText(name)
+    t:SetScript("OnClick", function() showPage(i) end)
+    tabs[i] = t
+  end
+  local tallest = math.max(-y1, -y2)
+  for _, pg in ipairs(pages) do pg:SetHeight(tallest) end
+  showPage(settings().optionsTab == 2 and 2 or 1)
+  y = PAGE_Y - tallest
   panel:SetHeight(-y + 46)
   panel:Hide() -- new frames start shown; the first Toggle must open it, not close it
 

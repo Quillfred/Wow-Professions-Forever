@@ -31,7 +31,10 @@
   the stop on the way isn't mistaken for the NPC you're going to (the name above it).
 - Shopping list: a line above the list says what its amounts mean: "need: covers bad
   luck, 90% sure (Options) · expected: the average".
-- The options window shrinks to fit on small screens or large UI scales.
+- **Options in two tabs:** "General" (checkboxes, safety margin, Working Overtime) and
+  "Buying & selling" (Expect to sell, Crowded AH, Prefer fewer crafts). The window was
+  taller than the screen at UI scale 1 and had to shrink; now each page fits at full
+  size. It opens on the tab you used last, and still shrinks if a screen is too small.
 
 ## 0.38.1
 
