@@ -165,39 +165,70 @@ function H.BankRows(byLine)
 end
 
 -- Move whole stacks from the bank until each need is met. Returns stacks moved.
+-- Free slots in the bags you carry that take any item (not herb, ore or other special bags).
+function H.FreeBagSlots()
+  local C = C_Container
+  local free = 0
+  for bag = 0, (NUM_BAG_SLOTS or 4) do
+    local n, kind
+    if C and C.GetContainerNumFreeSlots then n, kind = C.GetContainerNumFreeSlots(bag)
+    elseif GetContainerNumFreeSlots then n, kind = GetContainerNumFreeSlots(bag) end
+    if n and (kind == nil or kind == 0) then free = free + n end
+  end
+  return free
+end
+
+-- Move whole stacks from the bank until each need is met, no more stacks than your bags
+-- have room for. A moment later, what actually arrived is counted and reported (a move
+-- the game refuses, e.g. full bags, isn't reported as taken). Returns stacks moved.
+local VERIFY_DELAY = 1
 function H.TakeFromBank()
   local want = H.BagNeeds()
   if not want or not next(want) then
     print("|cff33ccffSkillRoute:|r your bags already hold what the next steps need.")
     return 0
   end
-  local moved, took, order = 0, {}, {}
+  local room = H.FreeBagSlots()
+  local moved, skipped, before, order = 0, 0, {}, {}
   for _, bag in ipairs(bankBags()) do
     for slot = 1, slots(bag) do
       local id, count, locked = slotItem(bag, slot)
       if id and want[id] and not locked then
-        useSlot(bag, slot)
-        moved = moved + 1
-        if not took[id] then order[#order + 1] = id end
-        took[id] = (took[id] or 0) + (count or 1)
-        want[id] = want[id] - (count or 1)
-        if want[id] <= 0 then want[id] = nil end
+        if moved >= room then
+          skipped = skipped + 1 -- no room: it stays in the bank
+        else
+          if not before[id] then before[id] = Core.InBags(id); order[#order + 1] = id end
+          useSlot(bag, slot)
+          moved = moved + 1
+          want[id] = want[id] - (count or 1)
+          if want[id] <= 0 then want[id] = nil end
+        end
       end
     end
   end
-  -- one line: what was taken; what's still missing only as a count (the shopping list
-  -- has the details)
-  local parts = {}
-  for _, id in ipairs(order) do parts[#parts + 1] = took[id] .. " " .. UI.ItemName(id) end
   local left = 0
   for _ in pairs(want) do left = left + 1 end
-  local msg = moved > 0 and ("took %d stack%s from the bank (%s)."):format(moved, moved == 1 and "" or "s", table.concat(parts, ", "))
-              or "nothing your routes need is in your bank."
-  if left > 0 then
-    msg = msg .. (" %d %smaterial%s not in your bank: see the shopping list."):format(left, moved > 0 and "other " or "",
-      left == 1 and " is" or "s are")
+  local function report()
+    local parts, arrived = {}, 0
+    for _, id in ipairs(order) do
+      local got = Core.InBags(id) - before[id]
+      if got > 0 then parts[#parts + 1] = got .. " " .. UI.ItemName(id); arrived = arrived + 1 end
+    end
+    local msg
+    if moved == 0 and skipped == 0 then msg = "nothing your routes need is in your bank."
+    elseif #parts > 0 then msg = ("took %s from the bank."):format(table.concat(parts, ", "))
+    else msg = "nothing could be moved." end
+    local stuck = skipped + (moved - arrived > 0 and (moved - arrived) or 0)
+    if stuck > 0 then
+      msg = msg .. (" |cffff8040Your bags are full: %d stack%s stayed in the bank.|r"):format(stuck, stuck == 1 and "" or "s")
+    end
+    if left > 0 then
+      msg = msg .. (" %d %smaterial%s not in your bank: see the shopping list."):format(left, moved > 0 and "other " or "",
+        left == 1 and " is" or "s are")
+    end
+    print("|cff33ccffSkillRoute:|r " .. msg)
   end
-  print("|cff33ccffSkillRoute:|r " .. msg)
+  if moved > 0 then C_Timer.After(VERIFY_DELAY, report) else report() end
   return moved
 end
 

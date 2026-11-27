@@ -7,6 +7,9 @@
   the panel's. "Can't quote" now says why (not stackable, or too few listed).
 - Fixed (arrow): standing at a flight master, it re-planned 20 times a second; it now
   says "Flight master, ...: here" and checks for the next leg once a second.
+- **Take route mats** checks your bags: it moves no more stacks than fit, reports what
+  actually arrived (a moment later), and says "Your bags are full: N stacks stayed in the
+  bank" when something didn't.
 - Fixed: a Mining trainer showed an empty "your route here" panel.
 - NPCs inside dungeons (Annora in Uldaman, Blackrock Depths and Dire Maul vendors...) now
   have a location: the dungeon's entrance, from the game's own data, with a note. The

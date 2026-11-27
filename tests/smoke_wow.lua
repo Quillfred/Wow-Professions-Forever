@@ -1614,18 +1614,31 @@ do
   assert(#shown == 1 and #shown[1][2] == 1 and shown[1][2][1][2] == 12 and shown[1][2][1][3] == 40, "take 12 of 40")
   assert(missing == 1, "one material not in the bank")
   Core.Have, Core.InBags = savedHave, savedBags
-  local moved = {}
+  local moved, inBags, free, accepts = {}, 0, 5, true
   _G.C_Container = {
     GetContainerNumSlots = function(bag) return bag == -1 and 2 or 0 end,
     GetContainerItemInfo = function(bag, slot) if bag == -1 and slot == 1 then return { itemID = item, stackCount = 20 } end end,
-    UseContainerItem = function(bag, slot) moved[#moved + 1] = bag .. ":" .. slot end,
+    UseContainerItem = function(bag, slot) moved[#moved + 1] = bag .. ":" .. slot; if accepts then inBags = inBags + 20 end end,
+    GetContainerNumFreeSlots = function(bag) return bag == 0 and free or 0, 0 end,
   }
+  local savedIB = Core.InBags
+  Core.InBags = function(id) return id == item and inBags or 0 end
   local said
   _G.print = function(x) said = x end
+  -- room in the bags: moved, and what arrived is reported
   local n = H.TakeFromBank()
-  _G.print = realPrint
   assert(n == 1 and moved[1] == "-1:1", "took the stack from the bank")
-  assert(said:find("took 1 stack from the bank %(20 ") and not said:find("Still short"), "short message: " .. said)
+  assert(said:find("took 20 ", 1, true) and not said:find("full"), "what arrived: " .. said)
+  -- bags full: nothing moved, and it says so
+  moved, inBags, free = {}, 0, 0
+  n = H.TakeFromBank()
+  assert(n == 0 and #moved == 0 and said:find("Your bags are full: 1 stack stayed in the bank"), "full: " .. said)
+  -- the game refuses the move: not reported as taken
+  moved, inBags, free, accepts = {}, 0, 3, false
+  H.TakeFromBank()
+  assert(said:find("nothing could be moved") and said:find("1 stack stayed"), "refused: " .. said)
+  _G.print = realPrint
+  Core.InBags = savedIB
   _G.C_Container = nil
   -- bank tabs (newer clients): only the tabs; a reagent bag you carry is never "the bank"
   _G.Enum = { BagIndex = { Backpack = 0, ReagentBag = 5, Bank = -1, CharacterBankTab_1 = 6, CharacterBankTab_2 = 7 } }
