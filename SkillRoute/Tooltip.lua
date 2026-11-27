@@ -11,6 +11,18 @@ local CUT = 0.95
 local MARK = "SkillRouteDE" -- set on a tooltip once our lines are in (until it's cleared)
 
 local function enabled() return (SkillRouteDB.settings or {}).deTooltip ~= false end
+local function needsEnabled() return (SkillRouteDB.settings or {}).needTooltip ~= false end
+
+-- "Keep it": one of your routes still uses this item. nil if none does.
+function TT.NeedLine(item)
+  local list = Core.RouteNeeds()[item]
+  if not list then return nil end
+  local first = list[1]
+  local rest = {}
+  for i = 2, #list do rest[#rest + 1] = ("%s: %d"):format(list[i][1], list[i][2]) end
+  return ("|cff33ccffSkillRoute:|r |cffff8040keep it.|r Your %s route needs %d%s"):format(first[1], first[2],
+    #rest > 0 and (" (" .. table.concat(rest, ", ") .. ")") or "")
+end
 
 local function itemIDFromLink(link)
   if type(link) == "number" then return link end
@@ -133,7 +145,7 @@ end
 -- link: from the setter's own arguments when known (some Forever tooltips don't fill in
 -- GetItem on those paths); else asked from the tooltip.
 local function addLines(tt, link)
-  if not enabled() or tt[MARK] or fromSkillRoute(tt) then return end
+  if tt[MARK] or fromSkillRoute(tt) or not (enabled() or needsEnabled()) then return end
   if not link then
     local ok, _, l = pcall(tt.GetItem, tt)
     link = ok and l or nil
@@ -142,11 +154,17 @@ local function addLines(tt, link)
   if issecretvalue and issecretvalue(link) then return end
   local item = itemIDFromLink(link)
   if not item then return end
-  local info = (C_Item and C_Item.GetItemInfo) or GetItemInfo
-  local vendor = info and select(11, info(item)) or nil
-  local lines = TT.Lines(item, isSoulbound(tt), vendor)
-  if not lines then return end
+  local need = needsEnabled() and TT.NeedLine(item) or nil
+  local lines
+  if enabled() then
+    local info = (C_Item and C_Item.GetItemInfo) or GetItemInfo
+    local vendor = info and select(11, info(item)) or nil
+    lines = TT.Lines(item, isSoulbound(tt), vendor)
+  end
+  if not (lines or need) then return end
   tt[MARK] = true
+  if need then tt:AddLine(need, 1, 1, 1, true) end
+  if not lines then tt:Show(); return end
   tt:AddLine(" ")
   for _, l in ipairs(lines) do
     if l[2] and l[2] ~= "" then tt:AddDoubleLine(l[1], l[2], l[3] or 1, l[4] or 1, l[5] or 1, 1, 1, 1)

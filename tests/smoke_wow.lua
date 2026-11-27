@@ -2093,6 +2093,26 @@ do
   print("tooltip disenchant: " .. text[#text]:gsub("|c%x%x%x%x%x%x%x%x", ""):gsub("|r", ""))
 end
 
+-- "keep it": items your routes still use are marked in their tooltips
+do
+  local TT = ns.Tooltip
+  Core.InvalidatePatterns()
+  local needs = Core.RouteNeeds()
+  local item, list = next(needs)
+  assert(item and list[1][1] == "Tailoring" and list[1][2] > 0, "the Tailoring route needs something")
+  local line = TT.NeedLine(item)
+  assert(line and line:find("keep it", 1, true) and line:find("Your Tailoring route needs " .. list[1][2], 1, true), tostring(line))
+  assert(TT.NeedLine(999999999) == nil, "nothing for an item no route uses")
+  -- shown on a tooltip even when the item can't be disenchanted
+  local added = {}
+  local tt = { GetItem = function() return "x", "|Hitem:" .. item .. "::|h[x]|h" end, NumLines = function() return 1 end,
+    GetName = function() return "NeedTip" end, AddLine = function(_, t) added[#added + 1] = t end,
+    AddDoubleLine = function(_, t) added[#added + 1] = t end, Show = function() end, GetOwner = function() return nil end }
+  TT._add(tt)
+  assert(added[1] and added[1]:find("keep it", 1, true), "tooltip line: " .. tostring(added[1]))
+  print("keep it: " .. line:gsub("|c%x%x%x%x%x%x%x%x", ""):gsub("|r", ""))
+end
+
 -- /sr check runs and reports; errors are caught, not thrown
 do
   local out = {}

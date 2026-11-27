@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.38.0
+
+- **"Keep it" in item tooltips:** anything one of your routes still uses (materials,
+  things the route crafts and uses later such as bolts, and tools) says so in its tooltip,
+  with how many: "SkillRoute: keep it. Your Tailoring route needs 17 (Enchanting: 4)".
+  So it isn't sold to a vendor or listed by mistake. Options: "Mark materials my routes
+  need in item tooltips".
+
 ## 0.37.0
 
 - **Disenchanting in item tooltips:** any weapon or armour (not only crafted items) shows

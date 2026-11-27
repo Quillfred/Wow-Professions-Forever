@@ -310,6 +310,9 @@ local function build()
   y = check(panel, y, "Disenchanting in item tooltips",
     "What a weapon or piece of armour disenchants into, what that's worth at today's AH prices, and whether to disenchant, list it or sell it to a vendor.",
     function() return S().deTooltip ~= false end, function(v) Options.Set("deTooltip", v) end)
+  y = check(panel, y, "Mark materials my routes need in item tooltips",
+    "\"Keep it\" on anything one of your routes still uses (and how many), so you don't sell it by accident.",
+    function() return S().needTooltip ~= false end, function(v) Options.Set("needTooltip", v) end)
   y = check(panel, y, "Count materials on my alts",
     "Uses Syndicator or DataStore, if installed.",
     function() return S().alts ~= false end, function(v) Options.Set("alts", v) end)

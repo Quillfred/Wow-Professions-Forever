@@ -1330,7 +1330,43 @@ local patternCache = {}
 -- bumped whenever SkillRoute re-plans anyway (prices, bags, recipes): Enchanting's
 -- needs for the disenchant advice are recomputed after that
 local needsCache, needsVersion = nil, 0
-function Core.InvalidatePatterns() patternCache = {}; needsVersion = needsVersion + 1 end
+local routeVersion = 0 -- recipes, prices or settings changed (not every bag update)
+function Core.InvalidatePatterns() patternCache = {}; needsVersion = needsVersion + 1; routeVersion = routeVersion + 1 end
+
+-- What your routes still use, for item tooltips: { [item] = { {prof, units}, ... } }.
+-- Every crafting profession you have: each step's reagents for its crafts (materials the
+-- route makes and uses later too), and tools. Worked out again when recipes, prices or
+-- settings change, or after a minute - not on every bag update (tooltips stay quick).
+local routeNeeds
+function Core.RouteNeeds()
+  local now = GetTime and GetTime() or 0
+  if routeNeeds and routeNeeds.ver == routeVersion and now - routeNeeds.t < 60 then return routeNeeds.map end
+  local map, c = {}, Core.Char()
+  for line in pairs(Core.Skills()) do
+    local prof = Data.professions[line]
+    if prof and not prof.gather then
+      local ok, plan = pcall(Core.Plan, line, (c.targets and c.targets[line]) or 300)
+      if ok and plan and plan.steps then
+        local per = {}
+        for _, st in ipairs(plan.steps) do
+          local r = st.spell and prof.recipes[st.spell]
+          if r and r.r then
+            local crafts = math.ceil(st.crafts - 1e-9)
+            for i = 1, #r.r, 2 do per[r.r[i]] = (per[r.r[i]] or 0) + r.r[i + 1] * crafts end
+          end
+          for _, u in ipairs(st.tools or {}) do per[u.item] = math.max(per[u.item] or 0, 1) end
+        end
+        for item, n in pairs(per) do
+          map[item] = map[item] or {}
+          table.insert(map[item], { prof.name, n })
+        end
+      end
+    end
+  end
+  for _, list in pairs(map) do table.sort(list, function(a, b) return a[2] > b[2] end) end
+  routeNeeds = { ver = routeVersion, t = now, map = map }
+  return map
+end
 
 -- Items this profession's recipes use, per profession (fixed data: worked out once).
 local usesCache = {}
