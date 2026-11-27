@@ -13,15 +13,28 @@ local MARK = "SkillRouteDE" -- set on a tooltip once our lines are in (until it'
 local function enabled() return (SkillRouteDB.settings or {}).deTooltip ~= false end
 
 local function itemIDFromLink(link)
+  if type(link) == "number" then return link end
   return type(link) == "string" and tonumber(link:match("item:(%d+)")) or nil
 end
+
+-- The item a tooltip setter shows, from its own arguments.
+local function C(name) return C_Container and C_Container[name] or _G[name] end
+local LINK_OF = {
+  SetBagItem = function(bag, slot) local f = C("GetContainerItemLink"); return f and f(bag, slot) end,
+  SetInventoryItem = function(unit, slot) return GetInventoryItemLink and GetInventoryItemLink(unit, slot) end,
+  SetHyperlink = function(link) return link end,
+  SetItemByID = function(id) return id end,
+  SetMerchantItem = function(i) return GetMerchantItemLink and GetMerchantItemLink(i) end,
+  SetAuctionItem = function(kind, i) return GetAuctionItemLink and GetAuctionItemLink(kind, i) end,
+  SetAuctionSellItem = function() return nil end, -- the tooltip knows it
+}
 
 -- Soulbound? Read from the tooltip's own lines (no API says it for any item).
 local function isSoulbound(tt)
   local text = ITEM_SOULBOUND or "Soulbound"
   local name = tt.GetName and tt:GetName()
   if not name then return false end
-  for i = 2, math.min(6, tt:NumLines() or 0) do
+  for i = 1, tt:NumLines() or 0 do
     local fs = _G[name .. "TextLeft" .. i]
     local t = fs and fs:GetText()
     if t == text then return true end
@@ -99,10 +112,15 @@ local function fromSkillRoute(tt)
   return false
 end
 
-local function addLines(tt)
+-- link: from the setter's own arguments when known (some Forever tooltips don't fill in
+-- GetItem on those paths); else asked from the tooltip.
+local function addLines(tt, link)
   if not enabled() or tt[MARK] or fromSkillRoute(tt) then return end
-  local ok, _, link = pcall(tt.GetItem, tt)
-  if not ok or not link then return end
+  if not link then
+    local ok, _, l = pcall(tt.GetItem, tt)
+    link = ok and l or nil
+  end
+  if not link then return end
   if issecretvalue and issecretvalue(link) then return end
   local item = itemIDFromLink(link)
   if not item then return end
@@ -133,9 +151,13 @@ function TT.Install()
     if tt then
       pcall(tt.HookScript, tt, "OnTooltipCleared", function(self) self[MARK] = nil end)
       pcall(tt.HookScript, tt, "OnTooltipSetItem", function(self) pcall(addLines, self) end)
-      for _, setter in ipairs({ "SetBagItem", "SetInventoryItem", "SetHyperlink", "SetItemByID", "SetAuctionItem",
-                                "SetAuctionSellItem", "SetMerchantItem" }) do
-        if tt[setter] then pcall(hooksecurefunc, tt, setter, function(self) pcall(addLines, self) end) end
+      for setter, linkOf in pairs(LINK_OF) do
+        if tt[setter] then
+          pcall(hooksecurefunc, tt, setter, function(self, ...)
+            local ok, link = pcall(linkOf, ...)
+            pcall(addLines, self, ok and link or nil)
+          end)
+        end
       end
     end
   end

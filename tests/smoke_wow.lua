@@ -2048,6 +2048,13 @@ do
   TT.Install()
   post(tt); local once = added; post(tt)
   assert(once > 3 and added == once, "lines added once: " .. once .. "/" .. added)
+  -- a setter path where the tooltip doesn't know its item: the link comes from the arguments
+  added = 0
+  local blind = { GetItem = function() return nil end, NumLines = function() return 1 end,
+    GetName = function() return "BlindTip" end, AddLine = function() added = added + 1 end,
+    AddDoubleLine = function() added = added + 1 end, Show = function() end, GetOwner = function() return nil end }
+  TT._add(blind, "|Hitem:900001::|h[x]|h")
+  assert(added > 3, "lines from the setter's link")
   _G.TooltipDataProcessor, _G.Enum = nil, nil
   prices[11137], prices[11135], prices[11139] = saved[1], saved[2], saved[3]
   _G.C_Item = savedCItem
