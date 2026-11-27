@@ -5,6 +5,10 @@
 - NPCs inside dungeons (Annora in Uldaman, Blackrock Depths and Dire Maul vendors...) now
   have a location: the dungeon's entrance, from the game's own data, with a note. The
   route used to say "no Artisan trainer known" for Annora.
+- **The arrow follows the route:** when the fastest way starts with a flight, boat or
+  zeppelin, it points at the flight master or dock first ("Flight master, Thunder Bluff,
+  240 yd"), then works out the next leg when you get there or arrive somewhere new, and
+  points at the NPC on the last leg. A hearthstone first says "Use: Hearthstone".
 - The arrow's text is the same every time: name, distance (or "On another continent"),
   and "Fastest: ..." (flight, boat, or walk), also for NPCs you visited yourself.
 - Mini panel: click a trainer, book or quest step, a recipe you haven't learned, or its

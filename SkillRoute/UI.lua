@@ -88,6 +88,7 @@ end
 
 -- Frame ----------------------------------------------------------------------------
 local frame, scroll, content, info, footer, targetBox, profText, modeBtn, hRange, ahBtn, scanBtn
+local autoOpened = false -- opened with the profession window (so it closes with it)
 local lastPlan
 local rows = {}
 local state = { mode = "route" }
@@ -1042,7 +1043,7 @@ end
 
 -- autoOpened: the window was opened by opening a profession window, so it closes
 -- with it. Opened by hand (/sr, Route button) it stays until you close it.
-local autoOpened = false
+-- (autoOpened is declared near the top: the window's OnHide resets it)
 
 -- once per account: how to use the window, in chat
 local function firstRunTips()

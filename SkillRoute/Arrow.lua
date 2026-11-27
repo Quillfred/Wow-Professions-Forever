@@ -8,10 +8,12 @@ local Arrow = {}
 ns.Arrow = Arrow
 
 local ARRIVED = 8     -- yards
+local LEG_REACHED = 15 -- yards from a flight master or dock: work out the next leg
 local INTERVAL = 0.05 -- seconds between updates
+local REROUTE = 3     -- seconds between route checks (you may have flown, sailed, learned a path)
 
 local frame, target
-local acc = 0
+local acc, sinceRoute = 0, 0
 
 -- World position (yards, continent) of a map point: the game's own conversion.
 local function worldOf(ui, x, y)
@@ -23,6 +25,37 @@ local function worldOf(ui, x, y)
   return cont, wx, wy
 end
 Arrow._worldOf = worldOf
+
+-- SkillRoute's data stores world positions in its own axis order; the game's conversion
+-- may use the other. Worked out per continent from NPCs known both ways (exact map
+-- position and data world position), not assumed.
+local orders = {}
+local function orderFor(map)
+  if orders[map] ~= nil then return orders[map] end
+  local Data = SkillRouteData
+  for _, n in pairs(Data and Data.npcs or {}) do
+    if n[3] == map and n[12] and n[10] then
+      local cont, a, b = worldOf(n[12], n[10] / 100, n[11] / 100)
+      if cont then
+        local same = math.abs(a - n[4]) + math.abs(b - n[5])
+        local swapped = math.abs(a - n[5]) + math.abs(b - n[4])
+        if math.min(same, swapped) < 60 then -- yards: the same NPC
+          orders[map] = { cont = cont, swap = swapped < same }
+          return orders[map]
+        end
+      end
+    end
+  end
+  orders[map] = false
+  return false
+end
+function Arrow.DataToWorld(map, x, y)
+  local o = orderFor(map)
+  if not o then return nil end
+  if o.swap then return o.cont, y, x end
+  return o.cont, x, y
+end
+Arrow._resetOrders = function() orders = {} end
 
 -- Your map and world position, or nil (instances, loading).
 local function playerWorld()
@@ -101,8 +134,10 @@ local function build()
   frame.route:SetWidth(260)
   frame:SetScript("OnUpdate", function(_, elapsed)
     acc = acc + elapsed
+    sinceRoute = sinceRoute + elapsed
     if acc < INTERVAL then return end
     acc = 0
+    if sinceRoute >= REROUTE then Arrow.Reroute() end
     Arrow.Update()
   end)
   frame:Hide()
@@ -113,6 +148,28 @@ local function place()
   frame:ClearAllPoints()
   if p then frame:SetPoint("CENTER", UIParent, "BOTTOMLEFT", p[1], p[2])
   else frame:SetPoint("TOP", UIParent, "TOP", 0, -140) end
+end
+
+-- Work the route out again from where you are: point at its first stop (flight master,
+-- dock), or at the NPC when you can walk there.
+function Arrow.Reroute()
+  if not (target and target.ids and #target.ids > 0) then return end
+  sinceRoute = 0
+  local loc = Core.NearestNPC(target.ids)
+  if not loc then return end
+  local via = loc.via and #loc.via > 0 and table.concat(loc.via, ", then ") or nil
+  local here = playerWorld()
+  if via then target.route = "|cff999999Fastest:|r " .. via
+  elseif here and here ~= target.cont then target.route = "|cff999999No known route yet: open a flight master's map, or take a boat or zeppelin|r"
+  else target.route = "|cff999999Fastest:|r walk" end
+  target.leg = nil
+  local f = loc.first
+  if f and f.shortcut then
+    target.leg = { shortcut = f.shortcut }
+  elseif f then
+    local c, a, b = Arrow.DataToWorld(f.map, f.x, f.y)
+    if c then target.leg = { cont = c, x = a, y = b, label = f.label } end
+  end
 end
 
 function Arrow.Update()
@@ -127,13 +184,22 @@ function Arrow.Update()
     frame.dist:SetText("|cff999999No position here (dungeon or loading)|r")
     return
   end
-  local angle, dist = Arrow.Bearing(pc, px, py, facing, target.cont, target.x, target.y, ax)
+  -- the route's first stop first (flight master, dock); the NPC on the last leg
+  local leg = target.leg
+  if leg and leg.shortcut then
+    frame.arrow:Hide()
+    frame.dist:SetText("|cffffd100Use: " .. leg.shortcut .. "|r")
+    return
+  end
+  local aim = leg or target
+  local angle, dist = Arrow.Bearing(pc, px, py, facing, aim.cont, aim.x, aim.y, ax)
+  if leg and angle and dist <= LEG_REACHED then Arrow.Reroute(); return end
   if not angle then -- another continent: the route line says how
     frame.arrow:Hide()
     frame.dist:SetText("|cffffd100On another continent|r")
     return
   end
-  if dist <= ARRIVED then
+  if not leg and dist <= ARRIVED then
     frame.arrow:Hide()
     frame.dist:SetText("|cff40bf40Arrived|r")
     if not target.arrivedAt then
@@ -150,21 +216,23 @@ function Arrow.Update()
   if off < 0.35 then frame.arrow:SetVertexColor(0.3, 1, 0.3)
   elseif off < 1.6 then frame.arrow:SetVertexColor(1, 0.85, 0.2)
   else frame.arrow:SetVertexColor(1, 0.35, 0.3) end
-  frame.dist:SetText(("%d yd"):format(math.floor(dist + 0.5)))
+  if leg then frame.dist:SetText(("|cffffd100%s|r, %d yd"):format(leg.label, math.floor(dist + 0.5)))
+  else frame.dist:SetText(("%d yd"):format(math.floor(dist + 0.5))) end
 end
 
 -- Point at a place: ui map + x, y (0-1). Returns false if it can't (no world position).
-function Arrow.Set(ui, x, y, title, where, via)
+function Arrow.Set(ui, x, y, title, where, via, ids)
   local cont, wx, wy = worldOf(ui, x, y)
   if not cont then return false end
   if not frame then build() end
-  target = { cont = cont, x = wx, y = wy, title = title or "Waypoint", where = where, via = via }
+  target = { cont = cont, x = wx, y = wy, title = title or "Waypoint", where = where, via = via, ids = ids }
   -- the route line, the same wording every time
   local here = playerWorld()
   if via then target.route = "|cff999999Fastest:|r " .. via:gsub("^via ", "")
   elseif here and here ~= cont then target.route = "|cff999999No known route yet: open a flight master's map, or take a boat or zeppelin|r"
   else target.route = "|cff999999Fastest:|r walk" end
   frame.title:SetText(target.title)
+  Arrow.Reroute()
   place()
   frame:Show()
   Arrow.Update()

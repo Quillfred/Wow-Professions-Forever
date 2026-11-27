@@ -1862,6 +1862,38 @@ do
   assert(#named >= 1, "found by name")
   A.Clear(); assert(not A.Target())
   _G.TomTom = savedTT
+  -- data world positions -> the game's, axis order worked out from an NPC known both ways
+  local ref
+  for _, n in pairs(SkillRouteData.npcs) do if n[12] and n[10] and n[3] == 1 then ref = n; break end end
+  for _, swapped in ipairs({ false, true }) do
+    A._resetOrders()
+    _G.C_Map = setmetatable({ GetWorldPosFromMapPos = function(ui, v)
+      if ui == ref[12] and math.abs(v.x - ref[10] / 100) < 1e-9 and math.abs(v.y - ref[11] / 100) < 1e-9 then
+        return 1, swapped and { x = ref[5], y = ref[4] } or { x = ref[4], y = ref[5] }
+      end
+      return 1, { x = 0, y = 0 }
+    end }, { __index = savedMap })
+    local c, a, b = A.DataToWorld(1, 100, 200)
+    assert(c == 1 and (swapped and (a == 200 and b == 100) or (a == 100 and b == 200)), "axis order: " .. tostring(swapped))
+  end
+  -- the arrow points at the route's first stop (a flight master), then the NPC
+  local savedNearest = Core.NearestNPC
+  Core.NearestNPC = function() return { via = { "flight to Orgrimmar", "boat/zeppelin: Orgrimmar and Undercity" },
+    first = { map = 1, x = 100, y = 200, label = "Flight master, Thunder Bluff" } } end
+  local rp2 = print; _G.print = function() end
+  Core.Waypoint({ npc = "Josef Gregorian", ui = 90, x = 70.8, y = 29.2, zone = "Undercity", id = 1 })
+  _G.print = rp2
+  local t = A.Target()
+  assert(t.leg and t.leg.label == "Flight master, Thunder Bluff" and t.leg.cont == 1, "first stop: the flight master")
+  assert(t.route:find("flight to Orgrimmar, then boat/zeppelin", 1, true), t.route)
+  Core.NearestNPC = function() return { first = { shortcut = "Hearthstone to Orgrimmar" } } end
+  A.Reroute()
+  assert(A.Target().leg.shortcut == "Hearthstone to Orgrimmar", "a hearthstone first")
+  Core.NearestNPC = function() return {} end
+  A.Reroute()
+  assert(A.Target().leg == nil, "last leg: straight to the NPC")
+  Core.NearestNPC = savedNearest
+  A.Clear()
   assert(A.Bearing(1, 0, 0, 0, 2, 5, 5, { 1, 0, 0, 1 }) == nil, "another continent: no arrow")
   _G.C_Map, _G.CreateVector2D = savedMap, savedV
   print("waypoint arrow: right direction and distance with either world-axis order")

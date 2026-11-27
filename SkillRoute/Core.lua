@@ -619,7 +619,7 @@ local function travelTable(pm, px, py)
   for _, sc in ipairs(shortcuts) do sk[#sk + 1] = sc[5]:gsub("%(ready in %d+ min%)", "") .. math.floor(sc[4] / 60) end
   local key = table.concat({ pm, math.floor(px / 100), math.floor(py / 100), taxiVersion, tostring(letter),
                              table.concat(sk, "|") }, ":")
-  if travelCache and travelCache.key == key then return travelCache[1], travelCache[2], travelCache[3] end
+  if travelCache and travelCache.key == key then return travelCache[1], travelCache[2], travelCache[3], travelCache[4] end
   local pts, adj = {}, {}
   local function add(map, x, y) pts[#pts + 1] = { map, x, y }; adj[#pts] = {}; return #pts end
   for _, t in ipairs(Data.transports or {}) do
@@ -647,11 +647,14 @@ local function travelTable(pm, px, py)
   local first = {}
   for _, sc in ipairs(shortcuts) do first[add(sc[1], sc[2], sc[3])] = sc end
   local N = #pts
-  local dist, via, done = {}, {}, {}
+  -- firstPt[i]: where you go first on the way to point i (a point index you walk to,
+  -- or the shortcut you use, e.g. your hearthstone) - what the arrow points at
+  local dist, via, done, firstPt = {}, {}, {}, {}
   for i = 1, N do
     dist[i] = pts[i][1] == pm and walk(px, py, pts[i][2], pts[i][3]) or math.huge
+    firstPt[i] = i
     local sc = first[i]
-    if sc and sc[4] < dist[i] then dist[i] = sc[4]; via[i] = { sc[5] } end
+    if sc and sc[4] < dist[i] then dist[i] = sc[4]; via[i] = { sc[5] }; firstPt[i] = { shortcut = sc[5] } end
   end
   for _ = 1, N do
     local u, best = nil, math.huge
@@ -663,7 +666,7 @@ local function travelTable(pm, px, py)
       local pv = pts[v]
       if not done[v] and pv[1] == pu[1] then
         local c = dist[u] + walk(pu[2], pu[3], pv[2], pv[3])
-        if c < dist[v] then dist[v] = c; via[v] = via[u] end
+        if c < dist[v] then dist[v] = c; via[v] = via[u]; firstPt[v] = firstPt[u] end
       end
     end
     for _, e in ipairs(adj[u]) do
@@ -677,25 +680,37 @@ local function travelTable(pm, px, py)
         if e[3] == "flight" and legs[#legs] and legs[#legs]:find("^flight to ") then legs[#legs] = label
         else legs[#legs + 1] = label end
         via[v] = legs
+        firstPt[v] = firstPt[u]
       end
     end
   end
-  travelCache = { key = key, pts, dist, via }
-  return pts, dist, via
+  travelCache = { key = key, pts, dist, via, firstPt }
+  return pts, dist, via, firstPt
 end
 
 -- seconds from you to an NPC, and the first boat/zeppelin on the way (or nil)
 local function travelTo(tt, pm, px, py, n)
-  local best, how = math.huge, nil
+  local best, how, firstIdx = math.huge, nil, nil
   if n[3] == pm then best = walk(px, py, n[4], n[5]) end
-  local stops, dist, via = tt[1], tt[2], tt[3]
+  local stops, dist, via, firstPt = tt[1], tt[2], tt[3], tt[4]
   for i, st in ipairs(stops) do
     if st[1] == n[3] and dist[i] < math.huge then
       local c = dist[i] + walk(st[2], st[3], n[4], n[5])
-      if c < best then best, how = c, via[i] end
+      if c < best then best, how, firstIdx = c, via[i], firstPt and firstPt[i] end
     end
   end
-  return best, how
+  return best, how, firstIdx
+end
+
+-- The first stop on a route, for the arrow: { map, x, y, label } (data world position)
+-- or { shortcut = "Hearthstone ..." }; nil when you just walk there.
+local function firstStop(tt, idx, how)
+  if not idx then return nil end
+  if type(idx) == "table" then return { shortcut = idx.shortcut } end
+  local p = tt[1][idx]
+  local leg = how and how[1] or ""
+  local label = p.name and ("Flight master, " .. p.name) or ("Boat/zeppelin: " .. leg:gsub("^boat/zeppelin: ", ""))
+  return { map = p[1], x = p[2], y = p[3], label = label }
 end
 
 -- The nearest (by travel time) of these NPCs that deals with your faction.
@@ -703,13 +718,13 @@ function Core.NearestNPC(ids)
   local letter = myLetter()
   local pm, px, py = playerWorld()
   local tt = pm and { travelTable(pm, px, py) }
-  local best, bestD, bestHow
+  local best, bestD, bestHow, bestFirst
   for _, id in ipairs(ids or {}) do
     local n = Data.npcs and Data.npcs[id]
     if n and (not letter or n[2]:find(letter, 1, true)) then
-      local d, how = math.huge, nil
-      if tt then d, how = travelTo(tt, pm, px, py, n) end
-      if not bestD or d < bestD then best, bestD, bestHow = id, d, how end
+      local d, how, fi = math.huge, nil, nil
+      if tt then d, how, fi = travelTo(tt, pm, px, py, n) end
+      if not bestD or d < bestD then best, bestD, bestHow, bestFirst = id, d, how, fi end
     end
   end
   if not best then return nil end
@@ -720,6 +735,7 @@ function Core.NearestNPC(ids)
   copy.note = Data.npcNotes and Data.npcNotes[best] -- "inside Uldaman (dungeon)"
   copy.travel = bestD < math.huge and bestD or nil
   copy.via = bestHow
+  copy.first = tt and bestHow and firstStop(tt, bestFirst, bestHow) or nil
   return copy
 end
 
@@ -909,7 +925,8 @@ function Core.Waypoint(loc, title)
     if found then loc = setmetatable({ via = found.via, travel = found.travel }, { __index = loc }) end
   end
   local via = loc.via and #loc.via > 0 and ("via " .. table.concat(loc.via, ", then ")) or nil
-  local arrow = ns.Arrow and ns.Arrow.Set(ui, x / 100, y / 100, title, Core.Where(loc), via)
+  local ids = loc.id and { loc.id } or (loc.npc and Core.NPCsNamed(loc.npc)) or nil
+  local arrow = ns.Arrow and ns.Arrow.Set(ui, x / 100, y / 100, title, Core.Where(loc), via, ids)
   if arrow or pinned then
     print(("SkillRoute: %s to %s, %s."):format(arrow and "arrow pointing" or "map pin set", title, Core.Where(loc) or ""))
     return arrow and "arrow" or "pin"
