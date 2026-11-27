@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.38.2 (not released yet)
+## 0.38.2
 
 - Fixed: when the route window's footer ran to two lines (a long total with training
   costs), it covered the last step. The "planned in" timing is now left off when the
