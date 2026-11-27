@@ -1235,6 +1235,47 @@ end
 function Core.Have(item)
   return getCount(item, true) -- bags + bank
 end
+
+-- In your mailbox (AH purchases arrive there): the mailbox as last seen, plus what you've
+-- bought on the AH since. Per character; kept between sessions.
+local function mailBook()
+  local c = Core.Char()
+  c.mail = c.mail or { items = {} }
+  return c.mail
+end
+function Core.InMail(item) return mailBook().items[item] or 0 end
+-- An AH purchase: on its way by mail.
+function Core.AddToMail(item, qty)
+  if not (item and qty and qty > 0) then return end
+  local m = mailBook()
+  m.items[item] = (m.items[item] or 0) + qty
+  Core.Changed()
+end
+-- The mailbox is open: count exactly what's in it (replaces the estimate).
+function Core.ReadMailbox()
+  if not (GetInboxNumItems and GetInboxItem) then return end
+  local items = {}
+  local n = GetInboxNumItems() or 0
+  for i = 1, n do
+    for a = 1, (ATTACHMENTS_MAX_RECEIVE or 16) do
+      local ok, _, id, _, count = pcall(GetInboxItem, i, a)
+      if ok and id and count and count > 0 then items[id] = (items[id] or 0) + count end
+    end
+  end
+  local m = mailBook()
+  local changed = false
+  for k, v in pairs(items) do if m.items[k] ~= v then changed = true end end
+  for k in pairs(m.items) do if not items[k] then changed = true end end
+  m.items, m.t = items, time and time() or 0
+  if changed then Core.Changed() end
+end
+-- What you own for planning: bags, bank, and what's waiting in the mail.
+function Core.Owned(item) return Core.Have(item) + Core.InMail(item) end
+do
+  local mf = CreateFrame("Frame")
+  for _, ev in ipairs({ "MAIL_SHOW", "MAIL_INBOX_UPDATE" }) do pcall(mf.RegisterEvent, mf, ev) end
+  mf:SetScript("OnEvent", function() pcall(Core.ReadMailbox) end)
+end
 function Core.InBags(item)
   return getCount(item, false)
 end
@@ -1479,7 +1520,7 @@ function Core.Plan(line, target)
     recipes = recipes, items = Data.items, tools = Data.tools,
     skill = s.rank, target = target, maxSkill = s.max,
     known = known, trainer = db().trainer[line] or {},
-    price = Core.Price, have = Core.Have, haveAlts = Core.HaveOnAlts, hasTool = Core.HasTool, standing = Core.Standing,
+    price = Core.Price, have = Core.Owned, haveAlts = Core.HaveOnAlts, hasTool = Core.HasTool, standing = Core.Standing,
     avoidMats = not settings.cdmats and Data.cooldownMats or nil,
     z = Core.MarginZ(settings.margin),
     craftValue = settings.craftValue or 0,
@@ -1587,7 +1628,7 @@ function Core.StepShopping(plan, st)
     local mr = made[item]
     if mr and depth < 2 then
       -- bars or bolts you already have go first; only the rest is made from raw materials
-      if ownedLeft[item] == nil then ownedLeft[item] = (Core.Have(item) or 0) + (Core.HaveOnAlts(item) or 0) end
+      if ownedLeft[item] == nil then ownedLeft[item] = (Core.Owned(item) or 0) + (Core.HaveOnAlts(item) or 0) end
       local use = math.min(n, ownedLeft[item])
       ownedLeft[item] = ownedLeft[item] - use
       n = n - use
@@ -1603,7 +1644,7 @@ function Core.StepShopping(plan, st)
   for item, n in pairs(want) do
     local it = Data.items[item]
     local vendorOnly = Core.FromVendor(item)
-    local qty = math.ceil(n - 1e-9) - (Core.Have(item) or 0) - (Core.HaveOnAlts(item) or 0)
+    local qty = math.ceil(n - 1e-9) - (Core.Owned(item) or 0) - (Core.HaveOnAlts(item) or 0) -- bought, in the mail: not again
     if qty > 0 and not vendorOnly then
       out[#out + 1] = { item = item, name = (GetItemInfo and GetItemInfo(item)) or (it and it[1]) or ("item " .. item), qty = qty }
     end

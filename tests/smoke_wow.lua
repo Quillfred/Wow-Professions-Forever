@@ -1606,6 +1606,8 @@ do
   money = money - 500
   fireP("COMMODITY_PURCHASE_SUCCEEDED")
   assert(P.LastPaid(999123) == 100, "paid 1s each")
+  -- AH purchases arrive by mail: counted as owned until you collect them (no buying twice)
+  assert(Core.InMail(999123) == 5 and Core.Owned(999123) >= 5, "5 bought: in the mail")
   assert(Core.Price(999123) == 100, "no AH price: what you paid")
   local pi = Core.PriceInfo(2589)
   assert(pi.ah == P.Own(2589) and pi.src == "SkillRoute scan" and pi.age == 0, "tooltip info (the amount-priced average)")
@@ -2334,6 +2336,35 @@ do
   Core.Plan, Core.PriceSource = savedPlan, savedSrc
   if not wasShown then ns.UI.Toggle() else ns.UI.Refresh() end
   print("unpriced: " .. after:gsub("|c%x%x%x%x%x%x%x%x", ""):gsub("|r", ""))
+end
+
+-- the mailbox: what's in it counts as owned; opening it replaces the estimate
+do
+  local c = Core.Char()
+  local saved = c.mail
+  c.mail = nil
+  local plan = Core.Plan(197, 300)
+  local st
+  for _, x in ipairs(plan.steps) do if x.spell and #Core.StepShopping(plan, x) > 0 then st = x; break end end
+  assert(st, "a step with something to buy")
+  local first = Core.StepShopping(plan, st)[1]
+  -- bought on the AH: still in the mail, so the step doesn't ask for it again
+  Core.AddToMail(first.item, first.qty)
+  for _, x in ipairs(Core.StepShopping(plan, st)) do
+    assert(x.item ~= first.item, "bought and in the mail: not to buy again")
+  end
+  -- the mailbox opened: its real contents replace the estimate (you took some out)
+  _G.GetInboxNumItems = function() return 1 end
+  _G.GetInboxItem = function(i, a) if a == 1 then return "x", first.item, 0, 2 end end
+  Core.ReadMailbox()
+  assert(Core.InMail(first.item) == 2, "mailbox read: 2 left in it: " .. Core.InMail(first.item))
+  _G.GetInboxNumItems = function() return 0 end
+  Core.ReadMailbox()
+  assert(Core.InMail(first.item) == 0, "collected: nothing in the mail")
+  _G.GetInboxNumItems, _G.GetInboxItem = nil, nil
+  c.mail = saved
+  Core.Changed()
+  print("mail: bought items count as owned until collected")
 end
 
 -- /sr check runs and reports; errors are caught, not thrown

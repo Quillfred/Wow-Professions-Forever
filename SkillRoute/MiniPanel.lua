@@ -267,7 +267,9 @@ local function draw()
       m.l:SetText(UI.ItemName(item))
       -- where to get what's missing: the same rule as the step's buy list
       local from = ""
-      if have < need and it and it[3] then
+      local mail = have < need and Core.InMail(item) or 0
+      if mail > 0 then from = (" |cff33ccff%d in the mail|r"):format(mail) -- bought: collect it
+      elseif have < need and it and it[3] then
         from = Core.FromVendor(item) and " |cff999999vendor|r" or " |cff999999AH: cheaper|r"
       end
       m.r:SetText(("|cff%s%d / %d|r%s"):format(have >= need and "40bf40" or "ff6060", have, need, from))

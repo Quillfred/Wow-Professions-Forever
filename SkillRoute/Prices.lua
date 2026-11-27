@@ -632,6 +632,7 @@ f:SetScript("OnEvent", function(_, ev, a, b)
       local spent = pending.money and (pending.money - GetMoney()) or nil
       local total = pending.total or (spent and spent > 0 and spent) or nil
       Prices.RecordPaid(pending.item, pending.qty, total)
+      Core.AddToMail(pending.item, pending.qty) -- AH purchases arrive by mail: don't buy them again
     end
     pending = nil
   elseif ev == "COMMODITY_PURCHASE_FAILED" then

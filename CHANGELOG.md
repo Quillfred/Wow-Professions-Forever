@@ -2,6 +2,11 @@
 
 ## 0.38.3 (not released yet)
 
+- Fixed: AH purchases arrive in your mailbox, and SkillRoute only counted bags and bank,
+  so until you collected the mail it still listed what you'd just bought (and you could
+  buy it twice). What you buy on the AH (with SkillRoute, the AH's own window or
+  Auctionator) now counts as yours straight away, and opening the mailbox counts exactly
+  what's in it. The mini panel shows "1 in the mail" next to a material waiting there.
 - Buying panel: a one-of-a-kind item (a Truesilver Rod) said "the AH can't quote this
   (not stackable, or too few listed)", which ran into the next row. It now says "Search,
   then buy from the list" on one line.
