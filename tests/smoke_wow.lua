@@ -2024,7 +2024,7 @@ do
   local mats = {}
   for i = 1, #loot, 4 do mats[loot[i]] = loot[i + 1] end
   assert(mats[11137] == 75 and mats[11135] == 20 and mats[11139] == 5, "ilvl 36-40: Vision Dust 75%, Greater Mystic 20%, Large Glowing 5%")
-  assert(skill == 100, "skill by the Classic rule: " .. tostring(skill))
+  assert(skill == 1, "Forever: no skill requirement (checked in game): " .. tostring(skill))
   assert(Core.DisenchantOf(11288) == nil, "enchanters' wands can't be disenchanted")
   assert(select(3, Core.DisenchantOf(250001)) == true, "a new Forever rare: no guess")
   -- value: priced materials add up; one unpriced -> a lower bound, named

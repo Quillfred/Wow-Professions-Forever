@@ -1669,13 +1669,17 @@ end
 -- items from the data; anything else by quality and item level in Forever's brackets
 -- (weapons and armour, uncommon to epic). Second result "unverified": a new Forever
 -- rare no bracket covers (no guess is made).
+-- Forever has no Enchanting skill requirement for disenchanting (its table says 0, and
+-- checked in game: an item level 55 green disenchanted at skill 170). Having Enchanting
+-- is all it takes.
+local NO_SKILL = 1
 local deCache = {}
 function Core.DisenchantOf(item)
   local D = Data.disenchant
   if not (D and item) then return nil end
   if D.never and D.never[item] then return nil end
   local of = D.of and D.of[item]
-  if of then return of[1], of[2] end
+  if of then return of[1], NO_SKILL end
   if deCache[item] ~= nil then return deCache[item][1], deCache[item][2], deCache[item][3] end
   local info = (C_Item and C_Item.GetItemInfo) or GetItemInfo
   if not info then return nil end
@@ -1689,8 +1693,7 @@ function Core.DisenchantOf(item)
       end
     end
   end
-  -- Forever's table leaves the skill at 0: the Classic rule, as for crafted items
-  local skill = key and (ilvl <= 20 and 1 or math.min(300, 25 * math.floor((ilvl - 16) / 5))) or nil
+  local skill = key and NO_SKILL or nil
   local unverified = not key and (cls == 2 or cls == 4) and q == 3 and item >= 200000 or nil
   deCache[item] = { key, skill, unverified }
   return key, skill, unverified

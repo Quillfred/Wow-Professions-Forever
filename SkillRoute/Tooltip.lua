@@ -62,8 +62,7 @@ function TT.Lines(item, bound, vendorPrice)
   local lines = {}
   local skillText
   if not ench then skillText = "|cff999999you don't have Enchanting|r"
-  elseif ench.rank >= (skill or 0) then skillText = ("|cff40bf40Enchanting %d|r"):format(skill or 1)
-  else skillText = ("|cffff4040needs Enchanting %d (you're %d)|r"):format(skill, ench.rank) end
+  else skillText = "|cff40bf40you can disenchant this|r" end -- Forever: no skill requirement
   lines[#lines + 1] = { "|cff33ccffSkillRoute: disenchants into|r", skillText }
   local rows, total, missing = TT.Value(key)
   for _, r in ipairs(rows) do

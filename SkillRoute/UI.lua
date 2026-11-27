@@ -674,7 +674,7 @@ local function craftedRows(plan, add)
     local parts = {}
     parts[#parts + 1] = a.ah and ("AH " .. money(a.ah) .. (a.listed and ((a.crowded and " |cffff8040(%d listed: crowded)|r" or " (%d listed)"):format(a.listed)) or "")) or "AH: no fresh price"
     if a.de then parts[#parts + 1] = "disenchant ~" .. money(a.de) .. ((a.deUsed and #a.deUsed > 0) and " (Enchanting route needs the results)" or "")
-    elseif a.deSkill and a.deSkill > 0 then parts[#parts + 1] = ("disenchant needs %d"):format(a.deSkill) end
+    elseif a.deSkill then parts[#parts + 1] = Core.Skills()[333] and "disenchant: no fresh prices" or "disenchant: needs Enchanting" end
     parts[#parts + 1] = "vendor " .. money(a.vendor)
     local tip = { { header = "SkillRoute" }, { "Best", ACTION[a.best] .. ", " .. money(a.bestValue) .. " each" },
                   { "AH", a.ah and (money(a.ah) .. " after the 5% cut") or "no fresh price", sub = true } }
@@ -682,7 +682,7 @@ local function craftedRows(plan, add)
       tip[#tip + 1] = { "listed", ("%d now%s"):format(a.listed, a.crowded and ": crowded, so the AH counts for 70% when choosing" or ""), sub = true }
     end
     if a.de then tip[#tip + 1] = { "disenchant", "~" .. money(a.de) .. ((a.deUsed and #a.deUsed > 0) and " (counts what Enchanting needs)" or ""), sub = true }
-    elseif a.deSkill and a.deSkill > 0 then tip[#tip + 1] = { "disenchant", ("needs Enchanting %d"):format(a.deSkill), sub = true } end
+    elseif a.deSkill then tip[#tip + 1] = { "disenchant", Core.Skills()[333] and "no fresh prices for what it gives" or "needs Enchanting", sub = true } end
     tip[#tip + 1] = { "vendor", money(a.vendor), sub = true }
     if a.deLoot then
       tip[#tip + 1] = { gap = true }
