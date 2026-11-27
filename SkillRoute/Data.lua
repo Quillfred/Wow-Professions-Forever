@@ -6398,7 +6398,7 @@ SkillRouteData = {
   -- character level to learn a rank (crafting and secondary professions)
   rankLevel = {[2]=10,[3]=20,[4]=35},
   -- notes shown with an NPC (e.g. inside a dungeon)
-  npcNotes = {[11073]="inside Uldaman (level 42-52 dungeon): appears after you clear ~10 scorpids near her; level 42 elite",[-110742]="up a narrow, near-hidden path from 48.5, 58.4 (a downed tree points to it)"},
+  npcNotes = {[11073]="inside Uldaman (level 42-52 dungeon): appears after you clear ~10 scorpids near her; level 42 elite; the waypoint is the Uldaman entrance",[-110742]="up a narrow, near-hidden path from 48.5, 58.4 (a downed tree points to it)",[12944]="inside Blackrock Depths (dungeon): the waypoint is its entrance",[14371]="inside Dire Maul (dungeon): the waypoint is its entrance",[9499]="inside Blackrock Depths (dungeon): the waypoint is its entrance",[9676]="inside Gnomeregan (dungeon): the waypoint is its entrance"},
   -- rank-ups no trainer teaches in Forever (ATT): [skillLine] = {[rank] = "B" book | "Q" quest}
   rankSource = {
     [129]={[3]="B",[4]="Q"},
@@ -7260,7 +7260,7 @@ SkillRouteData = {
     [8934]={"Christopher Hewen","A",0,-10632.6,1188.8,1415,42.08,77.13,"Westfall",52.2,52.8},
     [9179]={"Jazzrik","AH",0,-6760.2,-3135.6,1415,54.36,60.63,nil,nil,nil},
     [9356]={"Innkeeper Shul'kar","H",0,-6650.1,-2149.4,1415,51.56,60.16,nil,nil,nil},
-    [9499]={"Plugger Spazzring","AH",230,888.5,-177.9,nil,nil,nil,nil,nil,nil},
+    [9499]={"Plugger Spazzring","AH",0,-7178.1,-928.6,1415,48.09,62.41,nil,nil,nil},
     [9501]={"Innkeeper Adegwa","H",0,-912.4,-3524.9,1415,55.47,35.71,nil,nil,nil},
     [9544]={"Yuka Screwspigot","AH",0,-7459.8,-2201.6,1415,51.71,63.61,nil,nil,nil},
     [9548]={"Cawind Trueaim","H",1,-4484.6,233.5,1414,45.74,70.45,nil,nil,nil},
@@ -7268,7 +7268,7 @@ SkillRouteData = {
     [9552]={"Zanara","H",1,-3086.6,-2838.9,1414,54.09,64.76,nil,nil,nil},
     [9555]={"Mu'uta","H",0,-933.9,-3477.5,1415,55.33,35.8,nil,nil,nil},
     [9636]={"Kireena","H",1,-1153.3,1941.5,1414,41.1,56.87,nil,nil,nil},
-    [9676]={"Tink Sprocketwhistle","A",90,-559.5,195.8,nil,nil,nil,nil,nil,nil},
+    [9676]={"Tink Sprocketwhistle","A",0,-5162.7,931.6,1415,42.81,53.82,nil,nil,nil},
     [10118]={"Nessa Shadowsong","A",1,8694.0,950.3,1414,43.79,16.74,"Teldrassil",56.3,92.4},
     [10276]={"Rotgath Stonebeard","A",0,-4793.8,-1127.5,1415,48.66,52.25,nil,nil,nil},
     [10277]={"Groum Stonebeard","A",0,-4790.5,-1126.8,1415,48.66,52.23,nil,nil,nil},
@@ -7294,7 +7294,7 @@ SkillRouteData = {
     [11067]={"Malcomb Wynn","H",0,1491.7,273.2,1415,44.68,25.46,nil,nil,nil},
     [11070]={"Lalina Summermoon","A",1,10148.4,2316.2,1414,40.08,10.81,nil,nil,nil},
     [11071]={"Mot Dawnstrider","H",1,-1117.9,51.0,1414,46.24,56.73,nil,nil,nil},
-    [11073]={"Annora","AH",70,-159.8,196.2,nil,nil,nil,nil,nil,nil},
+    [11073]={"Annora","AH",0,-6060.2,-2955.0,1415,53.85,57.64,nil,nil,nil},
     [11081]={"Faldron","A",1,10084.3,2252.8,1414,40.26,11.07,nil,nil,nil},
     [11083]={"Darianna","A",1,10091.0,2256.4,1414,40.25,11.04,nil,nil,nil},
     [11084]={"Tarn","H",1,-1146.5,74.9,1414,46.17,56.85,nil,nil,nil},
@@ -7332,7 +7332,7 @@ SkillRouteData = {
     [12941]={"Jase Farlane","AH",0,2313.9,-5305.0,1415,60.53,21.96,"Eastern Plaguelands",70.9,48.1},
     [12942]={"Leonard Porter","A",0,949.9,-1435.7,1415,49.53,27.77,nil,nil,nil},
     [12943]={"Werg Thickblade","H",0,1737.1,-730.9,1415,47.53,24.42,nil,nil,nil},
-    [12944]={"Lokhtos Darkbargainer","AH",230,912.5,-185.9,nil,nil,nil,nil,nil,nil},
+    [12944]={"Lokhtos Darkbargainer","AH",0,-7178.1,-928.6,1415,48.09,62.41,nil,nil,nil},
     [12956]={"Zannok Hidepiercer","AH",1,-6370.4,-319.0,1414,47.24,78.14,nil,nil,nil},
     [12957]={"Blimo Gadgetspring","AH",1,2270.0,-5569.6,1414,61.51,42.92,"Azshara",45.2,90.8},
     [12958]={"Gigget Zipcoil","AH",0,476.3,-2901.6,1415,53.7,29.79,"The Hinterlands",34.5,38.6},
@@ -7347,7 +7347,7 @@ SkillRouteData = {
     [13435]={"Khole Jinglepocket","AH",0,-8810.0,641.5,1415,43.63,69.36,nil,nil,nil},
     [13476]={"Balai Lok'Wein","H",1,-3095.8,-2890.5,1414,54.23,64.79,nil,nil,nil},
     [14301]={"Brinna Valanaar","A",1,2691.3,-3885.6,1414,56.94,41.2,nil,nil,nil},
-    [14371]={"Shen'dralar Provisioner","AH",429,120.7,459.2,nil,nil,nil,nil,nil,nil},
+    [14371]={"Shen'dralar Provisioner","AH",1,-3908.0,1130.0,1414,43.31,68.1,nil,nil,nil},
     [14624]={"Master Smith Burninate","AH",0,-6524.0,-1188.7,1415,48.83,59.62,nil,nil,nil},
     [14637]={"Zorbin Fandazzle","AH",1,-4378.6,2327.3,1414,40.05,70.02,nil,nil,nil},
     [14731]={"Lard","H",0,-622.0,-4583.4,1415,58.48,34.47,"The Hinterlands",78.1,81.4},

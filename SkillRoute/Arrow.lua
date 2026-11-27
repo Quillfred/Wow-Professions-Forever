@@ -94,9 +94,11 @@ local function build()
   frame.arrow:SetTexture("Interface\\Minimap\\MinimapArrow")
   frame.title = frame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
   frame.title:SetPoint("TOP", frame.arrow, "BOTTOM", 0, -2)
-  frame.dist = frame:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+  frame.dist = frame:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
   frame.dist:SetPoint("TOP", frame.title, "BOTTOM", 0, -1)
-  frame.dist:SetWidth(220)
+  frame.route = frame:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+  frame.route:SetPoint("TOP", frame.dist, "BOTTOM", 0, -1)
+  frame.route:SetWidth(260)
   frame:SetScript("OnUpdate", function(_, elapsed)
     acc = acc + elapsed
     if acc < INTERVAL then return end
@@ -118,15 +120,17 @@ function Arrow.Update()
   local pc, px, py, map = playerWorld()
   local facing = GetPlayerFacing and GetPlayerFacing()
   local ax = map and axes(map)
+  -- always the same lines: name, then where it is from you, then the fastest way there
+  frame.route:SetText(target.route)
   if not pc or not facing or not ax then -- an instance, or loading
     frame.arrow:Hide()
-    frame.dist:SetText("|cff999999no position here|r")
+    frame.dist:SetText("|cff999999No position here (dungeon or loading)|r")
     return
   end
   local angle, dist = Arrow.Bearing(pc, px, py, facing, target.cont, target.x, target.y, ax)
-  if not angle then -- another continent: how to get there
+  if not angle then -- another continent: the route line says how
     frame.arrow:Hide()
-    frame.dist:SetText(target.via and ("|cffffd100" .. target.via .. "|r") or "|cff999999on another continent|r")
+    frame.dist:SetText("|cffffd100On another continent|r")
     return
   end
   if dist <= ARRIVED then
@@ -146,7 +150,7 @@ function Arrow.Update()
   if off < 0.35 then frame.arrow:SetVertexColor(0.3, 1, 0.3)
   elseif off < 1.6 then frame.arrow:SetVertexColor(1, 0.85, 0.2)
   else frame.arrow:SetVertexColor(1, 0.35, 0.3) end
-  frame.dist:SetText(("%d yd"):format(math.floor(dist + 0.5)) .. (target.via and ("  |cff999999" .. target.via .. "|r") or ""))
+  frame.dist:SetText(("%d yd"):format(math.floor(dist + 0.5)))
 end
 
 -- Point at a place: ui map + x, y (0-1). Returns false if it can't (no world position).
@@ -155,6 +159,11 @@ function Arrow.Set(ui, x, y, title, where, via)
   if not cont then return false end
   if not frame then build() end
   target = { cont = cont, x = wx, y = wy, title = title or "Waypoint", where = where, via = via }
+  -- the route line, the same wording every time
+  local here = playerWorld()
+  if via then target.route = "|cff999999Fastest:|r " .. via:gsub("^via ", "")
+  elseif here and here ~= cont then target.route = "|cff999999No known route yet: open a flight master's map, or take a boat or zeppelin|r"
+  else target.route = "|cff999999Fastest:|r walk" end
   frame.title:SetText(target.title)
   place()
   frame:Show()

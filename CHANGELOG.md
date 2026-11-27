@@ -2,6 +2,13 @@
 
 ## 0.37.0
 
+- NPCs inside dungeons (Annora in Uldaman, Blackrock Depths and Dire Maul vendors...) now
+  have a location: the dungeon's entrance, from the game's own data, with a note. The
+  route used to say "no Artisan trainer known" for Annora.
+- The arrow's text is the same every time: name, distance (or "On another continent"),
+  and "Fastest: ..." (flight, boat, or walk).
+- Mini panel: click a trainer, book or quest step, or a recipe you haven't learned, for a
+  waypoint (a recipe you know still opens).
 - Fixed: the full route window, opened with **Full route**, stayed on the old profession
   when you switched (e.g. Enchanting to Tailoring). It now follows.
 - **No addons needed any more.** Auctionator and TomTom are still used when installed, but

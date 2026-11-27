@@ -226,6 +226,13 @@ do
   local kinds = {}
   for _, x in ipairs(e) do kinds[x.kind] = true end
   assert(kinds.craft and kinds.rank, "crafts and rank-ups in order")
+  local rankE
+  for _, x in ipairs(e) do if x.kind == "rank" then rankE = x; break end end
+  assert(rankE.loc and rankE.loc.npc, "a rank-up step knows where to go (click: waypoint)")
+  local ann = Core.NPCLocation(11073)
+  ann.note = SkillRouteData.npcNotes[11073]
+  local w = Core.Where(ann)
+  assert(ann.cx and w and w:find("Uldaman entrance", 1, true), "Annora: placed at the Uldaman entrance: " .. tostring(w))
   M.Refresh() -- live update path runs
   SkillRouteDB.lastError = nil
   local after, short
@@ -1847,6 +1854,7 @@ do
   local how = Core.Waypoint({ npc = "Josef Gregorian", ui = 90, x = 70.8, y = 29.2, zone = "Undercity" })
   _G.print = rp
   assert(how == "arrow" and A.Target() and A.Target().title == "Josef Gregorian", "arrow set: " .. tostring(how))
+  assert(A.Target().route and A.Target().route:find("Fastest", 1, true), "route line: " .. tostring(A.Target().route))
   A.Clear(); assert(not A.Target())
   _G.TomTom = savedTT
   assert(A.Bearing(1, 0, 0, 0, 2, 5, 5, { 1, 0, 0, 1 }) == nil, "another continent: no arrow")

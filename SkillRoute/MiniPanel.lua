@@ -27,11 +27,11 @@ function Mini.Entries(plan)
       local rank = RANKS[trained]
       local rh = Core.RankHow(plan.line, RANK_STEP[rank]) or {}
       local need, mine = Core.RankLevelShort(plan.line, RANK_STEP[rank])
-      local text
-      if rh.book then text = (rh.book.owned and "Read " or "Buy ") .. rh.book.name .. " (" .. rank .. ")"
-      elseif rh.quest then text = ('Quest "%s" for %s'):format(rh.quest.title, rank)
-      else text = "Train " .. rank .. (rh.loc and (" at " .. rh.loc.npc) or "") end
-      out[#out + 1] = { kind = "rank", text = text, at = trained,
+      local text, loc
+      if rh.book then text, loc = (rh.book.owned and "Read " or "Buy ") .. rh.book.name .. " (" .. rank .. ")", rh.book.loc
+      elseif rh.quest then text, loc = ('Quest "%s" for %s'):format(rh.quest.title, rank), rh.quest.loc
+      else text, loc = "Train " .. rank .. (rh.loc and (" at " .. rh.loc.npc) or ""), rh.loc end
+      out[#out + 1] = { kind = "rank", text = text, at = trained, loc = loc,
                         warn = need and ("needs character level %d (you're %d)"):format(need, mine) or nil }
       trained = trained + 75
     end
@@ -119,9 +119,23 @@ local function build(parent)
   ui.sub = font("GameFontHighlightSmall"); ui.sub:SetWidth(W - 66); ui.sub:SetJustifyH("LEFT")
   -- clicking the step selects its recipe in the profession window
   ui.hit = CreateFrame("Button", nil, panel)
-  ui.hit:SetScript("OnClick", function() if ui.spell then Core.OpenRecipe(ui.spell) end end)
+  -- click: open a recipe you know; else a waypoint to whoever teaches or sells it
+  ui.hit:SetScript("OnClick", function()
+    if ui.spell and Core.IsRecipeKnown(line, ui.spell) then Core.OpenRecipe(ui.spell)
+    elseif ui.loc then Core.Waypoint(ui.loc) end
+  end)
   -- hover: the same tooltip as the step in the full route
   ui.hit:SetScript("OnEnter", function(self)
+    if not ui.st and ui.loc then -- a trainer, book or quest step
+      GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+      GameTooltip:SetText(ui.loc.npc or "Waypoint")
+      GameTooltip:AddLine(Core.Where(ui.loc) or "", 1, 1, 1, true)
+      local tr = Core.TravelText(ui.loc)
+      if tr then GameTooltip:AddLine(tr, 0.7, 0.7, 0.7, true) end
+      GameTooltip:AddLine("Click: waypoint", 0.6, 0.6, 0.6)
+      GameTooltip:Show()
+      return
+    end
     if not (ui.plan and ui.st) then return end
     local ok, r, tip = pcall(UI.StepTip, ui.plan, ui.st)
     if not ok or not tip then return end
@@ -185,7 +199,7 @@ local function draw()
   local y = -30
   for _, m in ipairs(ui.mats) do m.l:SetText(""); m.r:SetText("") end
   ui.note:SetText(""); ui.then1:SetText(""); ui.then2:SetText("")
-  ui.spell, ui.allN, ui.crafts, ui.learn, ui.st, ui.plan, ui.buyStep = nil, 0, 0, nil, nil, plan, nil
+  ui.spell, ui.allN, ui.crafts, ui.learn, ui.st, ui.plan, ui.buyStep, ui.loc = nil, 0, 0, nil, nil, plan, nil, nil
   ui.short:SetText(""); ui.after:SetText(""); ui.buy:Hide()
   local entries = plan and Mini.Entries(plan) or {}
   local nCraft = 0
@@ -219,6 +233,7 @@ local function draw()
   else
     ui.icon:SetTexture(e.kind == "rank" and "Interface\\Icons\\INV_Misc_Book_09" or "Interface\\Icons\\INV_Scroll_03")
     ui.main:SetText("|cffffd100" .. e.text .. "|r")
+    ui.loc = e.loc
     ui.sub:SetText(e.warn and ("|cffff4040" .. e.warn .. "|r") or ("|cff999999at skill %d|r"):format(e.at))
   end
   place(ui.sub, 48, y - h(ui.main) - 2)
@@ -300,7 +315,7 @@ local function draw()
       local how = LEARN[ui.learn] or "learn it first"
       if ui.learn == "trainer" or ui.learn == "trainer?" or not ui.learn then
         local t = Core.NearestRecipeTrainer(line, ui.spell, r.learn or r.y)
-        if t then how = ("learn it at %s, %s"):format(t.npc, Core.Where(t) or "?") end
+        if t then how = ("learn it at %s, %s (click for a waypoint)"):format(t.npc, Core.Where(t) or "?"); ui.loc = t end
       end
       ui.note:SetText("Not learned yet: " .. how .. ".")
     end

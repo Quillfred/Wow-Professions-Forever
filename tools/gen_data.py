@@ -16,7 +16,7 @@ import csv, json, os, sys, urllib.request, concurrent.futures as cf
 MAKE_LINES = {186}
 PROFESSIONS = {171: "Alchemy", 164: "Blacksmithing", 333: "Enchanting", 202: "Engineering",
                165: "Leatherworking", 197: "Tailoring", 185: "Cooking", 129: "First Aid"}
-TABLES = ["SkillLineAbility", "SpellReagents", "SpellName", "SpellEffect",
+TABLES = ["Map", "SkillLineAbility", "SpellReagents", "SpellName", "SpellEffect",
           "ItemSparse", "ItemEffect", "ItemXItemEffect", "SpellCooldowns",
           "SpellTotems", "TotemCategory", "Faction", "TaxiNodes", "TaxiPath", "TaxiPathNode", "Item"]
 # specialisations (ATT constant -> the spec's spell in Forever's SpellName table)
@@ -506,10 +506,24 @@ def main():
                              f"{n['zx']},{n['zy']},{n['ui']}}}")
         return key
 
+    # dungeons: where the entrance is (the client's Map table: where your spirit appears
+    # when you die inside), so an NPC inside one can still be found and walked to
+    entrance, auto_notes = {}, {}
+    for r in rows(p["Map"]):
+        if r.get("CorpseMapID") not in (None, "", "-1") and r.get("Corpse_0") not in (None, "") \
+                and (float(r["Corpse_0"]), float(r["Corpse_1"])) != (0.0, 0.0):  # 0,0 = none given
+            entrance[int(r["ID"])] = (int(r["CorpseMapID"]), float(r["Corpse_0"]), float(r["Corpse_1"]), r["MapName_lang"])
+
     def classic_npc(e):
         n = npcdata["npcs"].get(str(e))
         if not n:
             return None
+        if str(n["map"]) not in conts and n["map"] in entrance and n.get("cui") is None:
+            m, ex, ey, _name = entrance[n["map"]]
+            c = continent(m, ex, ey)
+            if c:  # placed at the dungeon's entrance on its continent
+                auto_notes[str(e)] = f"inside {_name} (dungeon): the waypoint is its entrance"
+                n = dict(n, map=m, x=round(ex, 1), y=round(ey, 1), cui=c[0], cx=c[1], cy=c[2])
         if e not in npc_rows:
             zone = lua_str(n["zone"]) if n["zone"] else "nil"
             v = lambda k: "nil" if n.get(k) is None else str(n[k])
@@ -628,7 +642,8 @@ def main():
         if qrows:
             lines.append(f"    [{sp}]={{{','.join(qrows)}}},")
     lv = checks.get("rankLevel", {}).get("levels", {})
-    notes = {k: v for k, v in checks.get("npcNotes", {}).items() if not k.startswith("_")}
+    notes = dict(auto_notes)  # dungeon NPCs; a checked note (forever_checks.json) wins
+    notes.update({k: v for k, v in checks.get("npcNotes", {}).items() if not k.startswith("_")})
     note_rows = []
     for k, v in sorted(notes.items()):
         for key in sorted(npc_rows):  # Classic key = the ID; ATT keys = -(ID*10 + side)
