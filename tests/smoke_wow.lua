@@ -1009,6 +1009,15 @@ do
   end
   UI.Toggle()
   assert(tipRow and tipRow[2]:find("each", 1, true), "step tooltip: Afterwards row")
+  -- the alternatives it was compared with: one per line (keeps the tooltip narrow)
+  local nCompared = 0
+  for _, l in ipairs(tipOf) do
+    if type(l) == "table" and l.sub and (l[1] == "compared" or (nCompared > 0 and l[1] == "")) then
+      assert(not tostring(l[2]):find(" · ", 1, true), "one alternative per line: " .. tostring(l[2]))
+      nCompared = nCompared + 1
+    end
+  end
+  assert(nCompared >= 2, "compared with two alternatives, on two lines: " .. nCompared)
   -- render it the way the game would: label | value lines
   local out = {}
   local savedTT = _G.GameTooltip

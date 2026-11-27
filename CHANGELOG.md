@@ -19,6 +19,8 @@
   `/sr crowded <pct>`). When 20 or more of an item are already listed, this is how much of
   the AH price counts when choosing between listing, disenchanting and selling to a
   vendor. A live example shows what it does.
+- Step tooltips list what "Afterwards" was compared with one per line, so a crowded AH
+  note no longer makes the tooltip screen-wide.
 - The options window shrinks to fit on small screens or large UI scales.
 
 ## 0.38.1

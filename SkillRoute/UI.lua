@@ -432,7 +432,12 @@ local function stepTip(plan, st)
   elseif r.out then
     local action, compared, used = afterCrafting(r.out, math.ceil(st.crafts - 1e-9) * (r.outN or 1))
     row("Afterwards", action)
-    sub("compared", compared)
+    -- one alternative per line, so the tooltip stays narrow
+    local first = true
+    for part in (compared .. " · "):gmatch("(.-) · ") do
+      sub(first and "compared" or "", part)
+      first = false
+    end
     if used then sub("", used) end
   end
   gap()
