@@ -1785,6 +1785,24 @@ do
       saved[1], saved[2], saved[3], saved[4], saved[5]
     print(("trainer panel: %s (used %d-%d) at this trainer"):format(st.name, st.from, st.to))
   end
+  -- a tool the route crafts (Runed Truesilver Rod) is listed too, before the step needing it
+  do
+    local saved = { Core.Plan, Core.TrainerService, Core.Skills, Core.IsRecipeKnown, GetNumTrainerServices, GetTrainerServiceInfo, GetTrainerServiceSkillReq }
+    _G.GetNumTrainerServices = function() return 2 end
+    _G.GetTrainerServiceInfo = function() return "x", "", "available" end
+    _G.GetTrainerServiceSkillReq = function() return "Enchanting", 200, true end
+    Core.TrainerService = function(i) if i == 1 then return 333, 13868, 210, 3960, "available" end return 333, 13702, 200, 3600, "available" end
+    Core.Skills = function() return { [333] = { rank = 210, max = 225 } } end
+    Core.IsRecipeKnown = function() return false end
+    Core.Plan = function() return { line = 333, steps = { { spell = 13868, name = "Enchant Gloves - Agility", from = 210, to = 225,
+      tools = { { item = 11145, craftSpell = 13702, from = 210 } } } } } end
+    local d = TP.Collect()
+    assert(d and #d.items == 2 and d.items[1].spell == 13702 and d.items[1].tool and d.items[2].spell == 13868,
+      "the rod first, then the enchant: " .. tostring(d and #d.items))
+    assert(d.items[1].name:find("(tool)", 1, true) and d.items[1].now and d.totalNow == 7560, "learnable now, in Learn all")
+    Core.Plan, Core.TrainerService, Core.Skills, Core.IsRecipeKnown = saved[1], saved[2], saved[3], saved[4]
+    GetNumTrainerServices, GetTrainerServiceInfo, GetTrainerServiceSkillReq = saved[5], saved[6], saved[7]
+  end
   print("essence swap, rank reminder (" .. msg:gsub("|c%x%x%x%x%x%x%x%x", ""):gsub("|r", "") .. "), bank grab OK")
 end
 

@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.38.4 (not released yet)
+
+- Fixed: the trainer panel only listed recipes for skill-up steps, so a tool your route
+  crafts (Runed Truesilver Rod) wasn't offered at the trainer. It's now listed, before
+  the step that needs it, as "Runed Truesilver Rod (tool) - needed from 210", with a
+  Learn button and in Learn all.
+
 ## 0.38.3
 
 - **Buying panel: one-of-a-kind items** (rods, tools, AH patterns) can now be bought

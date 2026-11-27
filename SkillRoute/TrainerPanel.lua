@@ -35,18 +35,26 @@ function TP.Collect()
   local out, seen, totalNow = {}, {}, 0
   local skill = skills[lineOf].rank or 0
   local myLevel = UnitLevel and UnitLevel("player") or 0
+  local function offer(spell, entry)
+    local svc = spell and byLine[lineOf][spell]
+    if not svc or seen[spell] then return end
+    seen[spell] = true
+    -- learnable now: your skill (and level, if the trainer says) is enough. Decided
+    -- here rather than from the service type, which clients report differently.
+    local lvl = GetTrainerServiceLevelReq and GetTrainerServiceLevelReq(svc.index) or 0
+    local now = skill >= svc.req and myLevel >= (lvl or 0)
+    if now then totalNow = totalNow + svc.cost end
+    entry.index, entry.spell, entry.cost, entry.req, entry.now = svc.index, spell, svc.cost, svc.req, now
+    out[#out + 1] = entry
+  end
   for _, st in ipairs(plan.steps) do
-    local svc = st.spell and byLine[lineOf][st.spell]
-    if svc and not seen[st.spell] then
-      seen[st.spell] = true
-      -- learnable now: your skill (and level, if the trainer says) is enough. Decided
-      -- here rather than from the service type, which clients report differently.
-      local lvl = GetTrainerServiceLevelReq and GetTrainerServiceLevelReq(svc.index) or 0
-      local now = skill >= svc.req and myLevel >= (lvl or 0)
-      if now then totalNow = totalNow + svc.cost end
-      out[#out + 1] = { index = svc.index, spell = st.spell, name = st.name, from = st.from, to = st.to,
-                        cost = svc.cost, req = svc.req, now = now }
+    -- a tool the route crafts (a rod) comes before the step that needs it
+    for _, u in ipairs(st.tools or {}) do
+      if u.craftSpell then
+        offer(u.craftSpell, { name = UI.ItemName(u.item) .. " (tool)", tool = true, from = math.max(u.from or 0, st.from) })
+      end
     end
+    offer(st.spell, { name = st.name, from = st.from, to = st.to })
   end
   return { line = lineOf, items = out, totalNow = totalNow }
 end
@@ -94,7 +102,8 @@ local function draw()
     local it = data.items[i]
     if it then
       r.name:SetText(it.name); r.name:ClearAllPoints(); r.name:SetPoint("TOPLEFT", 12, y)
-      r.sub:SetText(("used %d-%d  -  %s%s"):format(it.from, it.to, it.cost > 0 and money(it.cost) or "free",
+      r.sub:SetText((it.tool and ("needed from %d"):format(it.from) or ("used %d-%d"):format(it.from, it.to))
+        .. ("  -  %s%s"):format(it.cost > 0 and money(it.cost) or "free",
         it.now and "" or ("  -  |cffff8040at skill %d|r"):format(it.req)))
       r.sub:ClearAllPoints(); r.sub:SetPoint("TOPLEFT", 12, y - 14)
       r.btn.index = it.index
