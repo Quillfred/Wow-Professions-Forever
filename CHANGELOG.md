@@ -27,6 +27,8 @@
   the panel's full width.
 - Mini panel: a material a vendor sells but the AH has cheaper said "vendor" while the
   buy list got it from the AH. Both now use one rule, and the row says "AH: cheaper".
+- Arrow: the distance line now says "First: Flight master, Thunder Bluff, 144 yd", so
+  the stop on the way isn't mistaken for the NPC you're going to (the name above it).
 - The options window shrinks to fit on small screens or large UI scales.
 
 ## 0.38.1

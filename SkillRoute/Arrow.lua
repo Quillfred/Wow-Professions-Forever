@@ -240,7 +240,8 @@ function Arrow.Update()
   if off < 0.35 then frame.arrow:SetVertexColor(0.3, 1, 0.3)
   elseif off < 1.6 then frame.arrow:SetVertexColor(1, 0.85, 0.2)
   else frame.arrow:SetVertexColor(1, 0.35, 0.3) end
-  if leg then frame.dist:SetText(("|cffffd100%s|r, %d yd"):format(leg.label, math.floor(dist + 0.5)))
+  -- the title is where you're going; this line is the first stop on the way there
+  if leg then frame.dist:SetText(("|cff999999First:|r |cffffd100%s|r, %d yd"):format(leg.label, math.floor(dist + 0.5)))
   else frame.dist:SetText(("%d yd"):format(math.floor(dist + 0.5))) end
 end
 

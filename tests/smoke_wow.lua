@@ -1959,6 +1959,17 @@ do
   local t = A.Target()
   assert(t.leg and t.leg.label == "Flight master, Thunder Bluff" and t.leg.cont == 1, "first stop: the flight master")
   assert(t.route:find("flight to Orgrimmar, then boat/zeppelin", 1, true), t.route)
+  -- the distance line names the first stop as such (the title is the destination)
+  local savedMap, savedFacing, savedV2 = _G.C_Map, _G.GetPlayerFacing, _G.CreateVector2D
+  _G.CreateVector2D = function(x, y) return { x = x, y = y } end
+  _G.C_Map = setmetatable({ GetWorldPosFromMapPos = function(_, v) return 1, { x = v.x * 1000, y = v.y * 1000 } end },
+    { __index = savedMap })
+  _G.GetPlayerFacing = function() return 0 end
+  A.Update()
+  _G.C_Map, _G.GetPlayerFacing, _G.CreateVector2D = savedMap, savedFacing, savedV2
+  local legText
+  for _, x in ipairs(texts) do local v = rawget(x, "text"); if type(v) == "string" and v:find("Flight master, Thunder Bluff|r, ", 1, true) then legText = v end end
+  assert(legText and legText:find("First:|r", 1, true), "leg line: " .. tostring(legText))
   Core.NearestNPC = function() return { first = { shortcut = "Hearthstone to Orgrimmar" } } end
   A.Reroute()
   assert(A.Target().leg.shortcut == "Hearthstone to Orgrimmar", "a hearthstone first")
