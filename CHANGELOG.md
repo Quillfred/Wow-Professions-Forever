@@ -20,6 +20,8 @@
   back to the flight master you'd left, or said "walk". In flight it now points straight
   at the destination ("On a flight: the route picks up again when you land") and works
   the route out again the moment you land.
+- Fixed: when the route window's footer ran to two lines (a long total with training
+  costs), it covered the last step. The list now ends above it.
 - The mini panel's buy line now says it's for this step: "This step: buy 12 (90% sure)".
 - The mini panel's skill colour bands now come from the same code as the full route's.
 

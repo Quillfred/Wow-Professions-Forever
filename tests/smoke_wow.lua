@@ -2165,6 +2165,19 @@ do
   print("keep it: " .. line:gsub("|c%x%x%x%x%x%x%x%x", ""):gsub("|r", ""))
 end
 
+-- a footer that wraps to two lines: the route list ends above it, not underneath
+do
+  local footer, scroll = ns.UI._footer()
+  assert(footer and scroll, "route window built")
+  footer.GetStringHeight = function() return 28 end
+  footer:SetText("Buy for 485g 38s 10c (~385g 30s 65c of it after level 35) + 3g 20s 0c training   planned in 33.9 ms")
+  assert(scroll.bottom == 48, "list ends above a two-line footer: " .. tostring(scroll.bottom))
+  footer.GetStringHeight = function() return 14 end
+  ns.UI.FitFooter()
+  assert(scroll.bottom == 34, "one line: back to normal: " .. tostring(scroll.bottom))
+  print("footer: two lines -> list ends 48px up; one line -> 34px")
+end
+
 -- /sr check runs and reports; errors are caught, not thrown
 do
   local out = {}

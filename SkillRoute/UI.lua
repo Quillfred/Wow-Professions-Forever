@@ -825,7 +825,19 @@ function UI.UpdateButtons()
   end
   local inset = 14 + ((scanBtn and scanBtn:IsShown()) and 124 or 0) + (showAuc and 154 or 0)
   footer:SetPoint("RIGHT", -math.max(inset, 20), 0)
+  UI.FitFooter() -- a narrower footer may now wrap
 end
+
+-- The list ends just above the footer, however many lines the footer takes.
+function UI.FitFooter()
+  if not (scroll and footer) then return end
+  local h = footer:GetStringHeight() or 0
+  local bottom = math.max(34, math.ceil(12 + h + 8))
+  if bottom == scroll.bottom then return end
+  scroll.bottom = bottom
+  scroll:SetPoint("BOTTOMRIGHT", -32, bottom)
+end
+UI._footer = function() return footer, scroll end
 
 local function refresh()
   if not (frame and frame:IsShown()) then return end
@@ -1012,6 +1024,7 @@ local function build()
   hCost:SetPoint("TOPRIGHT", frame, "TOPRIGHT", -(32 + EDGE), -98)
   hCost:SetWidth(COST_W); hCost:SetJustifyH("RIGHT"); hCost:SetText("Cost")
   scroll:SetPoint("BOTTOMRIGHT", -32, 34)
+  scroll.bottom = 34
   content = CreateFrame("Frame", nil, scroll)
   content:SetSize(550, 1)
   scroll:SetScrollChild(content)
@@ -1019,6 +1032,10 @@ local function build()
 
   footer = frame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
   footer:SetPoint("BOTTOMLEFT", 14, 12); footer:SetPoint("RIGHT", -170, 0); footer:SetJustifyH("LEFT")
+  -- the footer can run to two lines (a long total, a narrow window): the list then ends
+  -- above it instead of underneath
+  local setFooter = footer.SetText
+  footer.SetText = function(self, t) setFooter(self, t); UI.FitFooter() end
 
   ahBtn = CreateFrame("Button", nil, frame, "UIPanelButtonTemplate")
   ahBtn:SetSize(150, 22); ahBtn:SetPoint("BOTTOMRIGHT", -14, 8)
