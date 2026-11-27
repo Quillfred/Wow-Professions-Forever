@@ -2056,6 +2056,21 @@ do
   TT._add(blind, "|Hitem:900001::|h[x]|h")
   assert(added > 3, "lines from the setter's link")
   _G.TooltipDataProcessor, _G.Enum = nil, nil
+  -- the value works from either price source: SkillRoute's own scan alone, or Auctionator alone
+  local P, savedAuc = ns.Prices, _G.Auctionator
+  _G.Auctionator = nil
+  local book = P.Book()
+  local savedItems, savedT = book.items, book.t
+  book.items, book.t = { [11137] = 1000, [11135] = 3000, [11139] = 5000 }, time()
+  local _, ownTotal, ownMissing = TT.Value(key)
+  assert(#ownMissing == 0 and math.abs(ownTotal - (0.75 * 1.5 * 1000 + 0.20 * 1.5 * 3000 + 0.05 * 5000) * 0.95) < 1,
+    "own scan only: " .. ownTotal)
+  book.items, book.t = savedItems, savedT
+  _G.Auctionator = savedAuc
+  prices[11137], prices[11135], prices[11139] = 1000, 3000, 5000
+  local _, aucTotal, aucMissing = TT.Value(key)
+  assert(#aucMissing == 0 and math.abs(aucTotal - ownTotal) < 1, "Auctionator only: " .. aucTotal)
+  print(("disenchant value: own scan %d c = Auctionator %d c"):format(ownTotal, aucTotal))
   prices[11137], prices[11135], prices[11139] = saved[1], saved[2], saved[3]
   _G.C_Item = savedCItem
   print("tooltip disenchant: " .. text[#text]:gsub("|c%x%x%x%x%x%x%x%x", ""):gsub("|r", ""))
