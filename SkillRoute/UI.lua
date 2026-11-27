@@ -74,27 +74,38 @@ end
 -- the shopping list's crafted-items section.
 local ACTION_SHORT = { ah = "List on the AH", de = "Disenchant", vendor = "Sell to a vendor" }
 -- returns the action ("List on the AH, 38c each") and the comparison ("vendor 1c · can't disenchant")
-local function afterCrafting(item, n)
+-- The other choices "Best" was weighed against, for any tooltip: AH (with how many are
+-- listed), disenchanting (unless shown elsewhere: noDE), vendor.
+function UI.Compared(a, item, noDE)
   local ench = Core.Skills()[333]
-  local a = Core.ItemAdvice(item, ench and ench.rank, n, ench and Core.EnchantingNeeds() or nil)
   local parts = {}
   local listed = a.listed and ((a.crowded and " |cffff8040(%d listed: crowded)|r" or " (%d listed)"):format(a.listed)) or ""
-  if a.best ~= "ah" then parts[#parts + 1] = a.ah and ("AH " .. money(a.ah) .. listed) or "AH: no fresh price" end
-  if a.best ~= "de" then
+  if a.best ~= "ah" then
+    parts[#parts + 1] = a.bound and "soulbound: no AH" or a.ah and ("AH " .. money(a.ah) .. listed) or "AH: no fresh price"
+  end
+  if a.best ~= "de" and not noDE then
     if a.de then parts[#parts + 1] = "disenchant ~" .. money(a.de)
     elseif not Core.DisenchantOf(item) then parts[#parts + 1] = "can't disenchant"
     elseif not ench then parts[#parts + 1] = "disenchant: needs Enchanting"
     elseif a.deSkill and ench.rank < a.deSkill then parts[#parts + 1] = ("disenchant: needs %d"):format(a.deSkill)
     else parts[#parts + 1] = "disenchant: no fresh prices" end
   end
-  if a.best ~= "vendor" then parts[#parts + 1] = "vendor " .. money(a.vendor) end
+  if a.best ~= "vendor" then parts[#parts + 1] = a.vendor > 0 and ("vendor " .. money(a.vendor)) or "vendor: won't buy it" end
+  return table.concat(parts, " · "), listed
+end
+
+local function afterCrafting(item, n)
+  local ench = Core.Skills()[333]
+  local a = Core.ItemAdvice(item, ench and ench.rank, n, ench and Core.EnchantingNeeds() or nil)
+  local compared, listed = UI.Compared(a, item)
   local used = {}
-  for _, u in ipairs(a.best == "de" and a.deUsed or {}) do used[#used + 1] = u.units .. " " .. itemName(u.item) end
+  for _, u in ipairs(a.best == "de" and a.deUsed or {}) do
+    used[#used + 1] = (u.units >= 1 and (u.units .. " ") or "") .. itemName(u.item)
+  end
   local action = ("|cff40bf40%s, %s each|r"):format(ACTION_SHORT[a.best], money(a.bestValue))
     .. (a.best == "ah" and listed or "")
-  return action, table.concat(parts, " · "),
+  return action, compared,
          #used > 0 and ("counts " .. table.concat(used, ", ") .. " your Enchanting route needs at what you'd pay") or nil
-
 end
 
 local function mats(spell, line)

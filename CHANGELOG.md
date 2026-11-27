@@ -8,6 +8,10 @@
 - "N recipes skipped: reagents with no price (scan the AH)" was shown even right after a
   scan, when scanning again can't help. After a scan it now names the reagents nobody is
   selling: "2 recipes left out: no Silk Cloth on the AH right now".
+- Disenchant tooltips: "Best" now says what it beat ("compared: AH 25s (12 listed) ·
+  vendor 21s 30c"), as the route's tooltips do; soulbound items say "soulbound: no AH".
+  The "counts the … your Enchanting route needs" note is on its own line and names every
+  material it counted (it left out ones you need less than one of).
 
 ## 0.38.1
 

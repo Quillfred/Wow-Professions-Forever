@@ -123,9 +123,10 @@ function TT.Lines(item, bound, vendorPrice)
     -- the same value "Best" decides on
     local used = {}
     for _, u in ipairs(a.deUsed or {}) do used[#used + 1] = UI.ItemName(u.item) end
-    lines[#lines + 1] = { "Disenchanting", "~" .. UI.Money(a.de) .. (#used > 0
-      and (" |cff999999counts the %s your Enchanting route needs at what you'd pay|r"):format(table.concat(used, ", "))
-      or " |cff999999after the AH cut|r") }
+    lines[#lines + 1] = { "Disenchanting", "~" .. UI.Money(a.de) }
+    lines[#lines + 1] = { #used > 0
+      and ("|cff999999counts the %s your Enchanting route needs at what you'd pay|r"):format(table.concat(used, ", "))
+      or "|cff999999after the AH cut|r", "" }
   elseif #missing == #rows then
     lines[#lines + 1] = { "Disenchanting", "|cff999999no fresh AH prices: scan the AH|r" }
   else -- some materials unpriced: what's known, as a lower bound
@@ -133,6 +134,9 @@ function TT.Lines(item, bound, vendorPrice)
     lines[#lines + 1] = { "", "|cff999999no price: " .. table.concat(missing, ", ") .. "|r" }
   end
   lines[#lines + 1] = { "|cffffd100Best: " .. WORDS[a.best] .. ", " .. UI.Money(a.bestValue) .. "|r", "" }
+  -- what it beat (disenchanting is shown above)
+  local compared = UI.Compared(a, item, true)
+  if compared ~= "" then lines[#lines + 1] = { "|cff999999compared: " .. compared .. "|r", "" } end
   return lines
 end
 

@@ -2084,12 +2084,23 @@ do
   -- a material your route needs: counted at what you'd pay, and said so
   Core.EnchantingNeeds = function() return { [11137] = 100 } end
   local adv2 = Core.ItemAdvice(900001, 170, 1, { [11137] = 100 }, { bound = false, vendor = 3218 })
-  for _, l in ipairs(TT.Lines(900001, false, 3218)) do if l[1] == "Disenchanting" then deLine = l[2] end end
-  assert(adv2.deUsed and deLine:find("~" .. UI.Money(adv2.de), 1, true) and deLine:find("your Enchanting route needs", 1, true),
-    "route-needed material counted: " .. tostring(deLine))
+  local all2 = {}
+  for _, l in ipairs(TT.Lines(900001, false, 3218)) do
+    if l[1] == "Disenchanting" then deLine = l[2] end
+    all2[#all2 + 1] = l[1] .. " | " .. (l[2] or "")
+  end
+  local joined2 = table.concat(all2, "\n")
+  assert(adv2.deUsed and deLine == "~" .. UI.Money(adv2.de) and joined2:find("your Enchanting route needs", 1, true),
+    "route-needed material counted: " .. joined2)
+  -- "Best" says what it beat (AH and vendor; disenchanting is shown above it)
+  assert(joined2:find("compared: ", 1, true) and not joined2:find("compared:[^\n]*disenchant"), "compared line: " .. joined2)
+  -- soulbound: no AH option, and it says so
+  local bound = {}
+  for _, l in ipairs(TT.Lines(900001, true, 3218)) do bound[#bound + 1] = l[1] end
+  assert(table.concat(bound, "\n"):find("soulbound: no AH", 1, true), "soulbound said: " .. table.concat(bound, "\n"))
   Core.EnchantingNeeds = savedEN
   prices[11139] = nil
-  print("tooltip value = Best's value: " .. deLine:gsub("|c%x%x%x%x%x%x%x%x", ""):gsub("|r", ""))
+  print("tooltip value = Best's value:\n  " .. joined2:gsub("|c%x%x%x%x%x%x%x%x", ""):gsub("|r", ""):gsub("|T[^|]*|t ", ""):gsub("\n", "\n  "))
   Core.Skills = savedSk
   local essence
   for _, l in ipairs(ql) do if l[1]:find("Greater Mystic Essence", 1, true) then essence = l end end

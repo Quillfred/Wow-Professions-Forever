@@ -1749,7 +1749,7 @@ local CROWDED_MIN, CROWDED_TIMES, CROWDED_SHARE = 20, 3, 0.7
 function Core.ItemAdvice(item, enchantSkill, n, needs, opts)
   n = math.max(1, n or 1)
   local it = Data.items[item]
-  local a = { vendor = (it and it[2]) or (opts and opts.vendor) or 0 }
+  local a = { vendor = (it and it[2]) or (opts and opts.vendor) or 0, bound = opts and opts.bound or nil }
   local p = not (opts and opts.bound) and freshAH(item) or nil -- soulbound: no AH
   if p then a.ah = math.floor(p * 0.95) end
   -- how many are already listed (SkillRoute's scan): a crowded market means undercutting
@@ -1771,7 +1771,7 @@ function Core.ItemAdvice(item, enchantSkill, n, needs, opts)
         local own = math.min(total, need)
         local buyPrice = math.min(mp, (Data.items[mat] and Data.items[mat][3]) or mp)
         ev = ev + own * buyPrice + (total - own) * mp * 0.95
-        if own >= 0.5 then
+        if own > 0 then -- named in the tooltips whenever it changed the value
           used = used or {}
           used[#used + 1] = { item = mat, units = math.floor(own + 0.5) }
         end
