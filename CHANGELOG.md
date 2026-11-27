@@ -3,7 +3,8 @@
 ## 0.38.2 (not released yet)
 
 - Fixed: when the route window's footer ran to two lines (a long total with training
-  costs), it covered the last step. The list now ends above it.
+  costs), it covered the last step. The "planned in" timing is now left off when the
+  line is too long, and if it still wraps, the list ends above it.
 
 ## 0.38.1
 

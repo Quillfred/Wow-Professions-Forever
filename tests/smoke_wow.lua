@@ -2165,17 +2165,25 @@ do
   print("keep it: " .. line:gsub("|c%x%x%x%x%x%x%x%x", ""):gsub("|r", ""))
 end
 
--- a footer that wraps to two lines: the route list ends above it, not underneath
+-- a long footer: the timing goes first; if it still wraps, the list ends above it
 do
   local footer, scroll = ns.UI._footer()
   assert(footer and scroll, "route window built")
+  local total = "Buy for 485g 38s 10c (~385g 30s 65c of it after level 35) + 3g 20s 0c training"
+  footer.GetFont = function() return "f", 12 end
+  footer.GetStringHeight = function(self) return #(rawget(self, "text") or "") > 90 and 28 or 14 end
+  footer:SetText(total .. "   |cff808080planned in 33.9 ms|r")
+  assert(rawget(footer, "text") == total and scroll.bottom == 34, "timing dropped, one line: " .. tostring(rawget(footer, "text")))
+  footer:SetText("Gathering route: about 120 gathers   |cff808080planned in 3.0 ms|r")
+  assert(rawget(footer, "text"):find("planned in", 1, true), "room for it: timing kept")
   footer.GetStringHeight = function() return 28 end
-  footer:SetText("Buy for 485g 38s 10c (~385g 30s 65c of it after level 35) + 3g 20s 0c training   planned in 33.9 ms")
-  assert(scroll.bottom == 48, "list ends above a two-line footer: " .. tostring(scroll.bottom))
+  footer:SetText(total .. total)
+  assert(scroll.bottom == 48, "still two lines: list ends above it: " .. tostring(scroll.bottom))
   footer.GetStringHeight = function() return 14 end
   ns.UI.FitFooter()
-  assert(scroll.bottom == 34, "one line: back to normal: " .. tostring(scroll.bottom))
-  print("footer: two lines -> list ends 48px up; one line -> 34px")
+  assert(scroll.bottom == 34, "one line again: " .. tostring(scroll.bottom))
+  footer.GetStringHeight, footer.GetFont = nil, nil
+  print("footer: timing dropped when long; list ends above a two-line footer")
 end
 
 -- /sr check runs and reports; errors are caught, not thrown

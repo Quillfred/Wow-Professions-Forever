@@ -829,8 +829,21 @@ function UI.UpdateButtons()
 end
 
 -- The list ends just above the footer, however many lines the footer takes.
+local TIMING = "   |cff808080planned in"
+local rawFooterSet, footerFull -- the footer's own SetText (its SetText also fits the list), its full text
 function UI.FitFooter()
   if not (scroll and footer) then return end
+  -- the "planned in" timing goes first when the line is too long: the total matters more
+  local full = footerFull
+  local _, size = footer:GetFont()
+  local oneLine = (size or 12) * 1.6
+  local cut = full and full:find(TIMING, 1, true)
+  if cut then
+    rawFooterSet(footer, full)
+    if (footer:GetStringHeight() or 0) > oneLine then
+      rawFooterSet(footer, full:sub(1, cut - 1))
+    end
+  end
   local h = footer:GetStringHeight() or 0
   local bottom = math.max(34, math.ceil(12 + h + 8))
   if bottom == scroll.bottom then return end
@@ -1034,8 +1047,8 @@ local function build()
   footer:SetPoint("BOTTOMLEFT", 14, 12); footer:SetPoint("RIGHT", -170, 0); footer:SetJustifyH("LEFT")
   -- the footer can run to two lines (a long total, a narrow window): the list then ends
   -- above it instead of underneath
-  local setFooter = footer.SetText
-  footer.SetText = function(self, t) setFooter(self, t); UI.FitFooter() end
+  rawFooterSet = footer.SetText
+  footer.SetText = function(self, t) footerFull = t; rawFooterSet(self, t); UI.FitFooter() end
 
   ahBtn = CreateFrame("Button", nil, frame, "UIPanelButtonTemplate")
   ahBtn:SetSize(150, 22); ahBtn:SetPoint("BOTTOMRIGHT", -14, 8)
