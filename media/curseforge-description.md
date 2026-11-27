@@ -17,7 +17,7 @@ Leveling guides written for Classic don't match Forever: many recipes changed sk
 
 ### Where to go, and why
 - **Trainers and vendors by name and location,** the nearest one for your faction, with travel time (flight paths you know, boats, zeppelins, even your hearthstone when it saves time).
-- **Click a step to set a waypoint** (TomTom, or the game's own map pin).
+- **Click a step for a waypoint arrow** with the distance (SkillRoute's own, or TomTom's if you have it).
 - **Rank-ups in the right place:** train at the right trainer, buy the Expert book, or do the Artisan quest (Triage, Clamlette Surprise, Nat Pagle), with the quest giver's location.
 - **Forever's trainer rules:** each trainer teaches the rank below its title and nothing until your skill reaches it; the route warns when your character level is too low for the next rank.
 - **Patterns:** bought from a vendor of your faction, or on the auction house when that's cheaper, with reputation requirements checked.
@@ -36,7 +36,7 @@ Leveling guides written for Classic don't match Forever: many recipes changed sk
 
 ### Shopping, made easy
 - **Shopping list:** everything to buy, minus what you have, with a safety margin so you don't run short.
-- **At the auction house:** a **Buy** button on every step opens Auctionator's Shopping tab with that step's materials and the amounts you need. Without Auctionator, it searches the auction house for them, one material per click.
+- **At the auction house:** a **Buy** button on every step lists that step's materials and the amounts you need: **Price**, then **Buy** pays exactly the price shown. With Auctionator installed, it uses Auctionator's Shopping tab instead.
 - **Farming:** ingredients the AH doesn't have show where to farm them (mob, level, drop chance, zone) or where to fish them.
 
 ### Gathering and secondary skills
@@ -48,12 +48,12 @@ Leveling guides written for Classic don't match Forever: many recipes changed sk
 
 ## Getting started
 
-1. Scan the auction house: click **Scan AH** in SkillRoute's window while the AH is open, or scan with **[Auctionator](https://www.curseforge.com/wow/addons/auctionator)** (recommended: it also powers the Buy buttons).
+1. Scan the auction house: click **SkillRoute: Scan AH** on the auction house window. No other addons are needed ([Auctionator](https://www.curseforge.com/wow/addons/auctionator)'s scan works too).
 2. Open your profession window: SkillRoute opens next to it. You can also type **/sr** or click the minimap button.
 3. Read the route top to bottom. **Hover** a step for details, **click** to open the recipe or set a waypoint, **right-click** to skip a recipe you can't get.
 4. Use **Shopping list** for what to buy, and **Options** for the safety margin, alts, selling what you make and more.
 
-**Optional:** TomTom (better waypoints), Syndicator or DataStore (count materials on your alts).
+**Optional:** Auctionator and TomTom (used instead of SkillRoute's own buying and arrow when installed), Syndicator or DataStore (count materials on your alts).
 
 ### Commands
 | Command | What it does |

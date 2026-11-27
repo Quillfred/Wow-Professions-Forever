@@ -1720,6 +1720,18 @@ end
 
 -- Buy buttons: Auctionator's shopping list when it's installed (always first); without
 -- it, the auction house's own search, one material per click.
+-- Everything the shopping list buys on the AH (not vendor or farmed items), for the
+-- buying panel: { {item, name, qty, expect}, ... }.
+function Core.ShoppingToBuy(plan)
+  local out = {}
+  for _, b in ipairs(plan and plan.shopping and plan.shopping.buy or {}) do
+    if b.buy and b.buy > 0 and not b.farm and not (b.vendor and not b.ah) then
+      out[#out + 1] = { item = b.item, name = b.name, qty = b.buy, expect = b.price }
+    end
+  end
+  return out
+end
+
 function Core.CanSearchAH()
   local bar = AuctionHouseFrame and AuctionHouseFrame.SearchBar
   return (bar and bar.SetSearchText and bar.StartSearch) and true
@@ -1755,6 +1767,17 @@ function Core.BuyStep(plan, st, remove)
     return "Buy"
   end
   if remove then searchQ = nil; return "Buy" end
+  -- no Auctionator: SkillRoute's own buying panel (price, then buy), else the AH search
+  if ns.BuyPanel and ns.BuyPanel.CanUse() then
+    local list = Core.StepShopping(plan, st)
+    if #list == 0 then
+      print("|cff33ccffSkillRoute:|r nothing to buy on the auction house for this step (vendor items aside).")
+      return "Buy"
+    end
+    for _, x in ipairs(list) do x.expect = Core.Price(x.item) end
+    ns.BuyPanel.Open(list, "Buy for: " .. (st.name or "this step"))
+    return "Buy"
+  end
   local key = (st.spell or 0) .. ":" .. (st.from or 0)
   if not (searchQ and searchQ.key == key and searchQ.i < #searchQ.items) then
     searchQ = { key = key, items = Core.StepShopping(plan, st), i = 0 }

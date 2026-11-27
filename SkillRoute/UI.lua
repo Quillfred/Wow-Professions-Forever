@@ -799,7 +799,10 @@ function UI.UpdateButtons()
       if scanning then scanBtn:Disable() else scanBtn:Enable() end
     else scanBtn:Hide() end
   end
-  local showAuc = state.mode == "shopping" and Core.CanExportToAuctionator()
+  -- shopping view: Send to Auctionator, or without it SkillRoute's buying panel at the AH
+  local auc = Core.CanExportToAuctionator()
+  local showAuc = state.mode == "shopping" and (auc or (Core.ahOpen and ns.BuyPanel and ns.BuyPanel.CanUse()))
+  if ahBtn then ahBtn:SetText(auc and "Send to Auctionator" or "Buy shopping list") end
   if ahBtn then
     ahBtn:ClearAllPoints()
     if scanBtn and scanBtn:IsShown() then ahBtn:SetPoint("RIGHT", scanBtn, "LEFT", -4, 0)
@@ -1006,7 +1009,13 @@ local function build()
   ahBtn = CreateFrame("Button", nil, frame, "UIPanelButtonTemplate")
   ahBtn:SetSize(150, 22); ahBtn:SetPoint("BOTTOMRIGHT", -14, 8)
   ahBtn:SetText("Send to Auctionator")
-  ahBtn:SetScript("OnClick", function() if lastPlan then Core.ExportToAuctionator(lastPlan) end end)
+  ahBtn:SetScript("OnClick", function()
+    if not lastPlan then return end
+    if Core.CanExportToAuctionator() then Core.ExportToAuctionator(lastPlan)
+    elseif ns.BuyPanel then
+      ns.BuyPanel.Open(Core.ShoppingToBuy(lastPlan), "Buy: " .. Data.professions[lastPlan.line].name .. " shopping list")
+    end
+  end)
   ahBtn:Hide()
   scanBtn = CreateFrame("Button", nil, frame, "UIPanelButtonTemplate")
   scanBtn:SetSize(120, 22); scanBtn:SetPoint("BOTTOMRIGHT", -14, 8)

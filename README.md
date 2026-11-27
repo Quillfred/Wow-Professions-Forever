@@ -5,7 +5,7 @@ A WoW Forever addon that plans the cheapest way to level a crafting profession.
 ## Getting started
 1. **Install:** put the `SkillRoute` folder in `World of Warcraft/_classic_/Interface/AddOns/`
    (whichever game folder Forever uses). [Auctionator](https://www.curseforge.com/wow/addons/auctionator)
-   is recommended (prices, Buy buttons); without it, use SkillRoute's own **Scan AH** button. TomTom is optional
+   and TomTom are optional: SkillRoute scans the AH, buys and shows a waypoint arrow itself. TomTom is optional
    (better waypoints).
 2. **Scan the auction house** once (Auctionator's scan, or **Scan AH** in SkillRoute's window
    while the AH is open), so SkillRoute has prices.
@@ -66,8 +66,9 @@ A WoW Forever addon that plans the cheapest way to level a crafting profession.
   learnable when AllTheThings names a giver of your faction; the step names the quest
   and giver, with a waypoint. A quest counts as 1g of effort when choosing (time, and
   materials the data doesn't list), never in what you spend.
-- **At the auction house**: each route step has a Buy button. Without Auctionator it
-  searches the AH's own search box for the step's materials, one per click. With Auctionator it
+- **At the auction house**: each route step has a Buy button. Without Auctionator it opens
+  SkillRoute's buying panel: **Price** gets the AH's exact total for the amount you need,
+  **Buy** pays exactly that (a changed price needs a new click). With Auctionator it
   puts its reagents (crafts still needed x per craft, with your safety margin, minus
   what you have; vendor items left out) into the Auctionator list "SkillRoute
   <profession> (steps)". Clicking again updates the step; right-click removes it.
@@ -145,8 +146,8 @@ faction can use, the flight paths you know — open any flight master's map once
 SkillRoute can see which ones — your hearthstone, counting its cooldown, and a mage's
 teleports when you carry a Rune of Teleportation), with zone and map coordinates (Classic NPC data;
 the zone is resolved by the game's own map, so it matches your map). **Click** the
-row to set a waypoint: TomTom if installed, else the game's map pin, else the
-coordinates in chat.
+row to set a waypoint: TomTom if installed, else SkillRoute's own arrow (distance, "Arrived";
+drag to move, right-click to clear) plus the game's map pin.
 
 **Faction:** a pattern is only "bought from a vendor" if a vendor of your faction sells
 it (vendor lists from the cMaNGOS Classic database, factions from Forever's own

@@ -69,7 +69,7 @@ local ns = {}
 _G.Minimap = setmetatable({ GetWidth = function() return 140 end, GetCenter = function() return 1000, 700 end,
   GetEffectiveScale = function() return 1 end }, { __index = function() return function() end end })
 _G.GetCursorPosition = function() return 1000, 800 end -- straight above the minimap
-for _, f in ipairs({ "Data", "Planner", "Core", "Prices", "Arrow", "UI", "MiniPanel", "TrainerPanel", "Helpers", "Options", "Recorder", "Check" }) do
+for _, f in ipairs({ "Data", "Planner", "Core", "Prices", "Arrow", "UI", "MiniPanel", "TrainerPanel", "Helpers", "BuyPanel", "Options", "Recorder", "Check" }) do
   local chunk = assert(loadfile("SkillRoute/" .. f .. ".lua"))
   chunk("SkillRoute", ns)
 end
@@ -1845,6 +1845,66 @@ do
   assert(A.Bearing(1, 0, 0, 0, 2, 5, 5, { 1, 0, 0, 1 }) == nil, "another continent: no arrow")
   _G.C_Map, _G.CreateVector2D = savedMap, savedV
   print("waypoint arrow: right direction and distance with either world-axis order")
+end
+
+-- SkillRoute's own buying (no Auctionator): price, then pay exactly that
+do
+  local BP = ns.BuyPanel
+  local calls = {}
+  local savedAH, savedGT, savedMoney, savedAuc = _G.C_AuctionHouse, _G.GetTime, _G.GetMoney, _G.Auctionator
+  _G.Auctionator = nil
+  _G.C_AuctionHouse = {
+    StartCommoditiesPurchase = function(item, qty) calls[#calls + 1] = "start " .. item .. " " .. qty end,
+    ConfirmCommoditiesPurchase = function(item, qty) calls[#calls + 1] = "confirm " .. item .. " " .. qty end,
+    CancelCommoditiesPurchase = function() calls[#calls + 1] = "cancel" end,
+  }
+  local clock, gold = 100, 1000000
+  _G.GetTime = function() return clock end
+  _G.GetMoney = function() return gold end
+  local bf
+  for _, f in ipairs(frames) do local e = rawget(f, "events"); if e and e.COMMODITY_PRICE_UNAVAILABLE then bf = f end end
+  local function ev(name, ...) bf.OnEvent(bf, name, ...) end
+  assert(BP.CanUse())
+  BP.Open({ { item = 4338, name = "Mageweave Cloth", qty = 111, expect = 407 }, { item = 9999, name = "Odd Thing", qty = 1 } }, "test")
+  local it = BP.Items()
+  BP._click(1)
+  assert(calls[1] == "start 4338 111" and it[1].state == "quoting", "asked for a quote")
+  ev("COMMODITY_PRICE_UPDATED", 407, 45177)
+  assert(it[1].state == "quoted" and it[1].total == 45177, "quote shown")
+  BP._click(1)
+  assert(#calls == 1, "a click the moment a quote arrives doesn't buy (it hasn't been seen)")
+  clock = clock + 1
+  ev("COMMODITY_PRICE_UPDATED", 450, 49950) -- the price moved
+  clock = clock + 0.1
+  BP._click(1)
+  assert(#calls == 1 and it[1].total == 49950, "a changed quote needs a new click")
+  clock = clock + 1
+  BP._click(1)
+  assert(calls[2] == "confirm 4338 111" and it[1].state == "buying", "bought at the quote shown")
+  ev("COMMODITY_PURCHASE_SUCCEEDED")
+  assert(it[1].state == "bought", "done")
+  -- not a stackable item: Search instead
+  BP._click(2)
+  ev("COMMODITY_PRICE_UNAVAILABLE")
+  assert(it[2].state == "search", "not stackable: search")
+  -- not enough gold: no Buy
+  BP.Open({ { item = 4338, name = "Mageweave Cloth", qty = 999 } }, "test2")
+  BP._click(1); ev("COMMODITY_PRICE_UPDATED", 407, 406593)
+  gold = 1000
+  clock = clock + 1
+  local before = #calls
+  BP.Refresh()
+  BP._click(1)
+  assert(#calls == before and BP.Items()[1].state == "quoted", "not enough gold: nothing bought")
+  -- Buy without Auctionator opens the panel
+  local savedSS = Core.StepShopping
+  Core.StepShopping = function() return { { item = 4338, name = "Mageweave Cloth", qty = 5 } } end
+  assert(Core.BuyStep({ line = 197, shopping = { craft = {} } }, { spell = 1, from = 1, name = "Bolt" }) == "Buy" and BP.IsShown()
+    and BP.Items()[1].qty == 5, "step Buy opens the buying panel")
+  Core.StepShopping = savedSS
+  ev("AUCTION_HOUSE_CLOSED")
+  _G.C_AuctionHouse, _G.GetTime, _G.GetMoney, _G.Auctionator = savedAH, savedGT, savedMoney, savedAuc
+  print("buying panel: quote, pay the quote shown, re-confirm a changed price, search for non-stackables")
 end
 
 -- /sr check runs and reports; errors are caught, not thrown

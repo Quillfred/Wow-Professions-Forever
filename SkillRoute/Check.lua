@@ -37,7 +37,7 @@ local APIS = {
   { "Bank to bags", { "C_Container.UseContainerItem", "UseContainerItem" }, "Take mats at the bank" },
   { "Legacy Tree", { "C_Traits.GetConfigIDByTreeID", "C_Traits.GetTreeNodes" }, "read your Working Overtime rank" },
   { "AH scan", { "C_AuctionHouse.SendBrowseQuery" }, "SkillRoute's own AH scan (Scan AH button)" },
-  { "AH purchases", { "C_AuctionHouse.StartCommoditiesPurchase" }, "remember what you paid" },
+  { "AH purchases", { "C_AuctionHouse.StartCommoditiesPurchase", "C_AuctionHouse.ConfirmCommoditiesPurchase" }, "buy without Auctionator; remember what you paid" },
   { "Auctionator prices", { "Auctionator.API.v1.GetAuctionPriceByItemID" }, "prices (or use Scan AH)" },
   { "Auctionator scan updates", { "Auctionator.API.v1.RegisterForDBUpdate" }, "re-plan after a scan" },
   { "Auctionator listing age", { "Auctionator.API.v1.GetAuctionAgeByItemID" }, "ignore old AH sightings of patterns" },

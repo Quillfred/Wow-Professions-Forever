@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.37.0
+
+- **No addons needed any more.** Auctionator and TomTom are still used when installed, but
+  SkillRoute now does both jobs itself:
+  - **Buying:** without Auctionator, **Buy** (and **Buy shopping list**) opens a panel beside
+    the auction house. For each material: **Price** gets the AH's exact total for the
+    amount you need, then **Buy** pays exactly that. A price that changes needs a new click;
+    nothing is bought without one. Items that aren't stackable get **Search** instead.
+  - **Waypoints:** without TomTom, clicking a trainer or vendor shows SkillRoute's own arrow
+    with the distance (green ahead, red behind) and "Arrived" when you get there; on
+    another continent it says how to get there. Drag to move, right-click to clear. The
+    game's map pin is set too.
+
 ## 0.36.0
 
 - **Your other professions help:** when one of your other professions can make a material
