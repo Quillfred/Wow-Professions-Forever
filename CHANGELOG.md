@@ -2,6 +2,11 @@
 
 ## 0.38.5 (not released yet)
 
+- **TSM prices:** with TradeSkillMaster installed, items that neither SkillRoute's scan
+  nor Auctionator has priced use TSM's price (its latest scan's lowest price, else its
+  market value). Your own scan and Auctionator still come first. TSM's market value is
+  used as a price only, never as "for sale now", so no pattern is bought because TSM
+  remembers one. `/sr check` lists it.
 ## 0.38.4
 
 - Fixed: the trainer panel only listed recipes for skill-up steps, so a tool your route

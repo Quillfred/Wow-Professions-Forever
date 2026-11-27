@@ -41,6 +41,7 @@ local APIS = {
   { "Auctionator prices", { "Auctionator.API.v1.GetAuctionPriceByItemID" }, "prices (or use Scan AH)" },
   { "Auctionator scan updates", { "Auctionator.API.v1.RegisterForDBUpdate" }, "re-plan after a scan" },
   { "Auctionator listing age", { "Auctionator.API.v1.GetAuctionAgeByItemID" }, "ignore old AH sightings of patterns" },
+  { "TSM prices (optional)", { "TSM_API.GetCustomPriceValue" }, "prices for items your scan and Auctionator haven't seen" },
   { "Auctionator shopping lists", { "Auctionator.API.v1.CreateShoppingList" }, "send the shopping list to Auctionator" },
   { "Item tooltips", { "TooltipDataProcessor.AddTooltipPostCall", "GameTooltip.SetBagItem" }, "disenchanting in item tooltips" },
   { "Waypoint arrow", { "GetPlayerFacing", "C_Map.GetWorldPosFromMapPos" }, "SkillRoute's own arrow" },

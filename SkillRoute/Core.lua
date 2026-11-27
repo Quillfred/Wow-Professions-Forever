@@ -1006,12 +1006,36 @@ end
 -- The freshest AH price: Auctionator's or SkillRoute's own scan, whichever is newer.
 -- Returns copper, age in days (nil = unknown), source name. wantAge: always work out
 -- the age (otherwise only when two sources have to be compared).
+-- TSM (TradeSkillMaster), if installed: a fallback for items neither SkillRoute's scan
+-- nor Auctionator has priced. Its API doesn't say how old a price is: the latest scan's
+-- lowest price counts as current; its 14-day market value only as a rough price, never
+-- as "for sale now" (age TSM_OLD), so no pattern is bought on the strength of it.
+local TSM_SOURCES = { { "DBMinBuyout", nil }, { "DBRecent", nil }, { "DBMarket", 99 } }
+local TSM_OLD = 99
+local function tsmQuote(item)
+  local api = TSM_API
+  if not (api and api.GetCustomPriceValue) then return nil end
+  for _, src in ipairs(TSM_SOURCES) do
+    local ok, v = pcall(api.GetCustomPriceValue, src[1], "i:" .. item)
+    if ok and type(v) == "number" and v > 0 then return v, src[2] end
+  end
+end
+Core._tsmQuote = tsmQuote
+
 local function ahQuote(item, wantAge)
   local p, age = aucQuote(item)
   if wantAge and age then age = age() end
-  if ns.Prices then return ns.Prices.Freshest(item, p, age) end
-  if type(age) == "function" then age = nil end
-  return p, age, p and "Auctionator" or nil
+  local src
+  if ns.Prices then p, age, src = ns.Prices.Freshest(item, p, age)
+  else
+    if type(age) == "function" then age = nil end
+    src = p and "Auctionator" or nil
+  end
+  if not p then -- neither has it: TSM's, if installed
+    local t, tAge = tsmQuote(item)
+    if t then return t, tAge, "TSM" end
+  end
+  return p, age, src
 end
 
 -- Seen on the AH today or yesterday? For one-off listings such as patterns, an old
@@ -1153,9 +1177,11 @@ end
 -- Where prices come from, for the window's header: nil when there are none.
 function Core.PriceSource()
   local own = ns.Prices and (ns.Prices.Book().t or 0) > 0
-  local auc = auctionator() ~= nil
-  if auc and own then return "Auctionator + SkillRoute scan" end
-  return auc and "Auctionator" or own and "SkillRoute scan" or nil
+  local parts = {}
+  if auctionator() then parts[#parts + 1] = "Auctionator" end
+  if own then parts[#parts + 1] = "SkillRoute scan" end
+  if TSM_API and TSM_API.GetCustomPriceValue then parts[#parts + 1] = "TSM" end
+  return #parts > 0 and table.concat(parts, " + ") or nil
 end
 
 -- The auction house price alone (the freshest scan), never a vendor price.

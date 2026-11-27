@@ -2469,6 +2469,28 @@ do
   print("mail: bought items count as owned until collected")
 end
 
+-- TSM: fills in items neither SkillRoute's scan nor Auctionator has priced; never overrides
+do
+  local asked = {}
+  _G.TSM_API = { GetCustomPriceValue = function(src, itemString)
+    asked[#asked + 1] = src .. " " .. itemString
+    if itemString == "i:880001" and src == "DBMinBuyout" then return 1234 end
+    if itemString == "i:880002" and src == "DBMarket" then return 5678 end
+    if itemString == "i:2589" then return 1 end
+  end }
+  local p1, age1, src1 = Core.PriceInfo(880001).ah, Core.PriceInfo(880001).age, Core.PriceInfo(880001).src
+  assert(p1 == 1234 and src1 == "TSM" and age1 == nil, "unpriced elsewhere: TSM's latest lowest price")
+  assert(asked[1] == "DBMinBuyout i:880001", "asked TSM by item string: " .. tostring(asked[1]))
+  assert(Core.AHFresh(880001), "TSM's latest scan counts as current")
+  assert(Core.AHPrice(880002) == 5678 and not Core.AHFresh(880002), "TSM's 14-day market value: a price, not 'for sale now'")
+  local own = Core.AHPrice(2589)
+  assert(own and own ~= 1, "SkillRoute's scan / Auctionator win over TSM: " .. tostring(own))
+  assert(Core.PriceSource():find("TSM", 1, true), "source names TSM: " .. tostring(Core.PriceSource()))
+  _G.TSM_API = nil
+  assert(Core.AHPrice(880001) == nil and not tostring(Core.PriceSource()):find("TSM", 1, true), "without TSM: as before")
+  print("TSM: fallback prices only (" .. Core.PriceSource() .. ")")
+end
+
 -- /sr check runs and reports; errors are caught, not thrown
 do
   local out = {}
