@@ -1917,6 +1917,18 @@ do
   Core.NearestNPC = function() return {} end
   A.Reroute()
   assert(A.Target().leg == nil, "last leg: straight to the NPC")
+  -- on a flight: not sent back to the flight master you left; rerouted on landing
+  Core.NearestNPC = function() return { via = { "flight to Sun Rock Retreat" },
+    first = { map = 1, x = 100, y = 200, label = "Flight master, Thunder Bluff" } } end
+  _G.UnitOnTaxi = function() return true end
+  A.Update()
+  assert(A.Target().leg == nil and A.Target().route:find("On a flight", 1, true), "in flight: straight at the NPC")
+  _G.UnitOnTaxi = function() return false end
+  A.Update()
+  assert(A.Target().leg and A.Target().leg.label == "Flight master, Thunder Bluff", "landed: rerouted at once")
+  _G.UnitOnTaxi = nil
+  A.Update()
+  print("arrow in flight: " .. "On a flight -> rerouted on landing")
   Core.NearestNPC = savedNearest
   A.Clear()
   assert(A.Bearing(1, 0, 0, 0, 2, 5, 5, { 1, 0, 0, 1 }) == nil, "another continent: no arrow")

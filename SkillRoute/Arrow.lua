@@ -14,6 +14,9 @@ local REROUTE = 3     -- seconds between route checks (you may have flown, saile
 
 local frame, target
 local acc, sinceRoute = 0, 0
+local flying = false -- on a flight master's flight: the flight is the route until you land
+
+local function onTaxi() return UnitOnTaxi and UnitOnTaxi("player") or false end
 
 -- World position (yards, continent) of a map point: the game's own conversion.
 local function worldOf(ui, x, y)
@@ -155,6 +158,12 @@ end
 function Arrow.Reroute()
   if not (target and target.ids and #target.ids > 0) then return end
   sinceRoute = 0
+  if onTaxi() then
+    -- in the air the nearest flight master is still the one you left: don't send you back
+    target.leg = nil
+    target.route = "|cff999999On a flight: the route picks up again when you land|r"
+    return
+  end
   local loc = Core.NearestNPC(target.ids)
   if not loc then return end
   local via = loc.via and #loc.via > 0 and table.concat(loc.via, ", then ") or nil
@@ -174,6 +183,11 @@ end
 
 function Arrow.Update()
   if not (frame and target) then return end
+  local nowFlying = onTaxi()
+  if nowFlying ~= flying then -- took off or landed: work the route out from here now
+    flying = nowFlying
+    Arrow.Reroute()
+  end
   local pc, px, py, map = playerWorld()
   local facing = GetPlayerFacing and GetPlayerFacing()
   local ax = map and axes(map)

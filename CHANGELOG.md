@@ -16,6 +16,10 @@
   later step.
 - Fixed: "Take route mats" from the bank now takes the safety margin too, so it no longer
   takes less than the shopping list says you need.
+- Fixed: on a flight the arrow kept working the route out from mid-air, so it pointed
+  back to the flight master you'd left, or said "walk". In flight it now points straight
+  at the destination ("On a flight: the route picks up again when you land") and works
+  the route out again the moment you land.
 - The mini panel's buy line now says it's for this step: "This step: buy 12 (90% sure)".
 - The mini panel's skill colour bands now come from the same code as the full route's.
 
