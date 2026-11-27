@@ -3,8 +3,9 @@
 --   1. Price: the AH quotes the exact total for that amount at today's listings.
 --   2. Buy <total>: pays that quote.
 -- Nothing is ever bought without a click, and you pay what you were shown: if the quote
--- changes, the button shows the new total and waits for another click. Only stackable
--- goods (cloth, herbs, bars...) can be bought this way; anything else gets Search.
+-- changes, the button shows the new total and waits for another click. Stackable goods
+-- (cloth, herbs, bars...) are bought by amount; one-of-a-kind items (rods, tools,
+-- patterns) one listing per click: Price finds the cheapest listing, Buy pays exactly it.
 local _, ns = ...
 local Core, UI = ns.Core, ns.UI
 local BP = {}
@@ -23,6 +24,14 @@ function BP.CanUse()
   return A and A.StartCommoditiesPurchase and A.ConfirmCommoditiesPurchase and true or false
 end
 
+-- Single listings (rods, patterns): search the item, pay one listing's buyout.
+local function canBuyListings()
+  local A = AH()
+  return A and A.MakeItemKey and A.SendSearchQuery and A.GetNumItemSearchResults and A.GetItemSearchResultInfo
+    and A.PlaceBid and true or false
+end
+BP.CanBuyListings = canBuyListings
+
 local money = function(c) return UI.Money(c) end
 
 local function setRow(row)
@@ -36,13 +45,18 @@ local function setRow(row)
   if x.state == "quoting" then info, label, enabled = "|cff999999asking the AH...|r", "Price", false
   elseif x.state == "quoted" then
     info = ("%s each"):format(money(x.unit or 0))
+    if x.kind == "item" then -- one listing: the cheapest; more listings after it
+      info = x.qty > 1 and ("cheapest listing, %d of %d"):format((x.got or 0) + 1, x.qty) or "the cheapest listing"
+    end
     label = "Buy " .. money(x.total)
     if GetMoney and GetMoney() < x.total then info, label, enabled = "|cffff4040not enough gold|r", "Buy", false
     else enabled = true end
     if x.warn then info = info .. "  |cffff8040" .. x.warn .. "|r" end
   elseif x.state == "buying" then info, label, enabled = "|cff999999buying...|r", "Buy", false
   elseif x.state == "bought" then
-    info, label, enabled = x.total and ("|cff40bf40bought for %s|r"):format(money(x.total)) or "|cff40bf40bought|r", "Done", false
+    local paid = x.kind == "item" and x.spent or x.total
+    info, label, enabled = paid and ("|cff40bf40bought for %s|r"):format(money(paid)) or "|cff40bf40bought|r", "Done", false
+  elseif x.state == "none" then info, label = "|cffff8040none listed right now|r", "Price"
   elseif x.state == "search" then
     -- no quote for an amount (one-of-a-kind items such as rods, or none listed): the AH's own list
     info, label = "|cffff8040Search, then buy from the list|r", "Search"
@@ -89,10 +103,78 @@ local function quote(i)
   elseif busy == i and A.CancelCommoditiesPurchase then pcall(A.CancelCommoditiesPurchase) end
   busy = i
   x.state, x.total, x.unit, x.warn = "quoting", nil, nil, nil
+  if x.kind == "item" then BP.QuoteListing(i); return end
   local ok = pcall(A.StartCommoditiesPurchase, x.item, x.qty)
   if not ok then x.state, x.err, busy = "failed", "the AH refused", nil end
   BP.Refresh()
 end
+
+-- One-of-a-kind items: the cheapest listing that isn't yours, from an item search.
+local function readListing(x)
+  local A = AH()
+  local key = A.MakeItemKey(x.item)
+  local n = A.GetNumItemSearchResults(key) or 0
+  local best
+  for k = 1, math.min(n, 100) do
+    local r = A.GetItemSearchResultInfo(key, k)
+    if r and r.auctionID and r.buyoutAmount and r.buyoutAmount > 0 and (r.quantity or 0) > 0
+       and not r.containsOwnerItem and (not best or r.buyoutAmount / r.quantity < best.buyoutAmount / best.quantity) then
+      best = r
+    end
+  end
+  return best
+end
+
+local LISTING_WAIT = 5 -- seconds for the AH to answer a search
+function BP.QuoteListing(i)
+  local x = items[i]
+  local A = AH()
+  x.state, x.listing = "quoting", nil
+  local sentAt = GetTime()
+  x.searchedAt = sentAt
+  local ok = pcall(A.SendSearchQuery, A.MakeItemKey(x.item),
+    { { sortOrder = (Enum and Enum.AuctionHouseSortOrder and Enum.AuctionHouseSortOrder.Price) or 0, reverseSort = false } }, true)
+  if not ok then x.state, x.err, busy = "failed", "the AH refused", nil; BP.Refresh(); return end
+  BP.Refresh()
+  -- the answer can come without its event: look every 0.25 s, up to LISTING_WAIT
+  local function check()
+    if busy ~= i or x.state ~= "quoting" or x.searchedAt ~= sentAt then return end
+    local best = readListing(x)
+    if best then BP.ListingFound(i, best)
+    elseif GetTime() - sentAt >= LISTING_WAIT then
+      -- a stackable good with too few listed for the amount: the AH's own list (buy what
+      -- there is); otherwise none listed (or only yours)
+      local A2 = AH()
+      local stack = A2.GetNumCommoditySearchResults and (A2.GetNumCommoditySearchResults(x.item) or 0) > 0
+      x.state, busy = stack and "search" or "none", nil
+      BP.Refresh()
+    else C_Timer.After(0.25, check) end
+  end
+  C_Timer.After(0.25, check)
+end
+
+function BP.ListingFound(i, r)
+  local x = items[i]
+  if not x or x.state ~= "quoting" then return end
+  x.listing = { id = r.auctionID, price = r.buyoutAmount, q = r.quantity }
+  x.state, x.total, x.unit, x.quotedAt = "quoted", r.buyoutAmount, math.floor(r.buyoutAmount / r.quantity), GetTime()
+  if x.expect and x.expect > 0 and x.unit > x.expect * 1.5 then x.warn = "much more than expected" end
+  BP.Refresh()
+end
+
+-- A listing bought: count it, then find the next one if more are needed.
+local function listingBought(i)
+  local x = items[i]
+  local l = x.listing
+  if not (x and l) or x.state ~= "buying" then return end
+  x.got, x.spent, x.listing = (x.got or 0) + l.q, (x.spent or 0) + l.price, nil
+  if ns.Prices and ns.Prices.RecordPaid then ns.Prices.RecordPaid(x.item, l.q, l.price) end
+  Core.AddToMail(x.item, l.q) -- arrives by mail: don't buy it again
+  busy = nil
+  if x.got >= x.qty then x.state = "bought"; BP.Refresh()
+  else busy = i; BP.QuoteListing(i) end -- the next listing (a search, not a purchase)
+end
+BP._listingBought = listingBought
 
 -- Pay the quote shown on the button.
 local function buy(i)
@@ -102,6 +184,20 @@ local function buy(i)
   if GetTime() - (x.quotedAt or 0) < 0.4 then return end
   if GetMoney and GetMoney() < (x.total or 0) then return end -- not enough gold
   x.state = "buying"
+  if x.kind == "item" then
+    -- pay exactly this listing's buyout (if it's gone, the AH refuses: nothing is paid)
+    local l, before = x.listing, GetMoney and GetMoney() or nil
+    local ok = l and pcall(AH().PlaceBid, l.id, l.price)
+    if not ok then x.state, x.err, busy = "failed", "the purchase didn't start", nil; BP.Refresh(); return end
+    BP.Refresh()
+    -- no "bought" event on some clients: the gold leaving your bags says so
+    C_Timer.After(4, function()
+      if x.state ~= "buying" or x.listing ~= l then return end
+      if before and GetMoney and GetMoney() <= before - l.price then listingBought(i)
+      else x.state, x.err, busy = "failed", "not bought (someone may have bought it first)", nil; BP.Refresh() end
+    end)
+    return
+  end
   local ok = pcall(AH().ConfirmCommoditiesPurchase, x.item, x.qty)
   if not ok then x.state, x.err, busy = "failed", "the purchase didn't start", nil end
   BP.Refresh()
@@ -178,7 +274,8 @@ function BP.Items() return items end
 -- AH answers ---------------------------------------------------------------------------
 local f = CreateFrame("Frame")
 for _, ev in ipairs({ "COMMODITY_PRICE_UPDATED", "COMMODITY_PRICE_UNAVAILABLE", "COMMODITY_PURCHASE_SUCCEEDED",
-  "COMMODITY_PURCHASE_FAILED", "AUCTION_HOUSE_CLOSED" }) do pcall(f.RegisterEvent, f, ev) end
+  "COMMODITY_PURCHASE_FAILED", "AUCTION_HOUSE_CLOSED", "ITEM_SEARCH_RESULTS_UPDATED",
+  "AUCTION_HOUSE_PURCHASE_COMPLETED", "AUCTION_HOUSE_SHOW_ERROR" }) do pcall(f.RegisterEvent, f, ev) end
 f:SetScript("OnEvent", function(_, ev, a, b)
   if ev == "AUCTION_HOUSE_CLOSED" then
     busy = nil
@@ -187,6 +284,19 @@ f:SetScript("OnEvent", function(_, ev, a, b)
   end
   local x = busy and items[busy]
   if not x then return end
+  -- one-of-a-kind items
+  if x.kind == "item" then
+    if ev == "ITEM_SEARCH_RESULTS_UPDATED" and x.state == "quoting" and type(a) == "table" and a.itemID == x.item then
+      local best = readListing(x)
+      if best then BP.ListingFound(busy, best) end
+    elseif ev == "AUCTION_HOUSE_PURCHASE_COMPLETED" and x.state == "buying" and x.listing and a == x.listing.id then
+      listingBought(busy)
+    elseif ev == "AUCTION_HOUSE_SHOW_ERROR" and x.state == "buying" then
+      x.state, x.err, busy = "failed", "the AH refused the purchase", nil
+      BP.Refresh()
+    end
+    return
+  end
   if ev == "COMMODITY_PRICE_UPDATED" and x.state ~= "quoting" and x.state ~= "quoted" then return end
   if (ev == "COMMODITY_PURCHASE_SUCCEEDED" or ev == "COMMODITY_PURCHASE_FAILED") and x.state ~= "buying" then
     return -- someone else's purchase (the AH's own window, another addon), not this one
@@ -194,7 +304,12 @@ f:SetScript("OnEvent", function(_, ev, a, b)
   if ev == "COMMODITY_PRICE_UPDATED" then -- (unitPrice, totalPrice): a new quote, to be clicked again
     x.state, x.unit, x.total, x.quotedAt = "quoted", a, b, GetTime()
     if x.expect and x.expect > 0 and a and a > x.expect * 1.5 then x.warn = "much more than expected" end
-  elseif ev == "COMMODITY_PRICE_UNAVAILABLE" then -- not a commodity, or none listed
+  elseif ev == "COMMODITY_PRICE_UNAVAILABLE" then -- not a commodity (a rod, a pattern), or none listed
+    if canBuyListings() then
+      x.kind = "item" -- buy it one listing at a time
+      BP.QuoteListing(busy)
+      return
+    end
     x.state, busy = "search", nil
   elseif ev == "COMMODITY_PURCHASE_SUCCEEDED" then
     x.state, busy = "bought", nil

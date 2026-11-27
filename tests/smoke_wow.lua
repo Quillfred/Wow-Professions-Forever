@@ -2090,6 +2090,90 @@ do
   print("buying panel: quote, pay the quote shown, re-confirm a changed price, search for non-stackables")
 end
 
+-- one-of-a-kind items (a rod, a pattern): Price finds the cheapest listing, Buy pays exactly it
+do
+  local BP = ns.BuyPanel
+  local calls, listings = {}, {}
+  local saved = { _G.C_AuctionHouse, _G.GetTime, _G.GetMoney, _G.C_Timer, _G.Auctionator }
+  local queue = {}
+  local function runTimers() local q = queue; queue = {}; for _, f in ipairs(q) do f() end end
+  _G.C_Timer = { After = function(_, fn) queue[#queue + 1] = fn end }
+  _G.Auctionator = nil
+  local clock, gold = 100, 1000000
+  _G.GetTime = function() return clock end
+  _G.GetMoney = function() return gold end
+  _G.C_AuctionHouse = {
+    StartCommoditiesPurchase = function(item, qty) calls[#calls + 1] = "start " .. item end,
+    ConfirmCommoditiesPurchase = function() end,
+    CancelCommoditiesPurchase = function() end,
+    MakeItemKey = function(id) return { itemID = id } end,
+    SendSearchQuery = function(key) calls[#calls + 1] = "search " .. key.itemID end,
+    GetNumItemSearchResults = function() return #listings end,
+    GetItemSearchResultInfo = function(_, k) return listings[k] end,
+    PlaceBid = function(id, amount) calls[#calls + 1] = "bid " .. id .. " " .. amount end,
+  }
+  local bf
+  for _, f in ipairs(frames) do local e = rawget(f, "events"); if e and e.ITEM_SEARCH_RESULTS_UPDATED then bf = f end end
+  assert(bf, "listing events registered")
+  local function ev(name, ...) bf.OnEvent(bf, name, ...) end
+  local c = Core.Char(); local savedMail = c.mail; c.mail = nil
+
+  BP.Open({ { item = 7967, name = "Truesilver Rod", qty = 2, expect = 3500 } }, "rods")
+  local x = BP.Items()[1]
+  BP._click(1)
+  ev("COMMODITY_PRICE_UNAVAILABLE") -- not stackable: look for listings instead of Search
+  assert(calls[#calls] == "search 7967" and x.kind == "item" and x.state == "quoting", "searched its listings")
+  -- yours is skipped; the cheapest other one is quoted, at exactly its buyout
+  listings = { { auctionID = 11, buyoutAmount = 3000, quantity = 1, containsOwnerItem = true },
+               { auctionID = 12, buyoutAmount = 3491, quantity = 1 },
+               { auctionID = 13, buyoutAmount = 4000, quantity = 1 } }
+  ev("ITEM_SEARCH_RESULTS_UPDATED", { itemID = 7967 })
+  assert(x.state == "quoted" and x.total == 3491 and x.listing.id == 12, "cheapest listing not yours: " .. tostring(x.total))
+  BP._click(1)
+  assert(not calls[#calls]:find("^bid"), "a click the moment the price appears doesn't buy")
+  clock = clock + 1
+  BP._click(1)
+  assert(calls[#calls] == "bid 12 3491" and x.state == "buying", "pays exactly that listing")
+  gold = gold - 3491
+  ev("AUCTION_HOUSE_PURCHASE_COMPLETED", 12)
+  assert(x.got == 1 and Core.InMail(7967) == 1, "one bought, on its way by mail")
+  assert(x.state == "quoting" and calls[#calls] == "search 7967", "two needed: looks for the next listing")
+  listings = { { auctionID = 13, buyoutAmount = 4000, quantity = 1 } }
+  runTimers() -- answer arrives without its event: found by looking
+  assert(x.state == "quoted" and x.total == 4000, "next listing quoted")
+  clock = clock + 1
+  BP._click(1)
+  assert(calls[#calls] == "bid 13 4000")
+  -- no "completed" event: the gold leaving your bags says it was bought
+  gold = gold - 4000
+  runTimers()
+  assert(x.state == "bought" and x.spent == 7491 and Core.InMail(7967) == 2, "both bought for 74s 91c")
+  -- someone else bought it first: the AH refuses, nothing paid, try again
+  BP.Open({ { item = 7967, name = "Truesilver Rod", qty = 1 } }, "rods")
+  x = BP.Items()[1]
+  BP._click(1); ev("COMMODITY_PRICE_UNAVAILABLE")
+  listings = { { auctionID = 14, buyoutAmount = 3500, quantity = 1 } }
+  ev("ITEM_SEARCH_RESULTS_UPDATED", { itemID = 7967 })
+  clock = clock + 1
+  BP._click(1)
+  runTimers() -- 4 s later, no gold left your bags
+  assert(x.state == "failed" and Core.InMail(7967) == 2, "not bought: says so, nothing counted")
+  -- none listed: says so
+  BP.Open({ { item = 7967, name = "Truesilver Rod", qty = 1 } }, "rods")
+  x = BP.Items()[1]
+  listings = {}
+  BP._click(1); ev("COMMODITY_PRICE_UNAVAILABLE")
+  clock = clock + 6
+  runTimers()
+  assert(x.state == "none", "none listed: " .. tostring(x.state))
+
+  ev("AUCTION_HOUSE_CLOSED")
+  c.mail = savedMail
+  _G.C_AuctionHouse, _G.GetTime, _G.GetMoney, _G.C_Timer, _G.Auctionator = saved[1], saved[2], saved[3], saved[4], saved[5]
+  Core.Changed()
+  print("one-of-a-kind items: cheapest listing (not yours), exact buyout, next listing, counted in the mail")
+end
+
 -- crowded AH: how many are listed counts when choosing AH / disenchant / vendor
 do
   local P = ns.Prices

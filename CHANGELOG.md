@@ -2,14 +2,18 @@
 
 ## 0.38.3 (not released yet)
 
+- **Buying panel: one-of-a-kind items** (rods, tools, AH patterns) can now be bought
+  from SkillRoute's panel instead of "Search". Price finds the cheapest listing that
+  isn't yours; Buy pays exactly that listing's price (if someone buys it first, the AH
+  refuses and nothing is paid). Need more than one? It finds the next listing after each
+  purchase, one click each. Bought items count as on their way by mail.
 - Fixed: AH purchases arrive in your mailbox, and SkillRoute only counted bags and bank,
   so until you collected the mail it still listed what you'd just bought (and you could
   buy it twice). What you buy on the AH (with SkillRoute, the AH's own window or
   Auctionator) now counts as yours straight away, and opening the mailbox counts exactly
   what's in it. The mini panel shows "1 in the mail" next to a material waiting there.
-- Buying panel: a one-of-a-kind item (a Truesilver Rod) said "the AH can't quote this
-  (not stackable, or too few listed)", which ran into the next row. It now says "Search,
-  then buy from the list" on one line.
+- Buying panel: the "Search" note ("the AH can't quote this…") ran into the next row. It
+  now fits on one line, and is only shown when too few of a stackable good are listed.
 
 ## 0.38.2
 
