@@ -2094,6 +2094,18 @@ do
     "route-needed material counted: " .. joined2)
   -- "Best" says what it beat (AH and vendor; disenchanting is shown above it)
   assert(joined2:find("compared: ", 1, true) and not joined2:find("compared:[^\n]*disenchant"), "compared line: " .. joined2)
+  -- a crowded AH that loses to the vendor says what it counted as (why the higher price lost)
+  do
+    local savedListed, savedP = ns.Prices.Listed, prices[900001]
+    prices[900001] = 2500 -- 23s 75c after the cut
+    ns.Prices.Listed = function(it) return it == 900001 and 47 or nil end
+    local ca = Core.ItemAdvice(900001, 170, 1, {}, { vendor = 2130 })
+    assert(ca.crowded and ca.best ~= "ah" and ca.ahCounted == math.floor(ca.ah * 0.7), "crowded AH counted at 70%")
+    local cmp = UI.Compared(ca, 900001, true)
+    assert(cmp:find("47 listed: crowded, counted as", 1, true) and cmp:find(UI.Money(ca.ahCounted, "ff8040"), 1, true), cmp)
+    print("crowded: " .. cmp:gsub("|c%x%x%x%x%x%x%x%x", ""):gsub("|r", ""))
+    ns.Prices.Listed, prices[900001] = savedListed, savedP
+  end
   -- soulbound: no AH option, and it says so
   local bound = {}
   for _, l in ipairs(TT.Lines(900001, true, 3218)) do bound[#bound + 1] = l[1] end

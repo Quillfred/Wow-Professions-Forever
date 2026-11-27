@@ -1782,6 +1782,7 @@ function Core.ItemAdvice(item, enchantSkill, n, needs, opts)
   local best, bestV = "vendor", a.vendor
   if a.de and a.de > bestV then best, bestV = "de", a.de end
   local ahV = a.ah and (a.crowded and a.ah * CROWDED_SHARE or a.ah)
+  a.ahCounted = a.crowded and ahV and math.floor(ahV) or nil -- what a crowded AH counted for
   if ahV and ahV > bestV then best, bestV = "ah", ahV end
   a.best, a.bestValue = best, best == "ah" and a.ah or bestV
   return a

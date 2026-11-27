@@ -80,6 +80,10 @@ function UI.Compared(a, item, noDE)
   local ench = Core.Skills()[333]
   local parts = {}
   local listed = a.listed and ((a.crowded and " |cffff8040(%d listed: crowded)|r" or " (%d listed)"):format(a.listed)) or ""
+  if a.best ~= "ah" and a.ahCounted then
+    -- crowded: why a higher AH price lost - it counted for less (it may not sell)
+    listed = (" |cffff8040(%d listed: crowded, counted as %s)|r"):format(a.listed, money(a.ahCounted, "ff8040"))
+  end
   if a.best ~= "ah" then
     parts[#parts + 1] = a.bound and "soulbound: no AH" or a.ah and ("AH " .. money(a.ah) .. listed) or "AH: no fresh price"
   end

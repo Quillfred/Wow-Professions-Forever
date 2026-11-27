@@ -12,6 +12,8 @@
   vendor 21s 30c"), as the route's tooltips do; soulbound items say "soulbound: no AH".
   The "counts the … your Enchanting route needs" note is on its own line and names every
   material it counted (it left out ones you need less than one of).
+- When a crowded AH loses to another choice despite a higher price, it says what it
+  counted as: "AH 23s 74c (47 listed: crowded, counted as 16s 62c)".
 
 ## 0.38.1
 
