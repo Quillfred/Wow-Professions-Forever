@@ -43,7 +43,9 @@ local function setRow(row)
   elseif x.state == "buying" then info, label, enabled = "|cff999999buying...|r", "Buy", false
   elseif x.state == "bought" then
     info, label, enabled = x.total and ("|cff40bf40bought for %s|r"):format(money(x.total)) or "|cff40bf40bought|r", "Done", false
-  elseif x.state == "search" then info, label = "|cffff8040the AH can't quote this (not stackable, or too few listed)|r", "Search"
+  elseif x.state == "search" then
+    -- no quote for an amount (one-of-a-kind items such as rods, or none listed): the AH's own list
+    info, label = "|cffff8040Search, then buy from the list|r", "Search"
   elseif x.state == "failed" then info, label = "|cffff4040" .. (x.err or "failed") .. ": try again|r", "Price" end
   r.info:SetText(info)
   r.btn:SetText(label)
@@ -138,6 +140,7 @@ local function build()
     r.name:SetPoint("TOPLEFT", 12, y); r.name:SetWidth(W - 130); r.name:SetJustifyH("LEFT")
     r.info = panel:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
     r.info:SetPoint("TOPLEFT", 12, y - 15); r.info:SetWidth(W - 130); r.info:SetJustifyH("LEFT")
+    if r.info.SetWordWrap then r.info:SetWordWrap(false) end -- one line: never runs into the next row
     r.btn = CreateFrame("Button", nil, panel, "UIPanelButtonTemplate")
     r.btn:SetSize(110, 22); r.btn:SetPoint("TOPRIGHT", -10, y - 3)
     r.btn:SetScript("OnClick", function() click(page + i) end)

@@ -2064,6 +2064,10 @@ do
   BP._click(2)
   ev("COMMODITY_PRICE_UNAVAILABLE")
   assert(it[2].state == "search", "not stackable: search")
+  -- its note is short enough for one line (the row is 200 wide; it used to wrap into the next row)
+  local note
+  for _, t in ipairs(texts) do local v = rawget(t, "text"); if type(v) == "string" and v:find("then buy from the list", 1, true) then note = v end end
+  assert(note and #note:gsub("|c%x%x%x%x%x%x%x%x", ""):gsub("|r", "") <= 34, "short note: " .. tostring(note))
   -- not enough gold: no Buy
   BP.Open({ { item = 4338, name = "Mageweave Cloth", qty = 999 } }, "test2")
   BP._click(1); ev("COMMODITY_PRICE_UPDATED", 407, 406593)

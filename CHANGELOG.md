@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.38.3 (not released yet)
+
+- Buying panel: a one-of-a-kind item (a Truesilver Rod) said "the AH can't quote this
+  (not stackable, or too few listed)", which ran into the next row. It now says "Search,
+  then buy from the list" on one line.
+
 ## 0.38.2
 
 - Fixed: when the route window's footer ran to two lines (a long total with training
