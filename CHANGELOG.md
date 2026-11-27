@@ -2,6 +2,7 @@
 
 ## 0.37.0
 
+- Buying panel: sized to what it lists; a bought material shows what you paid.
 - Fixed (buying panel): more than 10 materials (a full shopping list) couldn't all be
   reached; there are pages now. A purchase made in the AH's own window was counted as
   the panel's. "Can't quote" now says why (not stackable, or too few listed).

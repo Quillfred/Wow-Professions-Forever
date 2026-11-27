@@ -41,7 +41,8 @@ local function setRow(row)
     else enabled = true end
     if x.warn then info = info .. "  |cffff8040" .. x.warn .. "|r" end
   elseif x.state == "buying" then info, label, enabled = "|cff999999buying...|r", "Buy", false
-  elseif x.state == "bought" then info, label, enabled = "|cff40bf40bought|r", "Done", false
+  elseif x.state == "bought" then
+    info, label, enabled = x.total and ("|cff40bf40bought for %s|r"):format(money(x.total)) or "|cff40bf40bought|r", "Done", false
   elseif x.state == "search" then info, label = "|cffff8040the AH can't quote this (not stackable, or too few listed)|r", "Search"
   elseif x.state == "failed" then info, label = "|cffff4040" .. (x.err or "failed") .. ": try again|r", "Price" end
   r.info:SetText(info)
@@ -55,6 +56,9 @@ function BP.Refresh()
   local left = 0
   for _, x in ipairs(items) do if x.state ~= "bought" then left = left + 1 end end
   local pages = math.max(1, math.ceil(#items / ROWS))
+  -- as tall as what it lists (1 to ROWS rows), plus room for the page buttons
+  local shown = math.max(1, math.min(ROWS, #items - page))
+  panel:SetHeight(72 + shown * 34 + (pages > 1 and 10 or 0))
   if pages > 1 then
     panel.foot:SetText(("Page %d of %d"):format(page / ROWS + 1, pages))
     panel.prev:Show(); panel.next:Show()
