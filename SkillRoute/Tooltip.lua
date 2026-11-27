@@ -91,10 +91,8 @@ function TT.Lines(item, bound, vendorPrice)
   end
   local ench = Core.Skills()[333]
   local lines = {}
-  local skillText
-  if not ench then skillText = "|cff999999you don't have Enchanting|r"
-  else skillText = "|cff40bf40you can disenchant this|r" end -- Forever: no skill requirement
-  lines[#lines + 1] = { "|cff33ccffSkillRoute: disenchants into|r", skillText }
+  -- only a note when it matters: without Enchanting you can't (no skill requirement in Forever)
+  lines[#lines + 1] = { "|cff33ccffSkillRoute: disenchants into|r", not ench and "|cffff4040you don't have Enchanting|r" or "" }
   local rows, total, missing = TT.Value(key)
   for _, r in ipairs(rows) do
     -- left: icon, the name in its quality colour, the chance; right: how many x the price

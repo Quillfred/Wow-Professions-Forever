@@ -2043,6 +2043,12 @@ do
     return savedCI2.GetItemInfo and savedCI2.GetItemInfo(id) end,
     GetItemQualityColor = function(q) return 0.1, 1, 0, q == 2 and "ff1eff00" or "ffffffff" end }, { __index = savedCI2 })
   local ql = TT.Lines(900001, false, 3218)
+  local savedSk = Core.Skills
+  Core.Skills = function() return { [333] = { rank = 170, max = 225 } } end
+  assert(TT.Lines(900001, false, 3218)[1][2] == "", "with Enchanting: no note")
+  Core.Skills = function() return {} end
+  assert(TT.Lines(900001, false, 3218)[1][2]:find("ff4040you don't have Enchanting", 1, true), "without: a red note")
+  Core.Skills = savedSk
   local essence
   for _, l in ipairs(ql) do if l[1]:find("Greater Mystic Essence", 1, true) then essence = l end end
   assert(essence and essence[1]:find("|cff1eff00", 1, true) and essence[1]:find("(20%)", 1, true) and essence[2]:find("^1%-2 x "),
