@@ -2,6 +2,8 @@
 
 ## 0.37.0
 
+- Fixed: the full route window, opened with **Full route**, stayed on the old profession
+  when you switched (e.g. Enchanting to Tailoring). It now follows.
 - **No addons needed any more.** Auctionator and TomTom are still used when installed, but
   SkillRoute now does both jobs itself:
   - **Buying:** without Auctionator, **Buy** (and **Buy shopping list**) opens a panel beside

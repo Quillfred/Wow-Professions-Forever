@@ -270,6 +270,13 @@ do
   assert(tools == 1 and te[1].kind == "tool" and te[1].buy and te[1].buy.crafts == 1, "tool once, with a Buy step")
   local tl = Core.StepShopping(fake, te[1].buy)
   assert(type(tl) == "table", "tool materials for Auctionator")
+  -- the full window, opened with Full route, follows a switch of profession
+  UI.Toggle(197); assert(UI.IsShown())
+  UI.AutoOpen(182) -- the test character's other profession
+  local follows
+  for _, t in ipairs(texts) do if rawget(t, "text") == "Herbalism" then follows = true end end
+  assert(follows, "full window switched to the profession you opened")
+  UI.AutoOpen(197); UI.Toggle()
   fire("TRADE_SKILL_CLOSE")
   SkillRouteDB.settings.mini = false -- the rest checks the full window's auto-open
 end

@@ -1069,6 +1069,12 @@ end
 
 function UI.AutoOpen(line)
   firstRunTips()
+  -- an open full window follows the profession too (e.g. opened with Full route, then
+  -- you switch from Enchanting to Tailoring)
+  if frame and frame:IsShown() and line and line ~= state.line then
+    state.line = line
+    UI.Refresh()
+  end
   -- the mini panel docked to the profession window, unless switched off in the options
   if ns.Mini and (SkillRouteDB.settings or {}).mini ~= false and ns.Mini.Show(line) then return end
   if not frame then build() end
