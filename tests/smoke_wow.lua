@@ -1855,6 +1855,11 @@ do
   _G.print = rp
   assert(how == "arrow" and A.Target() and A.Target().title == "Josef Gregorian", "arrow set: " .. tostring(how))
   assert(A.Target().route and A.Target().route:find("Fastest", 1, true), "route line: " .. tostring(A.Target().route))
+  -- a visited NPC (no route of its own) gets its route from the data
+  local someone
+  for id, n in pairs(SkillRouteData.npcs) do if n[12] then someone = n; break end end
+  local named = Core.NPCsNamed(someone[1])
+  assert(#named >= 1, "found by name")
   A.Clear(); assert(not A.Target())
   _G.TomTom = savedTT
   assert(A.Bearing(1, 0, 0, 0, 2, 5, 5, { 1, 0, 0, 1 }) == nil, "another continent: no arrow")

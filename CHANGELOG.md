@@ -6,7 +6,7 @@
   have a location: the dungeon's entrance, from the game's own data, with a note. The
   route used to say "no Artisan trainer known" for Annora.
 - The arrow's text is the same every time: name, distance (or "On another continent"),
-  and "Fastest: ..." (flight, boat, or walk).
+  and "Fastest: ..." (flight, boat, or walk), also for NPCs you visited yourself.
 - Mini panel: click a trainer, book or quest step, a recipe you haven't learned, or its
   "learn it at ..." note, for a waypoint (a recipe you know still opens).
 - Fixed: the full route window, opened with **Full route**, stayed on the old profession

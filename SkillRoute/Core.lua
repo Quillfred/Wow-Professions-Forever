@@ -867,6 +867,19 @@ whereRaw = function(loc)
   return loc.zone
 end
 
+-- NPC ids in the data with this name (cached).
+local byName
+function Core.NPCsNamed(name)
+  if not byName then
+    byName = {}
+    for id, n in pairs(Data.npcs or {}) do
+      byName[n[1]] = byName[n[1]] or {}
+      table.insert(byName[n[1]], id)
+    end
+  end
+  return byName[name] or {}
+end
+
 -- Waypoint to an NPC: TomTom if installed, else SkillRoute's arrow and the game's map pin.
 function Core.Waypoint(loc, title)
   if not loc then return end
@@ -889,6 +902,11 @@ function Core.Waypoint(loc, title)
       and (not C_Map.CanSetUserWaypointOnMap or C_Map.CanSetUserWaypointOnMap(ui)) then
     pinned = pcall(C_Map.SetUserWaypoint, UiMapPoint.CreateFromCoordinates(ui, x / 100, y / 100))
     if pinned and C_SuperTrack and C_SuperTrack.SetSuperTrackedUserWaypoint then pcall(C_SuperTrack.SetSuperTrackedUserWaypoint, true) end
+  end
+  -- an NPC you visited has no route worked out yet: find it in the data and work it out
+  if not loc.via and not loc.travel and loc.npc then
+    local found = Core.NearestNPC(Core.NPCsNamed(loc.npc))
+    if found then loc = setmetatable({ via = found.via, travel = found.travel }, { __index = loc }) end
   end
   local via = loc.via and #loc.via > 0 and ("via " .. table.concat(loc.via, ", then ")) or nil
   local arrow = ns.Arrow and ns.Arrow.Set(ui, x / 100, y / 100, title, Core.Where(loc), via)
