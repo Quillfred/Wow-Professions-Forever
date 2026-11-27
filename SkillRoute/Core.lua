@@ -1399,6 +1399,7 @@ local patternCache = {}
 local needsCache, needsVersion = nil, 0
 local routeVersion = 0 -- recipes, prices or settings changed (not every bag update)
 function Core.InvalidatePatterns() patternCache = {}; needsVersion = needsVersion + 1; routeVersion = routeVersion + 1 end
+function Core.RouteVersion() return routeVersion end
 
 -- What your routes still use, for item tooltips: { [item] = { {prof, units}, ... } }.
 -- Every crafting profession you have: its shopping list's amounts (what you'd buy or
@@ -2049,12 +2050,17 @@ local pending = false
 function Core.Changed()
   needsVersion = needsVersion + 1 -- prices, bags or recipes changed: re-plan Enchanting's needs
   local mini = ns.Mini and ns.Mini.IsShown()
-  if pending or not ((ns.UI and ns.UI.IsShown()) or mini) then return end
+  local tracker = ns.Tracker and (ns.Tracker.Wants() or ns.Tracker.IsShown())
+  if pending or not ((ns.UI and ns.UI.IsShown()) or mini or tracker) then return end
   pending = true
   C_Timer.After(0.1, function()
     pending = false
     if ns.UI.IsShown() then ns.UI.Refresh() end
     if ns.Mini and ns.Mini.IsShown() then ns.Mini.Refresh() end
+    if ns.Tracker then
+      local ok, err = pcall(ns.Tracker.Refresh)
+      if not ok then Core.ReportError("tracker", err) end
+    end
   end)
 end
 

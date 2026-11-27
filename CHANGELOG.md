@@ -2,6 +2,19 @@
 
 ## 0.38.5 (not released yet)
 
+- **Keep the mini panel on screen** (Options, General; off by default). Away from the
+  profession window, the next step stays on screen like the quest list: see-through,
+  text only. You get the step, its materials as objectives ("- 4/51 Bolt of Silk Cloth",
+  "vendor", "1 in the mail"), the step's AH cost, and what comes next. It hides while the
+  profession window is open (the docked mini panel takes over) and comes back when it
+  closes, showing the profession you had open last. Drag its header to move it (saved),
+  "-" folds it to one line, click the step for its waypoint or the full route, hover for
+  the full tooltip.
+- **Notices** (Options, General; on by default): one notice in the middle of the screen,
+  with a sound, when a step's materials are all in your bags ("Azure Silk Cloak is ready
+  to craft"), when you reach a rank cap ("Tailoring 225 reached: Train Artisan at Daryl
+  Stack…"), and when you reach your target. Watching for them doesn't re-plan the route
+  on every loot; materials are counted straight from your bags.
 - **TSM prices:** with TradeSkillMaster installed, items that neither SkillRoute's scan
   nor Auctionator has priced use TSM's price (its latest scan's lowest price, else its
   market value). Your own scan and Auctionator still come first. TSM's market value is

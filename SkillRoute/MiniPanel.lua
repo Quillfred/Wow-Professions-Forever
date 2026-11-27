@@ -64,6 +64,34 @@ function Mini.LearnNote(plan, st)
   if ok and learnText and learnText ~= "" then return UI.Plain(learnText), waypoint end
 end
 
+-- Where to get what's missing of a material: in the mail, a vendor, or the AH (cheaper
+-- than the vendor). The same rule as the step's buy list. Shared with the tracker.
+function Mini.MatTag(item, have, need)
+  if have >= need then return "" end
+  local mail = Core.InMail(item)
+  if mail > 0 then return (" |cff33ccff%d in the mail|r"):format(mail) end -- bought: collect it
+  local it = Data.items[item]
+  if it and it[3] then return Core.FromVendor(item) and " |cff999999vendor|r" or " |cff999999AH: cheaper|r" end
+  return ""
+end
+
+-- The step's AH buy line: the same amounts the Buy button sends (your safety margin
+-- included, bank, mail and alts taken off), so they always agree. nil: nothing to buy.
+function Mini.BuyText(plan, buyStep)
+  if not (buyStep and Core.StepShopping) then return nil end
+  local list = Core.StepShopping(plan, buyStep)
+  if #list == 0 then return nil, 0 end
+  local cost, qty, missing = 0, 0, false
+  for _, x in ipairs(list) do
+    local p = Core.Price(x.item)
+    qty = qty + x.qty
+    if p then cost = cost + p * x.qty else missing = true end
+  end
+  local sure = (SkillRouteDB.settings or {}).margin or 90
+  return (#list == 1 and ("|cffff6060This step: buy %d|r (%d%% sure): ~%s on the AH%s"):format(qty, sure, UI.Money(cost), missing and " (unpriced)" or "")
+          or ("|cffff6060This step:|r ~%s on the AH (%d%% sure)%s"):format(UI.Money(cost), sure, missing and " (some unpriced)" or "")), #list
+end
+
 local function font(tmpl, parent) return (parent or panel):CreateFontString(nil, "OVERLAY", tmpl) end
 local function button(text, w, onClick)
   local b = CreateFrame("Button", nil, panel, "UIPanelButtonTemplate")
@@ -262,17 +290,9 @@ local function draw()
       local item, per = r.r[2 * i - 1], r.r[2 * i]
       local need = per * crafts
       local have = Core.InBags(item)
-      local it = Data.items[item]
       local m = ui.mats[i]
       m.l:SetText(UI.ItemName(item))
-      -- where to get what's missing: the same rule as the step's buy list
-      local from = ""
-      local mail = have < need and Core.InMail(item) or 0
-      if mail > 0 then from = (" |cff33ccff%d in the mail|r"):format(mail) -- bought: collect it
-      elseif have < need and it and it[3] then
-        from = Core.FromVendor(item) and " |cff999999vendor|r" or " |cff999999AH: cheaper|r"
-      end
-      m.r:SetText(("|cff%s%d / %d|r%s"):format(have >= need and "40bf40" or "ff6060", have, need, from))
+      m.r:SetText(("|cff%s%d / %d|r%s"):format(have >= need and "40bf40" or "ff6060", have, need, Mini.MatTag(item, have, need)))
       place(m.l, 12, y); m.r:ClearAllPoints(); m.r:SetPoint("TOPRIGHT", -12, y)
       y = y - 14
     end
@@ -289,22 +309,8 @@ local function draw()
     end
     -- a craft step: the same amounts the Buy button sends to Auctionator (your safety
     -- margin included, bank and alts taken off), so the two always agree
-    local buyText
-    if ui.buyStep and Core.StepShopping then
-      local list = Core.StepShopping(ui.plan, ui.buyStep)
-      local cost, qty, missing = 0, 0, false
-      for _, x in ipairs(list) do
-        local p = Core.Price(x.item)
-        qty = qty + x.qty
-        if p then cost = cost + p * x.qty else missing = true end
-      end
-      shortN = #list
-      if shortN > 0 then
-        local sure = (SkillRouteDB.settings or {}).margin or 90
-        buyText = (#list == 1 and ("|cffff6060This step: buy %d|r (%d%% sure): ~%s on the AH%s"):format(qty, sure, UI.Money(cost), missing and " (unpriced)" or "")
-                   or ("|cffff6060This step:|r ~%s on the AH (%d%% sure)%s"):format(UI.Money(cost), sure, missing and " (some unpriced)" or ""))
-      end
-    end
+    local buyText, n = Mini.BuyText(ui.plan, ui.buyStep)
+    if n then shortN = n end
     if shortN > 0 then
       -- the Buy button only shows at the AH: elsewhere the line uses the whole width
       local showBuy = ui.buyStep and Core.CanBuyHere()
@@ -393,6 +399,7 @@ function Mini.Show(l)
   if not parent then return false end
   if not panel then build(parent) end
   line = l
+  Core.Char().lastLine = l -- the tracker shows this profession once the window closes
   if panel:IsShown() then Mini.Refresh() else panel:Show() end
   return true
 end

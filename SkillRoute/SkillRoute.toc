@@ -16,6 +16,7 @@ Prices.lua
 Arrow.lua
 UI.lua
 MiniPanel.lua
+Tracker.lua
 TrainerPanel.lua
 Helpers.lua
 BuyPanel.lua

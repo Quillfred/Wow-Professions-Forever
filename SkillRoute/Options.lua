@@ -334,6 +334,12 @@ local function build()
   y = check(pg, y, "Dock a mini panel to the profession window",
     "Shows the next step, Craft buttons and what's left to buy next to the profession window, instead of opening the full SkillRoute window. The full route is one click away.",
     function() return S().mini ~= false end, function(v) Options.Set("mini", v) end)
+  y = check(pg, y, "Keep the mini panel on screen",
+    "Away from the profession window, the next step stays on screen like the quest list: see-through, text only. Drag its header to move it. Craft buttons only show at the profession window.",
+    function() return S().tracker == true end, function(v) Options.Set("tracker", v) end)
+  y = check(pg, y, "Tell me when a step is ready or a target is reached",
+    "A notice in the middle of the screen (with a sound), once each time: a step's materials are all in your bags, a rank cap, your target.",
+    function() return S().notify ~= false end, function(v) Options.Set("notify", v) end)
   y = check(pg, y, "Price the amounts I need when scanning the AH",
     "After the full scan, one search per material your routes buy, so a price is what buying all of it costs (not just the cheapest listing). Adds a few seconds per material.",
     function() return S().depth ~= false end, function(v) Options.Set("depth", v) end)

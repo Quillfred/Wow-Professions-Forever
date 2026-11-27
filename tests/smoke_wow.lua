@@ -70,7 +70,7 @@ local ns = {}
 _G.Minimap = setmetatable({ GetWidth = function() return 140 end, GetCenter = function() return 1000, 700 end,
   GetEffectiveScale = function() return 1 end }, { __index = function() return function() end end })
 _G.GetCursorPosition = function() return 1000, 800 end -- straight above the minimap
-for _, f in ipairs({ "Data", "Planner", "Core", "Prices", "Arrow", "UI", "MiniPanel", "TrainerPanel", "Helpers", "BuyPanel", "Tooltip", "Options", "Recorder", "Check" }) do
+for _, f in ipairs({ "Data", "Planner", "Core", "Prices", "Arrow", "UI", "MiniPanel", "Tracker", "TrainerPanel", "Helpers", "BuyPanel", "Tooltip", "Options", "Recorder", "Check" }) do
   local chunk = assert(loadfile("SkillRoute/" .. f .. ".lua"))
   chunk("SkillRoute", ns)
 end
@@ -192,7 +192,7 @@ end
 
 -- auto open/close with the profession window
 local evf
-for _, f in ipairs(frames) do local e = rawget(f, "events"); if e and e.TRADE_SKILL_SHOW then evf = f end end
+for _, f in ipairs(frames) do local e = rawget(f, "events"); if e and e.TRADE_SKILL_SHOW and e.ADDON_LOADED then evf = f end end
 assert(evf and evf.events.TRADE_SKILL_CLOSE, "events registered")
 local function fire(ev, ...) evf.OnEvent(evf, ev, ...) end
 -- an error saved by an older version is dropped on load; a current one is kept, with
@@ -2489,6 +2489,89 @@ do
   _G.TSM_API = nil
   assert(Core.AHPrice(880001) == nil and not tostring(Core.PriceSource()):find("TSM", 1, true), "without TSM: as before")
   print("TSM: fallback prices only (" .. Core.PriceSource() .. ")")
+end
+
+-- "Keep on screen": the next step like the quest list, away from the profession window
+do
+  local TR = ns.Tracker
+  local st = SkillRouteDB.settings
+  local c = Core.Char()
+  c.lastLine = 197
+  st.tracker, st.notify, st.trackerPos, st.trackerFolded = nil, false, nil, nil
+  TR.Refresh()
+  assert(not TR.IsShown(), "off by default")
+  st.tracker = true
+  TR.Refresh()
+  assert(TR.IsShown(), "on: shown")
+  local f, header, fold = TR._parts()
+  local seen = {}
+  -- (the harness starts text objects hidden; WoW's start visible: no filter on that)
+  for _, t in ipairs(texts) do local v = rawget(t, "text"); if type(v) == "string" then seen[#seen + 1] = v end end
+  local all = table.concat(seen, "\n")
+  assert(all:find("SkillRoute  |cffffffffTailoring", 1, true), "header: the profession and skill")
+  assert(all:find("Craft %d+ x ") and all:find("%- |cff%x%x%x%x%x%x%d+/%d+|r "), "the step and its materials as objectives")
+  -- the profession window takes over, and lets go
+  _G.TradeSkillFrame = { IsShown = function() return true end }
+  TR.Refresh()
+  assert(not TR.IsShown(), "hidden while the profession window is open")
+  _G.TradeSkillFrame = nil
+  TR.Refresh()
+  assert(TR.IsShown(), "back when it closes")
+  -- drag: the spot is saved
+  f.GetLeft, f.GetTop = function() return 812 end, function() return 640 end
+  header.OnDragStop(header)
+  assert(st.trackerPos and st.trackerPos[1] == 812 and st.trackerPos[2] == 640, "position saved")
+  -- fold to the header line, and back
+  fold.OnClick(fold)
+  assert(st.trackerFolded == true, "folded")
+  fold.OnClick(fold)
+  assert(st.trackerFolded == nil, "unfolded")
+  -- notices: once, when a step's materials are all in your bags; at a rank cap
+  st.notify = nil
+  TR._reset(); TR.lastNotice = nil
+  local plan = Core.Plan(197, 300)
+  local e = ns.Mini.Entries(plan)[1]
+  assert(e.kind == "craft", "a craft step first")
+  local savedBags, savedSkills = Core.InBags, Core.Skills
+  Core.InBags = function() return 0 end
+  TR._check(197, plan, e)
+  assert(TR.lastNotice == nil, "not ready: no notice")
+  Core.InBags = function() return 9999 end
+  TR._check(197, plan, e)
+  assert(TR.lastNotice and TR.lastNotice:find("is ready to craft", 1, true), "ready: one notice")
+  TR.lastNotice = nil
+  TR._check(197, plan, e)
+  assert(TR.lastNotice == nil, "once, not again")
+  Core.Skills = function() return { [197] = { rank = 149, max = 150 } } end
+  TR._check(197, plan, nil)
+  Core.Skills = function() return { [197] = { rank = 150, max = 150 } } end
+  TR._check(197, plan, { kind = "rank", text = "Train Artisan at Daryl Stack" })
+  assert(TR.lastNotice and TR.lastNotice:find("Tailoring 150 reached", 1, true) and TR.lastNotice:find("Train Artisan", 1, true),
+    "rank cap notice: " .. tostring(TR.lastNotice))
+  -- off: no notice
+  st.notify = false; TR.lastNotice = nil
+  Core.Skills = function() return { [197] = { rank = 151, max = 225 } } end
+  TR._check(197, plan, nil)
+  Core.Skills = function() return { [197] = { rank = 300, max = 300 } } end
+  TR._check(197, plan, nil)
+  assert(TR.lastNotice == nil, "notices off: none")
+  Core.InBags, Core.Skills = savedBags, savedSkills
+  st.tracker, st.notify, st.trackerPos = nil, nil, nil
+  TR.Refresh()
+  assert(not TR.IsShown(), "turned off: hidden")
+  -- bag changes don't re-plan (a plan takes ~30 ms); a skill or price change does
+  st.notify = nil
+  TR._reset()
+  local savedPlan, planned = Core.Plan, 0
+  Core.Plan = function(...) planned = planned + 1; return savedPlan(...) end
+  TR.Refresh(); TR.Refresh(); TR.Refresh()
+  assert(planned == 1, "one plan for three bag changes: " .. planned)
+  Core.InvalidatePatterns()
+  TR.Refresh()
+  assert(planned == 2, "prices or recipes changed: re-planned")
+  Core.Plan = savedPlan
+  st.notify = nil
+  print("tracker: shown away from the profession window, position saved, notices once, no re-plan on loot")
 end
 
 -- /sr check runs and reports; errors are caught, not thrown
