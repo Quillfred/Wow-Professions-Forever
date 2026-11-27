@@ -66,7 +66,7 @@ local function afterCrafting(item, n)
   if a.best ~= "ah" then parts[#parts + 1] = a.ah and ("AH " .. money(a.ah) .. listed) or "AH: no fresh price" end
   if a.best ~= "de" then
     if a.de then parts[#parts + 1] = "disenchant ~" .. money(a.de)
-    elseif not (Data.disenchant and Data.disenchant.of and Data.disenchant.of[item]) then parts[#parts + 1] = "can't disenchant"
+    elseif not Core.DisenchantOf(item) then parts[#parts + 1] = "can't disenchant"
     elseif not ench then parts[#parts + 1] = "disenchant: needs Enchanting"
     elseif a.deSkill and ench.rank < a.deSkill then parts[#parts + 1] = ("disenchant: needs %d"):format(a.deSkill)
     else parts[#parts + 1] = "disenchant: no fresh prices" end

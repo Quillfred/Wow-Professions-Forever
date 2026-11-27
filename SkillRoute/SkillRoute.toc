@@ -19,6 +19,7 @@ MiniPanel.lua
 TrainerPanel.lua
 Helpers.lua
 BuyPanel.lua
+Tooltip.lua
 Options.lua
 Recorder.lua
 Check.lua

@@ -2,6 +2,12 @@
 
 ## 0.37.0
 
+- **Disenchanting in item tooltips:** any weapon or armour (not only crafted items) shows
+  what it disenchants into from Forever's own brackets, what that's worth at today's AH
+  prices after the cut (a lower bound, named, when a material has no price), and
+  SkillRoute's advice: disenchant, list it, or sell it to a vendor. It counts materials
+  your Enchanting route needs and soulbound items. Options: "Disenchanting in item
+  tooltips". Enchanters' wands are excluded; new Forever rares without data say so.
 - Buying panel: sized to what it lists; a bought material shows what you paid.
 - Fixed (buying panel): more than 10 materials (a full shopping list) couldn't all be
   reached; there are pages now. A purchase made in the AH's own window was counted as

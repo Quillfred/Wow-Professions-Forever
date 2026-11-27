@@ -69,7 +69,7 @@ local ns = {}
 _G.Minimap = setmetatable({ GetWidth = function() return 140 end, GetCenter = function() return 1000, 700 end,
   GetEffectiveScale = function() return 1 end }, { __index = function() return function() end end })
 _G.GetCursorPosition = function() return 1000, 800 end -- straight above the minimap
-for _, f in ipairs({ "Data", "Planner", "Core", "Prices", "Arrow", "UI", "MiniPanel", "TrainerPanel", "Helpers", "BuyPanel", "Options", "Recorder", "Check" }) do
+for _, f in ipairs({ "Data", "Planner", "Core", "Prices", "Arrow", "UI", "MiniPanel", "TrainerPanel", "Helpers", "BuyPanel", "Tooltip", "Options", "Recorder", "Check" }) do
   local chunk = assert(loadfile("SkillRoute/" .. f .. ".lua"))
   chunk("SkillRoute", ns)
 end
@@ -2005,6 +2005,53 @@ do
   assert(compared:find("80 listed: crowded", 1, true), compared)
   P.Listed, prices[item] = savedListed, savedP
   print("crowded AH: " .. compared:gsub("|c%x%x%x%x%x%x%x%x", ""):gsub("|r", ""))
+end
+
+-- disenchanting in item tooltips: any weapon or armour, by quality and item level
+do
+  local TT = ns.Tooltip
+  local savedCItem = _G.C_Item
+  local fake = {}
+  _G.C_Item = setmetatable({ GetItemInfo = function(id)
+    local f = fake[id]
+    if f then return "x", "link", f.q, f.ilvl, 0, "", "", 1, "", 0, f.sell or 3218, f.cls, f.sub end
+  end }, { __index = savedCItem })
+  fake[900001] = { q = 2, ilvl = 38, cls = 4, sub = 2 }         -- green leather, ilvl 38 (Spirit Hunter Headdress-like)
+  fake[11288] = { q = 2, ilvl = 30, cls = 2, sub = 19 }         -- a wand enchanters make: never
+  fake[250001] = { q = 3, ilvl = 150, cls = 4, sub = 1 }        -- a new Forever rare no bracket covers
+  local key, skill = Core.DisenchantOf(900001)
+  local loot = SkillRouteData.disenchant.loot[key]
+  local mats = {}
+  for i = 1, #loot, 4 do mats[loot[i]] = loot[i + 1] end
+  assert(mats[11137] == 75 and mats[11135] == 20 and mats[11139] == 5, "ilvl 36-40: Vision Dust 75%, Greater Mystic 20%, Large Glowing 5%")
+  assert(skill == 100, "skill by the Classic rule: " .. tostring(skill))
+  assert(Core.DisenchantOf(11288) == nil, "enchanters' wands can't be disenchanted")
+  assert(select(3, Core.DisenchantOf(250001)) == true, "a new Forever rare: no guess")
+  -- value: priced materials add up; one unpriced -> a lower bound, named
+  local saved = { prices[11137], prices[11135], prices[11139] }
+  prices[11137], prices[11135], prices[11139] = 900, 3100, nil
+  local rows, total, missing = TT.Value(key)
+  assert(#rows == 3 and #missing == 1 and math.abs(total - (0.75 * 1.5 * 900 + 0.20 * 1.5 * 3100) * 0.95) < 1, "partial value: " .. total)
+  local lines = TT.Lines(900001, true, 3218)
+  local text = {}
+  for _, l in ipairs(lines) do text[#text + 1] = (l[1] or "") .. " | " .. (l[2] or "") end
+  local joined = table.concat(text, "\n")
+  assert(joined:find("at least", 1, true) and joined:find("no price:", 1, true) and joined:find("Best:", 1, true), joined)
+  -- the hook adds the lines once, until the tooltip is cleared
+  local post
+  _G.TooltipDataProcessor = { AddTooltipPostCall = function(_, fn) post = fn end }
+  _G.Enum = { TooltipDataType = { Item = 0 } }
+  local added = 0
+  local tt = { GetItem = function() return "x", "|Hitem:900001::|h[x]|h" end, NumLines = function() return 1 end,
+    GetName = function() return "TestTip" end, AddLine = function() added = added + 1 end,
+    AddDoubleLine = function() added = added + 1 end, Show = function() end, GetOwner = function() return nil end }
+  TT.Install()
+  post(tt); local once = added; post(tt)
+  assert(once > 3 and added == once, "lines added once: " .. once .. "/" .. added)
+  _G.TooltipDataProcessor, _G.Enum = nil, nil
+  prices[11137], prices[11135], prices[11139] = saved[1], saved[2], saved[3]
+  _G.C_Item = savedCItem
+  print("tooltip disenchant: " .. text[#text]:gsub("|c%x%x%x%x%x%x%x%x", ""):gsub("|r", ""))
 end
 
 -- /sr check runs and reports; errors are caught, not thrown

@@ -12,6 +12,8 @@ actually teaches (until confirmed, assumed learnable at its yellow skill).
 """
 import csv, json, os, sys, urllib.request, concurrent.futures as cf
 
+# weapons that can't be disenchanted: enchanters' wands (Classic 11287-11290, Forever's own)
+NEVER_DE = [11287, 11288, 11289, 11290, 247789, 249144, 249232, 249234, 249237, 249385]
 # gathering professions with recipes other professions can use (Mining: smelting)
 MAKE_LINES = {186}
 PROFESSIONS = {171: "Alchemy", 164: "Blacksmithing", 333: "Enchanting", 202: "Engineering",
@@ -448,7 +450,17 @@ def main():
                     de["loot"][best] = oloot
             skill = 1 if lvl <= 20 else min(300, 25 * ((lvl - 16) // 5))
             de_of[sp_out] = (best, skill)
-    for key in {k for k, _ in de_of.values()}:
+    # every bracket of Forever's table, for any item (not only crafted ones): a row's loot,
+    # or the Forever-observed loot (forever_checks.json) where it covers the row
+    de_rows = []
+    for cls, sub, q, lo, hi, _skill, key in de["rows"]:
+        for (bc, bq, blo, bhi), oloot in ck_de.items():
+            if bc == cls and bq == q and blo <= lo and hi <= bhi:
+                key = str(9000 + bc * 1000 + bq * 100 + blo)
+                de["loot"][key] = oloot
+        if key in de["loot"]:
+            de_rows.append((cls, sub, q, lo, hi, key))
+    for key in {k for k, _ in de_of.values()} | {r[5] for r in de_rows}:
         used_items.update(it for it, *_ in de["loot"][key])
     lines += ["  },", "  -- [itemID] = {name, vendorSellPrice, vendorBuyPrice-or-nil (trade-supply reagents)}",
               "  items = {"]
@@ -752,13 +764,20 @@ def main():
               "  zoneSide = {" + ",".join(f"[{lua_str(z)}]={lua_str(v)}" for z, v in sorted(sides.items())) + "},"]
     lines += ["  -- disenchant: loot = {[key] = {item, chance%, min, max, ...}}; of = {[crafted item] = {key, skill}}",
               "  disenchant = {", "    loot = {"]
-    for key in sorted({k for k, _ in de_of.values()}, key=int):
+    for key in sorted({k for k, _ in de_of.values()} | {r[5] for r in de_rows}, key=int):
         lines.append(f"      [{key}]={{{','.join(f'{i},{c},{a},{b}' for i, c, a, b in de['loot'][key])}}},")
     lines += ["    },", "    of = {"]
     ofs = [f"[{i}]={{{k},{sk}}}" for i, (k, sk) in sorted(de_of.items())]
     for i in range(0, len(ofs), 10):
         lines.append("      " + ",".join(ofs[i:i + 10]) + ",")
-    lines += ["    },", "  },"]
+    lines += ["    },",
+              "    -- brackets for any weapon or armour: {class, subclass (-1 any), quality, min ilvl, max ilvl, loot key}",
+              "    rows = {"]
+    for i in range(0, len(de_rows), 6):
+        lines.append("      " + ",".join("{%d,%d,%d,%d,%d,%s}" % r for r in de_rows[i:i + 6]) + ",")
+    # can't be disenchanted although they're weapons (enchanters' wands, Classic and
+    # Forever's own). This list of facts was noted from Disenchantry, by Shadowblade.
+    lines += ["    },", "    never = {" + ",".join(f"[{i}]=true" for i in NEVER_DE) + "},", "  },"]
     kpath = os.path.join(os.path.dirname(os.path.abspath(__file__)), "skinning.json")
     skin = json.load(open(kpath, encoding="utf-8")) if os.path.exists(kpath) else {}
     lines += ["  -- skinZones: [zone] = {first beast level, skinnable spawns at it, at the next level, ...}",

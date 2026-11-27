@@ -42,6 +42,7 @@ local APIS = {
   { "Auctionator scan updates", { "Auctionator.API.v1.RegisterForDBUpdate" }, "re-plan after a scan" },
   { "Auctionator listing age", { "Auctionator.API.v1.GetAuctionAgeByItemID" }, "ignore old AH sightings of patterns" },
   { "Auctionator shopping lists", { "Auctionator.API.v1.CreateShoppingList" }, "send the shopping list to Auctionator" },
+  { "Item tooltips", { "TooltipDataProcessor.AddTooltipPostCall", "GameTooltip.SetBagItem" }, "disenchanting in item tooltips" },
   { "Waypoint arrow", { "GetPlayerFacing", "C_Map.GetWorldPosFromMapPos" }, "SkillRoute's own arrow" },
   { "TomTom", { "TomTom.AddWaypoint" }, "waypoints (optional: SkillRoute's arrow otherwise)" },
   { "Map pin", { "C_Map.SetUserWaypoint" }, "waypoints without TomTom" },

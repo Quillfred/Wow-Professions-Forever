@@ -1665,22 +1665,53 @@ end
 -- n = how many of the item (the batch: results add up), needs = Core.EnchantingNeeds():
 -- disenchant results your Enchanting route still has to buy count at what you'd pay for
 -- them (no AH cut), up to the amount it needs; the rest at their AH price minus the cut.
+-- What any item disenchants into: loot key and Enchanting skill needed, or nil. Crafted
+-- items from the data; anything else by quality and item level in Forever's brackets
+-- (weapons and armour, uncommon to epic). Second result "unverified": a new Forever
+-- rare no bracket covers (no guess is made).
+local deCache = {}
+function Core.DisenchantOf(item)
+  local D = Data.disenchant
+  if not (D and item) then return nil end
+  if D.never and D.never[item] then return nil end
+  local of = D.of and D.of[item]
+  if of then return of[1], of[2] end
+  if deCache[item] ~= nil then return deCache[item][1], deCache[item][2], deCache[item][3] end
+  local info = (C_Item and C_Item.GetItemInfo) or GetItemInfo
+  if not info then return nil end
+  local _, _, q, ilvl, _, _, _, _, _, _, _, cls, sub = info(item)
+  if not q then return nil end -- not loaded yet: ask again next time
+  local key
+  if (cls == 2 or cls == 4) and q >= 2 and q <= 4 then
+    for _, r in ipairs(D.rows or {}) do
+      if r[1] == cls and r[3] == q and r[4] <= ilvl and ilvl <= r[5] and (r[2] == -1 or r[2] == sub) then
+        if not key or r[2] ~= -1 then key = r[6] end -- an exact subclass beats "any"
+      end
+    end
+  end
+  -- Forever's table leaves the skill at 0: the Classic rule, as for crafted items
+  local skill = key and (ilvl <= 20 and 1 or math.min(300, 25 * math.floor((ilvl - 16) / 5))) or nil
+  local unverified = not key and (cls == 2 or cls == 4) and q == 3 and item >= 200000 or nil
+  deCache[item] = { key, skill, unverified }
+  return key, skill, unverified
+end
+
 local CROWDED_MIN, CROWDED_TIMES, CROWDED_SHARE = 20, 3, 0.7
-function Core.ItemAdvice(item, enchantSkill, n, needs)
+function Core.ItemAdvice(item, enchantSkill, n, needs, opts)
   n = math.max(1, n or 1)
   local it = Data.items[item]
-  local a = { vendor = it and it[2] or 0 }
-  local p = freshAH(item)
+  local a = { vendor = (it and it[2]) or (opts and opts.vendor) or 0 }
+  local p = not (opts and opts.bound) and freshAH(item) or nil -- soulbound: no AH
   if p then a.ah = math.floor(p * 0.95) end
   -- how many are already listed (SkillRoute's scan): a crowded market means undercutting
   -- and unsold items, so the AH counts for less when choosing (shown at its real price)
   a.listed = ns.Prices and ns.Prices.Listed(item) or nil
   a.crowded = a.ah and a.listed and a.listed >= math.max(CROWDED_MIN, CROWDED_TIMES * n) or nil
-  local d = Data.disenchant and Data.disenchant.of and Data.disenchant.of[item]
-  if d then
-    a.deSkill = d[1] and d[2]
-    local loot = Data.disenchant.loot[d[1]]
-    if loot and enchantSkill and enchantSkill >= d[2] then
+  local dKey, dSkill = Core.DisenchantOf(item)
+  if dKey then
+    a.deSkill = dSkill
+    local loot = Data.disenchant.loot[dKey]
+    if loot and enchantSkill and enchantSkill >= (dSkill or 0) then
       local ev, ok, used = 0, true, nil
       for i = 1, #loot, 4 do
         local mat = loot[i]

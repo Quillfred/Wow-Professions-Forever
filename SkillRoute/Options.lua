@@ -307,6 +307,9 @@ local function build()
   y = check(panel, y, "Price the amounts I need when scanning the AH",
     "After the full scan, one search per material your routes buy, so a price is what buying all of it costs (not just the cheapest listing). Adds a few seconds per material.",
     function() return S().depth ~= false end, function(v) Options.Set("depth", v) end)
+  y = check(panel, y, "Disenchanting in item tooltips",
+    "What a weapon or piece of armour disenchants into, what that's worth at today's AH prices, and whether to disenchant, list it or sell it to a vendor.",
+    function() return S().deTooltip ~= false end, function(v) Options.Set("deTooltip", v) end)
   y = check(panel, y, "Count materials on my alts",
     "Uses Syndicator or DataStore, if installed.",
     function() return S().alts ~= false end, function(v) Options.Set("alts", v) end)
