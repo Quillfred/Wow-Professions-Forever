@@ -1293,6 +1293,14 @@ do
   -- the full route window steps aside while the options are open, then comes back
   O.Toggle() -- close first
   UI.Toggle(197); assert(UI.IsShown())
+  -- the shopping list says what "need" and "expected" mean, with your margin
+  UI._state.mode = "shopping"; UI.Refresh()
+  local legend
+  for _, t in ipairs(texts) do local v = rawget(t, "text"); if type(v) == "string" and v:find("need: covers bad luck", 1, true) then legend = t end end
+  local m = SkillRouteDB.settings.margin or 90
+  assert(legend and legend.text:find(m .. "% sure", 1, true) and legend.shown, "shopping legend: " .. tostring(legend and legend.text))
+  UI._state.mode = "route"; UI.Refresh()
+  assert(not legend.shown, "route view: no legend")
   O.Toggle(); assert(O.IsShown() and not UI.IsShown(), "route window hidden while options are open")
   O.Toggle(); assert(not O.IsShown() and UI.IsShown(), "and back when they close")
   UI.Toggle(); assert(not UI.IsShown())

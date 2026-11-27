@@ -122,7 +122,7 @@ local function mats(spell, line)
 end
 
 -- Frame ----------------------------------------------------------------------------
-local frame, scroll, content, info, footer, targetBox, profText, modeBtn, hRange, ahBtn, scanBtn
+local frame, scroll, content, info, footer, targetBox, profText, modeBtn, hRange, ahBtn, scanBtn, hShop
 local autoOpened = false -- opened with the profession window (so it closes with it)
 local lastPlan
 local rows = {}
@@ -943,7 +943,12 @@ local function refresh()
   for i = n + 1, #rows do rows[i]:Hide() end
   content:SetHeight(math.max(1, n * ROW_H + ROWS_PAD))
   modeBtn:SetText(state.mode == "route" and "Shopping list" or "Route")
-  if state.mode == "route" then hRange:Show() else hRange:Hide() end
+  if state.mode == "route" then hRange:Show(); hShop:Hide()
+  else
+    hShop:SetText(("need: covers bad luck, %d%% sure (Options)  ·  expected: the average")
+      :format((SkillRouteDB.settings or {}).margin or 90))
+    hShop:Show(); hRange:Hide()
+  end
   if plan.gather then
     footer:SetText(("Gathering route: about %d %s   |cff808080planned in %s|r"):format(math.ceil(plan.gathers or 0),
       plan.line == 393 and "skins" or plan.line == 356 and "catches" or "nodes", plan.ms and ("%.1f ms"):format(plan.ms) or "?"))
@@ -1066,6 +1071,11 @@ local function build()
   hRange:SetPoint("TOPRIGHT", frame, "TOPRIGHT", -(32 + RANGE_X), -98)
   hRange:SetWidth(RANGE_W); hRange:SetJustifyH("LEFT"); hRange:SetText("Skill")
   hRange:SetTextColor(RANGE_COLOR[1], RANGE_COLOR[2], RANGE_COLOR[3])
+  -- shopping list: what "need" and "expected" mean, on the headings row
+  hShop = frame:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
+  hShop:SetPoint("TOPLEFT", frame, "TOPLEFT", 16, -98); hShop:SetPoint("RIGHT", frame, "RIGHT", -(32 + EDGE + COST_W), 0)
+  hShop:SetJustifyH("LEFT")
+  if hShop.SetWordWrap then hShop:SetWordWrap(false) end -- one line: never runs into the list
   local hCost = frame:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
   hCost:SetPoint("TOPRIGHT", frame, "TOPRIGHT", -(32 + EDGE), -98)
   hCost:SetWidth(COST_W); hCost:SetJustifyH("RIGHT"); hCost:SetText("Cost")

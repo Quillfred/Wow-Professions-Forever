@@ -29,6 +29,8 @@
   buy list got it from the AH. Both now use one rule, and the row says "AH: cheaper".
 - Arrow: the distance line now says "First: Flight master, Thunder Bluff, 144 yd", so
   the stop on the way isn't mistaken for the NPC you're going to (the name above it).
+- Shopping list: a line above the list says what its amounts mean: "need: covers bad
+  luck, 90% sure (Options) · expected: the average".
 - The options window shrinks to fit on small screens or large UI scales.
 
 ## 0.38.1
