@@ -159,6 +159,20 @@ local function build(parent)
   ui.after = font("GameFontHighlightSmall"); ui.after:SetWidth(W - 24); ui.after:SetJustifyH("LEFT")
   ui.note = font("GameFontHighlightSmall"); ui.note:SetWidth(W - 24); ui.note:SetJustifyH("LEFT")
   ui.note:SetTextColor(1, 0.5, 0.25)
+  -- the note is clickable too: a waypoint to whoever teaches it
+  ui.noteHit = CreateFrame("Button", nil, panel)
+  ui.noteHit:SetScript("OnClick", function() if ui.loc then Core.Waypoint(ui.loc) end end)
+  ui.noteHit:SetScript("OnEnter", function(self)
+    if not ui.loc then return end
+    GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+    GameTooltip:SetText(ui.loc.npc or "Waypoint")
+    local tr = Core.TravelText(ui.loc)
+    if tr then GameTooltip:AddLine(tr, 0.7, 0.7, 0.7, true) end
+    GameTooltip:AddLine("Click: waypoint", 0.6, 0.6, 0.6)
+    GameTooltip:Show()
+  end)
+  ui.noteHit:SetScript("OnLeave", function() GameTooltip:Hide() end)
+  ui.noteHit:Hide()
   ui.craft1 = button("Craft 1", 72, function()
     if ui.spell then Core.OpenRecipe(ui.spell); Core.Craft(ui.spell, 1) end
   end)
@@ -320,7 +334,15 @@ local function draw()
       ui.note:SetText("Not learned yet: " .. how .. ".")
     end
   end
-  if ui.note:GetText() ~= "" then place(ui.note, 12, y - 2); y = y - h(ui.note) - 4 end
+  ui.noteHit:Hide()
+  if ui.note:GetText() ~= "" then
+    place(ui.note, 12, y - 2)
+    if ui.loc then
+      ui.noteHit:ClearAllPoints(); ui.noteHit:SetPoint("TOPLEFT", 12, y - 2)
+      ui.noteHit:SetSize(W - 24, h(ui.note)); ui.noteHit:Show()
+    end
+    y = y - h(ui.note) - 4
+  end
 
   y = y - 4
   for _, b in ipairs({ ui.craft1, ui.craftAll }) do
