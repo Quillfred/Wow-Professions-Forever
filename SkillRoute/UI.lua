@@ -62,7 +62,8 @@ local function afterCrafting(item, n)
   local ench = Core.Skills()[333]
   local a = Core.ItemAdvice(item, ench and ench.rank, n, ench and Core.EnchantingNeeds() or nil)
   local parts = {}
-  if a.best ~= "ah" then parts[#parts + 1] = a.ah and ("AH " .. money(a.ah)) or "AH: no fresh price" end
+  local listed = a.listed and ((a.crowded and " |cffff8040(%d listed: crowded)|r" or " (%d listed)"):format(a.listed)) or ""
+  if a.best ~= "ah" then parts[#parts + 1] = a.ah and ("AH " .. money(a.ah) .. listed) or "AH: no fresh price" end
   if a.best ~= "de" then
     if a.de then parts[#parts + 1] = "disenchant ~" .. money(a.de)
     elseif not (Data.disenchant and Data.disenchant.of and Data.disenchant.of[item]) then parts[#parts + 1] = "can't disenchant"
@@ -74,6 +75,7 @@ local function afterCrafting(item, n)
   local used = {}
   for _, u in ipairs(a.best == "de" and a.deUsed or {}) do used[#used + 1] = u.units .. " " .. itemName(u.item) end
   local action = ("|cff40bf40%s, %s each|r"):format(ACTION_SHORT[a.best], money(a.bestValue))
+    .. (a.best == "ah" and listed or "")
   return action, table.concat(parts, " · "),
          #used > 0 and ("counts " .. table.concat(used, ", ") .. " your Enchanting route needs at what you'd pay") or nil
 
@@ -670,12 +672,15 @@ local function craftedRows(plan, add)
   for _, x in ipairs(list) do
     local a = x.advice
     local parts = {}
-    parts[#parts + 1] = a.ah and ("AH " .. money(a.ah)) or "AH: no fresh price"
+    parts[#parts + 1] = a.ah and ("AH " .. money(a.ah) .. (a.listed and ((a.crowded and " |cffff8040(%d listed: crowded)|r" or " (%d listed)"):format(a.listed)) or "")) or "AH: no fresh price"
     if a.de then parts[#parts + 1] = "disenchant ~" .. money(a.de) .. ((a.deUsed and #a.deUsed > 0) and " (Enchanting route needs the results)" or "")
     elseif a.deSkill and a.deSkill > 0 then parts[#parts + 1] = ("disenchant needs %d"):format(a.deSkill) end
     parts[#parts + 1] = "vendor " .. money(a.vendor)
     local tip = { { header = "SkillRoute" }, { "Best", ACTION[a.best] .. ", " .. money(a.bestValue) .. " each" },
                   { "AH", a.ah and (money(a.ah) .. " after the 5% cut") or "no fresh price", sub = true } }
+    if a.listed then
+      tip[#tip + 1] = { "listed", ("%d now%s"):format(a.listed, a.crowded and ": crowded, so the AH counts for 70% when choosing" or ""), sub = true }
+    end
     if a.de then tip[#tip + 1] = { "disenchant", "~" .. money(a.de) .. ((a.deUsed and #a.deUsed > 0) and " (counts what Enchanting needs)" or ""), sub = true }
     elseif a.deSkill and a.deSkill > 0 then tip[#tip + 1] = { "disenchant", ("needs Enchanting %d"):format(a.deSkill), sub = true } end
     tip[#tip + 1] = { "vendor", money(a.vendor), sub = true }

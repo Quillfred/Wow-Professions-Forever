@@ -1356,8 +1356,8 @@ do
   end
   local money = 100000
   _G.GetMoney = function() return money end
-  local results = { { itemKey = { itemID = 2589 }, minPrice = 50 }, { itemKey = { itemID = 2589 }, minPrice = 40 },
-                    { itemKey = { itemID = 4306 }, minPrice = 300 } }
+  local results = { { itemKey = { itemID = 2589 }, minPrice = 50, totalQuantity = 30 }, { itemKey = { itemID = 2589 }, minPrice = 40, totalQuantity = 12 },
+                    { itemKey = { itemID = 4306 }, minPrice = 300, totalQuantity = 7 } }
   local full, sent = false, 0
   _G.C_AuctionHouse = {
     SendBrowseQuery = function() sent = sent + 1; full = false end,
@@ -1393,6 +1393,7 @@ do
   assert(scanBtn.text == "SkillRoute: Scan AH", "button back to Scan AH")
   local b = P.Book()
   assert(b.items[2589] == 40 and b.items[4306] == 300 and b.count == 2, "lowest price per item kept")
+  assert(b.listed[2589] == 42 and P.Listed(4306) == 7, "how many are listed, all versions together")
   assert(Core.PriceSource():find("SkillRoute scan"), Core.PriceSource())
 
   -- freshest wins: same day and Auctionator's time unknown -> ours; older ours -> Auctionator
@@ -1983,6 +1984,27 @@ do
   ev("AUCTION_HOUSE_CLOSED")
   _G.C_AuctionHouse, _G.GetTime, _G.GetMoney, _G.Auctionator = savedAH, savedGT, savedMoney, savedAuc
   print("buying panel: quote, pay the quote shown, re-confirm a changed price, search for non-stackables")
+end
+
+-- crowded AH: how many are listed counts when choosing AH / disenchant / vendor
+do
+  local P = ns.Prices
+  local item, it
+  for id, x in pairs(SkillRouteData.items) do
+    if x[2] and x[2] >= 100 and not (SkillRouteData.disenchant and SkillRouteData.disenchant.of and SkillRouteData.disenchant.of[id]) then item, it = id, x; break end
+  end
+  local savedP, savedListed = prices[item], P.Listed
+  prices[item] = math.floor(it[2] * 1.2 / 0.95) -- the AH pays ~20% more than a vendor
+  P.Listed = function() return 5 end
+  local a = Core.ItemAdvice(item, nil, 1)
+  assert(a.best == "ah" and not a.crowded, "few listed: list it on the AH")
+  P.Listed = function() return 80 end
+  a = Core.ItemAdvice(item, nil, 1)
+  assert(a.crowded and a.best == "vendor", "80 listed: crowded, the vendor wins")
+  local action, compared = UI.AfterCrafting(item, 1)
+  assert(compared:find("80 listed: crowded", 1, true), compared)
+  P.Listed, prices[item] = savedListed, savedP
+  print("crowded AH: " .. compared:gsub("|c%x%x%x%x%x%x%x%x", ""):gsub("|r", ""))
 end
 
 -- /sr check runs and reports; errors are caught, not thrown

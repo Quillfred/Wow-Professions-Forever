@@ -7,6 +7,12 @@
   the panel's. "Can't quote" now says why (not stackable, or too few listed).
 - Fixed (arrow): standing at a flight master, it re-planned 20 times a second; it now
   says "Flight master, ...: here" and checks for the next leg once a second.
+- **Selling advice knows the competition:** SkillRoute's scan now keeps how many of each
+  item are listed. "Afterwards" and the shopping list show it ("List on the AH, 1g 20s
+  each (12 listed)"), and when a market is crowded (20+ listed, and 3x what you'd sell)
+  the AH counts for 70% when choosing, so the vendor or disenchanting can win.
+- Fixed: the shopping list's "Crafted items in your bags" only appeared with Auctionator
+  installed; SkillRoute's own scan now counts.
 - **Take route mats** checks your bags: it moves no more stacks than fit, reports what
   actually arrived (a moment later), and says "Your bags are full: N stacks stayed in the
   bank" when something didn't.

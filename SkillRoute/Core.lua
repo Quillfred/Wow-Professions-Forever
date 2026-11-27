@@ -1665,12 +1665,17 @@ end
 -- n = how many of the item (the batch: results add up), needs = Core.EnchantingNeeds():
 -- disenchant results your Enchanting route still has to buy count at what you'd pay for
 -- them (no AH cut), up to the amount it needs; the rest at their AH price minus the cut.
+local CROWDED_MIN, CROWDED_TIMES, CROWDED_SHARE = 20, 3, 0.7
 function Core.ItemAdvice(item, enchantSkill, n, needs)
   n = math.max(1, n or 1)
   local it = Data.items[item]
   local a = { vendor = it and it[2] or 0 }
   local p = freshAH(item)
   if p then a.ah = math.floor(p * 0.95) end
+  -- how many are already listed (SkillRoute's scan): a crowded market means undercutting
+  -- and unsold items, so the AH counts for less when choosing (shown at its real price)
+  a.listed = ns.Prices and ns.Prices.Listed(item) or nil
+  a.crowded = a.ah and a.listed and a.listed >= math.max(CROWDED_MIN, CROWDED_TIMES * n) or nil
   local d = Data.disenchant and Data.disenchant.of and Data.disenchant.of[item]
   if d then
     a.deSkill = d[1] and d[2]
@@ -1696,8 +1701,9 @@ function Core.ItemAdvice(item, enchantSkill, n, needs)
   end
   local best, bestV = "vendor", a.vendor
   if a.de and a.de > bestV then best, bestV = "de", a.de end
-  if a.ah and a.ah > bestV then best, bestV = "ah", a.ah end
-  a.best, a.bestValue = best, bestV
+  local ahV = a.ah and (a.crowded and a.ah * CROWDED_SHARE or a.ah)
+  if ahV and ahV > bestV then best, bestV = "ah", ahV end
+  a.best, a.bestValue = best, best == "ah" and a.ah or bestV
   return a
 end
 
@@ -1706,7 +1712,7 @@ end
 -- isn't worth a list). { {item, count, advice}, ... }, most valuable first.
 local craftedItems
 function Core.CraftedAdvice(plan)
-  if not auctionator() then return {} end
+  if not Core.PriceSource() then return {} end -- no AH prices at all (no scan, no Auctionator)
   if not craftedItems then
     craftedItems = {}
     for _, prof in pairs(Data.professions) do

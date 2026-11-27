@@ -49,6 +49,13 @@ function Prices.Own(item)
   return d and d.p or p, math.floor((now() - (b.t or 0)) / 86400), b.t
 end
 
+-- How many of an item are listed, from a scan of today or yesterday (nil if unknown).
+function Prices.Listed(item)
+  local b = Prices.Book()
+  if not (b.listed and b.t) or now() - b.t > 2 * 86400 then return nil end
+  return b.listed[item]
+end
+
 -- For tooltips: the cheapest listing and, if priced, the amount and its average.
 function Prices.Detail(item)
   local b = Prices.Book()
@@ -170,7 +177,7 @@ end
 local function store()
   scan.phase = "store"
   local results = AH.GetBrowseResults() or {}
-  local items, i, n = {}, 1, #results
+  local items, listed, i, n = {}, {}, 1, #results
   local function step()
     if not scan then return end
     local last = math.min(n, i + CHUNK - 1)
@@ -179,6 +186,7 @@ local function store()
       local id = r and r.itemKey and r.itemKey.itemID
       local p = r and r.minPrice
       if id and p and p > 0 and (not items[id] or p < items[id]) then items[id] = p end
+      if id and r.totalQuantity then listed[id] = (listed[id] or 0) + r.totalQuantity end
     end
     i = last + 1
     if i <= n then
@@ -189,7 +197,7 @@ local function store()
     local b = Prices.Book()
     local count = 0
     for _ in pairs(items) do count = count + 1 end
-    b.items, b.t, b.count, b.depth = items, now(), count, {}
+    b.items, b.t, b.count, b.depth, b.listed = items, now(), count, {}, listed
     scan.count, scan.readTime = count, GetTime() - scan.started
     Core.InvalidatePatterns()
     Core.Changed()
