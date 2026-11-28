@@ -404,6 +404,16 @@ local function build()
   local page3 = newPage()
   pg = page3 -- and these on Map
   y = -8
+  do -- another gathering map addon shows the nodes: say why ours are hidden
+    local note = pg:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+    note:SetPoint("TOPLEFT", 20, y); note:SetWidth(WIDTH); note:SetJustifyH("LEFT")
+    note:SetTextColor(1, 0.82, 0)
+    note:SetText("Another gathering map addon is showing nodes, so SkillRoute's are hidden.")
+    refreshers[#refreshers + 1] = function()
+      if ns.MapPins and ns.MapPins.OtherMapAddon() then note:Show() else note:Hide() end
+    end
+    y = y - 30
+  end
   y = heading(pg, y, "Show gathering nodes on")
   y = check(pg, y, "World map",
     "Where the nodes of your Mining and Herbalism routes' current steps can spawn: the step's node, the ones that count the same, and the rare ones to gather when you see them. Hover a dot for what it is.",

@@ -19,8 +19,20 @@ local MINI_OUT = { [0] = 466.67, 400, 333.33, 266.67, 200, 133.33 }
 local MINI_IN = { [0] = 300, 240, 180, 120, 80, 50 }
 
 local function S() SkillRouteDB.settings = SkillRouteDB.settings or {}; return SkillRouteDB.settings end
-function P.MapOn() return S().mapPins ~= false end
-function P.MiniOn() return S().miniPins ~= false end
+-- A dedicated gathering map addon, when loaded, shows the nodes: ours stay hidden (finds are
+-- still saved). Checked by its folder name; nothing shown to the player names it.
+local OTHER_MAP_ADDONS = { "GatherMate2" } -- (its data addon only loads alongside it)
+function P.OtherMapAddon()
+  local loaded = (C_AddOns and C_AddOns.IsAddOnLoaded) or IsAddOnLoaded
+  if not loaded then return false end
+  for _, a in ipairs(OTHER_MAP_ADDONS) do
+    local ok, yes = pcall(loaded, a)
+    if ok and yes then return true end
+  end
+  return false
+end
+function P.MapOn() return S().mapPins ~= false and not P.OtherMapAddon() end
+function P.MiniOn() return S().miniPins ~= false and not P.OtherMapAddon() end
 function P.RecordOn() return S().recordFinds ~= false end
 function P.KindOn(kind) if kind == "herb" then return S().mapHerbs ~= false end return S().mapOres ~= false end
 function P.Alpha() return 1 - (S().pinTransparency or 25) / 100 end

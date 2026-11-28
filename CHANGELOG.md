@@ -81,6 +81,8 @@
 - World map spots are small dots (dark rim; copper ores, green herbs, gold finds), and
   their tooltip just names what's there ("Silverleaf, Peacebloom"). The minimap keeps
   its hollow squares.
+- With a dedicated gathering map addon loaded, SkillRoute's spots stay hidden on both
+  maps (it shows the nodes); the Map tab and `/sr check` say so. Finds are still saved.
 - Gathering routes in the mini panel and tracker: the step now says where to go (its
   three best zones, your faction's first), counts as a step ("13 steps left"), and the
   Craft buttons and "Left to buy" make way for "Nodes in all". A gathering step's tooltip

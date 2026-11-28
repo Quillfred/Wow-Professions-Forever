@@ -3032,6 +3032,12 @@ do
   local o2, h2 = kinds()
   assert(o2 == 0 and h2 == h0, "Veins/Deposits off: herbs only")
   SkillRouteDB.settings.mapOres = nil; P.Invalidate()
+  -- a gathering map addon loaded: it shows the nodes, ours hide (both maps)
+  local savedAddOns = _G.C_AddOns
+  _G.C_AddOns = { IsAddOnLoaded = function(a) return a == "GatherMate2" end }
+  assert(P.OtherMapAddon() and not P.MapOn() and not P.MiniOn(), "the other addon takes over")
+  _G.C_AddOns = savedAddOns
+  assert(not P.OtherMapAddon() and P.MapOn(), "without it: ours")
   SkillRouteDB.settings.mapPins = false
   assert(P.RefreshWorld() == 0, "map spots off")
   SkillRouteDB.settings.mapPins = nil

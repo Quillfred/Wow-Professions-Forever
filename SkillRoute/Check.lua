@@ -103,6 +103,7 @@ function Core.Check()
     local names = {}
     for n in pairs(MP.Wanted()) do names[#names + 1] = n end
     table.sort(names)
+    if MP.OtherMapAddon() then line(WARN .. " map spots hidden: another gathering map addon is showing nodes") end
     local lw = MP.lastWorld
     line(("%s map nodes: %s"):format(#names > 0 and OK or WARN, #names > 0 and table.concat(names, ", ") or "none for your routes"))
     line(("%s world map: %s%s"):format(lw and lw.mode == "the map's own pins" and not lw.err and OK or WARN,
