@@ -1,6 +1,8 @@
 # Changelog
 
-## 0.38.5 (not released yet)
+## 0.38.6 (not released yet)
+
+## 0.38.5
 
 - Fixed: the full route window and the options window went back to the middle of the
   screen after a reload. They now open where you last dragged them.
