@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.38.7 (not released yet)
+## 0.38.7
 
 - **Smelting in the Mining route:** smelting ore gives Mining skill too (checked in
   game), so the route now has you smelt the ore you mine as you go: "~23 x Copper Vein,
@@ -93,16 +93,16 @@
   of the line. It now says "+ 2 more when you see them"; the step's tooltip lists them,
   with the alternatives and its zones.
 - **Mining and Herbalism from Forever's own maps:** the gathering routes now use the
-  herb and ore spots on Wowhead's WoW Forever maps (27,800 spots in 46 zones) instead of
+  herb and ore spots on WoW Forever's own maps (27,800 spots in 46 zones) instead of
   Classic spawn data. 32 nodes SkillRoute didn't know are in: Forever's Heavy Thorium
   Vein, Cold Iron Deposit, Starsilver Vein, Fool's Gold Vein, Greater Moonstone, Amber,
   Demonsage, Marefoil, Dreamroot, Moonroot and others, plus Black Lotus and the Ooze
   Covered veins (shown as "gather when you see them"). Zones are ranked by real spot
   counts: The Barrens now features for Mageroyal, Briarthorn and Bruiseweed, Mount Hyjal
   for Rich Thorium. The skill each node needs matches the game's own tables.
-- Data: AllTheThings reorganised its Forever database; SkillRoute's importer reads the new
-  layout. 33 materials gain vendors (no vendor lost), 36 more recipe sources and 7 more
-  learn levels, NPC positions refreshed. Trainer tiers stay as checked in game: ATT's new
+- Data: one of SkillRoute's data sources reorganised its Forever data; the importer reads
+  the new layout. 33 materials gain vendors (no vendor lost), 36 more recipe sources and 7 more
+  learn levels, NPC positions refreshed. Trainer tiers stay as checked in game: the new
   trainer tags don't reliably say which rank a trainer teaches.
 ## 0.38.6
 
@@ -136,8 +136,7 @@
   - the route's header shows your Favor; patterns that would save gold but need more
     Favor or reputation are listed there
   - a vendor visit records the Favor price you see, which wins over the data
-  Sources: costs and vendors from AllTheThings (MIT), reputation from Wowhead Forever's
-  item tooltips (tools/import_favor.py, tools/fetch_favor_rep.py).
+  Sources: see THIRD_PARTY_NOTICES.md.
 - **Keep the mini panel on screen** (Options, General; off by default). Away from the
   profession window, the next step stays on screen like the quest list: see-through,
   text only. You get the step, its materials as objectives ("- 4/51 Bolt of Silk Cloth",
@@ -151,11 +150,10 @@
   to craft"), when you reach a rank cap ("Tailoring 225 reached: Train Artisan at Daryl
   Stack…"), and when you reach your target. Watching for them doesn't re-plan the route
   on every loot; materials are counted straight from your bags.
-- **TSM prices:** with TradeSkillMaster installed, items that neither SkillRoute's scan
-  nor Auctionator has priced use TSM's price (its latest scan's lowest price, else its
-  market value). Your own scan and Auctionator still come first. TSM's market value is
-  used as a price only, never as "for sale now", so no pattern is bought because TSM
-  remembers one. `/sr check` lists it.
+- **More prices:** with a second AH price addon installed, items that no other scan has
+  priced use its price (its latest scan's lowest price, else its market value). Your own
+  scan and your main AH addon still come first. A market value is used as a price only,
+  never as "for sale now", so no pattern is bought because an addon remembers one. `/sr check` lists it.
 ## 0.38.4
 
 - Fixed: the trainer panel only listed recipes for skill-up steps, so a tool your route
@@ -173,7 +171,7 @@
 - Fixed: AH purchases arrive in your mailbox, and SkillRoute only counted bags and bank,
   so until you collected the mail it still listed what you'd just bought (and you could
   buy it twice). What you buy on the AH (with SkillRoute, the AH's own window or
-  Auctionator) now counts as yours straight away, and opening the mailbox counts exactly
+  an AH addon) now counts as yours straight away, and opening the mailbox counts exactly
   what's in it. The mini panel shows "1 in the mail" next to a material waiting there.
 - Buying panel: the "Search" note ("the AH can't quote this…") ran into the next row. It
   now fits on one line, and is only shown when too few of a stackable good are listed.
@@ -265,7 +263,7 @@
   item are listed. "Afterwards" and the shopping list show it ("List on the AH, 1g 20s
   each (12 listed)"), and when a market is crowded (20+ listed, and 3x what you'd sell)
   the AH counts for 70% when choosing, so the vendor or disenchanting can win.
-- Fixed: the shopping list's "Crafted items in your bags" only appeared with Auctionator
+- Fixed: the shopping list's "Crafted items in your bags" only appeared with an AH addon
   installed; SkillRoute's own scan now counts.
 - **Take route mats** checks your bags: it moves no more stacks than fit, reports what
   actually arrived (a moment later), and says "Your bags are full: N stacks stayed in the
@@ -284,13 +282,13 @@
   "learn it at ..." note, for a waypoint (a recipe you know still opens).
 - Fixed: the full route window, opened with **Full route**, stayed on the old profession
   when you switched (e.g. Enchanting to Tailoring). It now follows.
-- **No addons needed any more.** Auctionator and TomTom are still used when installed, but
+- **No addons needed any more.** AH and waypoint addons are still used when installed, but
   SkillRoute now does both jobs itself:
-  - **Buying:** without Auctionator, **Buy** (and **Buy shopping list**) opens a panel beside
+  - **Buying:** without an AH addon, **Buy** (and **Buy shopping list**) opens a panel beside
     the auction house. For each material: **Price** gets the AH's exact total for the
     amount you need, then **Buy** pays exactly that. A price that changes needs a new click;
     nothing is bought without one. Items that aren't stackable get **Search** instead.
-  - **Waypoints:** without TomTom, clicking a trainer or vendor shows SkillRoute's own arrow
+  - **Waypoints:** without a waypoint addon, clicking a trainer or vendor shows SkillRoute's own arrow
     with the distance (green ahead, red behind) and "Arrived" when you get there; on
     another continent it says how to get there. Drag to move, right-click to clear. The
     game's map pin is set too.
@@ -303,9 +301,9 @@
   "Make 12 x Mithril Bar (Mining: Smelt Mithril)", and uses the ore you have first.
 - Bars, bolts and other craftable materials you already own are used before making more
   (before, the shopping list could ask for ore for bars you already had).
-- **Buy without Auctionator:** the Buy buttons now also work without Auctionator: they
+- **Buy without an AH addon:** the Buy buttons now also work without one: they
   search the auction house's own search box for the step's materials, one per click
-  ("Next 2/3"), and chat says how many you need. With Auctionator installed, Buy still
+  ("Next 2/3"), and chat says how many you need. With an AH addon installed, Buy still
   fills its shopping list as before.
 - Tools you craft (e.g. the Runed Golden Rod) get a **Buy** button for their materials, on
   the mini panel and the full route, and "To buy" works for them too.
@@ -318,7 +316,7 @@
 - The full route window steps aside while Options is open and comes back when you close
   it; Options always draws on top.
 - **SkillRoute's own AH scan:** a **Scan AH** button (and `/sr scan`) while the auction
-  house is open reads the lowest price of everything listed in one search. Auctionator is
+  house is open reads the lowest price of everything listed in one search. An AH addon is
   no longer required for prices. The button sits on the auction house window's title bar
   (and on the full SkillRoute window) and shows the scan's progress.
 - **Prices for the amount you need:** after the full read, one search per material your
@@ -330,7 +328,7 @@
 - The scan sends each request the moment the AH allows it (no more 0.3 s polling), and the
   finish line says where the time went (pages, waiting, answers).
 - **Freshest price wins:** per item, SkillRoute uses whichever is newer, its own scan or
-  Auctionator's.
+  your AH addon's.
 - **What you paid:** AH purchases of stackable goods are remembered. An item that isn't on
   the AH now is priced at what you last paid (within 30 days). Hover an item in the
   shopping list to see its price, where it came from and how old it is, and what you paid.
@@ -383,14 +381,14 @@
 ## 0.34.0 (beta): first public release
 
 SkillRoute Forever plans the cheapest way to level any profession in WoW Forever, from the
-game's own recipe data and your Auctionator prices.
+game's own recipe data and your AH prices.
 
 - Routes for every crafting profession (Alchemy, Blacksmithing, Enchanting, Engineering,
   Leatherworking, Tailoring, Cooking, First Aid), planned per skill point with real
   skill-up chances, using what's in your bags, bank and on your alts.
 - Trainers, vendors and quest givers by name and location, nearest for your faction, with
-  travel time (flight paths, boats, zeppelins, hearthstone) and click-to-waypoint (TomTom
-  or the map pin).
+  travel time (flight paths, boats, zeppelins, hearthstone) and click-to-waypoint (a waypoint
+  addon or the map pin).
 - Forever's rules: trainers teach the rank below their title and only from its skill level;
   rank-ups by book or quest where Forever does it that way; character-level warnings;
   specialization recipes only if you have the spec.
@@ -399,8 +397,8 @@ game's own recipe data and your Auctionator prices.
 - Tooltips: cost per craft, the levels where a recipe is orange / yellow / green, why it
   was picked over the next best, where to learn it, and whether to sell, disenchant or
   vendor what you make.
-- Shopping list with a safety margin; at the auction house, a Buy button per step opens
-  Auctionator's Shopping tab with the amounts you need.
+- Shopping list with a safety margin; at the auction house, a Buy button per step sends
+  its materials to your AH addon's shopping list, with the amounts you need.
 - Farming spots for Cooking ingredients the AH doesn't have; Mining, Herbalism, Skinning and
   Fishing routes with zones sorted by faction.
 - Minimap button, options window, `/sr check` self-test.
