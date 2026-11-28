@@ -1442,16 +1442,24 @@ function Core.CrateAdvice(item)
   return out
 end
 
--- The cheapest Favor you could earn by filling a crate, in copper per Favor, and which
--- crate; nil if nothing is priced. (You still need the crate: they drop from mobs.)
+-- The cheapest Favor per crate tier you can use (level), in copper per Favor:
+-- { {tier = "Apprentice", per = copper, crate = item}, ... } in tier order. Which crates
+-- you find depends on the mobs you fight, so all usable tiers are given, not one.
+local TIER_OF = { [248765] = 1, [248770] = 1, [248766] = 2, [248771] = 2, [248767] = 3, [248772] = 3, [248768] = 4, [248773] = 4 }
+local TIER_NAME = { "Apprentice", "Journeyman", "Expert", "Artisan" }
 function Core.CheapestFavor()
   local F = Data.favor
-  local best, bestCrate
-  for item in pairs(F and F.crates or {}) do
-    local a = Core.CrateAdvice(item)
-    if a and a.perFavor and (not best or a.perFavor < best) then best, bestCrate = a.perFavor, item end
+  local best = {}
+  for item, c in pairs(F and F.crates or {}) do
+    local tier = TIER_OF[c[3]]
+    local a = tier and Core.CrateAdvice(item)
+    if a and a.perFavor and a.levelOK and (not best[tier] or a.perFavor < best[tier].per) then
+      best[tier] = { tier = TIER_NAME[tier], per = a.perFavor, crate = item }
+    end
   end
-  return best, bestCrate
+  local out = {}
+  for t = 1, 4 do if best[t] then out[#out + 1] = best[t] end end
+  return out
 end
 
 -- Have you done the one-time first-crate quest (+50 Favor, +2,000 reputation)?

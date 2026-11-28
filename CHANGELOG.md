@@ -10,7 +10,8 @@
   it yet. Gathering crates pay 5/10/15/20 Favor, crafted crates 10/20/30/40.
 - The route's Merchant's Favor note says how much reputation a pattern still needs
   ("Black Handwraps (needs Friendly, 1,000 rep)"); hover it for each pattern's Favor,
-  reputation and saving, and what the Favor you're short would cost in crate materials.
+  reputation and saving, and what the Favor you're short would cost in crate materials,
+  per crate tier you can use (which crates drop depends on the mobs you fight).
 - Game data rebuilt for Forever build 1.60.1.71139: adds Centaur Hoofwarmers
   (Tailoring 170-180, a pattern). The other Favor recipes not in SkillRoute all need
   skill 300 to learn, so they can't give a skill-up and are left out on purpose.

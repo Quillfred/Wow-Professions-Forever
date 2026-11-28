@@ -2711,8 +2711,9 @@ do
   assert(j:find("Hand in: Dokimi", 1, true), "hand-in NPC (Horde): " .. j)
   assert(TT.CrateLines(2589) == nil, "not a crate: nothing")
   print("crate: " .. text[2]:gsub("|c%x%x%x%x%x%x%x%x", ""):gsub("|r", "") .. ", " .. text[#text - 3]:gsub("|c%x%x%x%x%x%x%x%x", ""):gsub("|r", ""))
-  local per, crate = Core.CheapestFavor()
-  assert(per and crate, "cheapest Favor across crates")
+  local tiers = Core.CheapestFavor()
+  assert(#tiers > 0 and tiers[1].per and tiers[1].tier, "cheapest Favor per crate tier")
+  for _, t in ipairs(tiers) do assert(t.tier ~= "Artisan", "level 34: Artisan crates (level 35) not counted") end
   Core.InBags, Core.RouteNeeds, _G.UnitLevel = savedBags, savedNeeds, savedLevel
   prices[11176], prices[11175], prices[14343], prices[14344], prices[11174] = savedP[1], savedP[2], savedP[3], savedP[4], savedP[5]
   -- reputation still needed: Neutral 2,000 -> Honored (9,000) = 7,000
@@ -2732,7 +2733,8 @@ do
   Core.Plan = function(...)
     local p = savedPlan(...)
     if not p then return p end
-    return setmetatable({ favorWanted = { ["p:1257439"] = { why = "rep", saves = 5000 } } }, { __index = p })
+    return setmetatable({ favorWanted = { ["p:1257439"] = { why = "rep", saves = 5000 },
+      ["p:1257450"] = { why = "rep", saves = 2.5e11 } } }, { __index = p }) -- a gap-sized estimate
   end
   local wasShown = ns.UI.IsShown()
   if not wasShown then ns.UI.Toggle(197) else ns.UI.Refresh() end
@@ -2743,7 +2745,7 @@ do
   local tj = table.concat(tip or {}, "\n")
   -- (an earlier test's vendor visit recorded 55 Favor for it: the price seen at the vendor wins)
   assert(tj:find(("Black Handwraps: %d Favor, needs Friendly (1,000 rep to go), saves"):format(Core.FavorOf(254028)[1]), 1, true)
-    and tj:find("You have 60 Favor", 1, true),
+    and tj:find("You have 60 Favor", 1, true) and not tj:find("2498", 1, true) and not tj:find("saves ~%d%d%d%d%d"),
     "hover: " .. tj)
   Core.Plan, _G.C_Reputation, _G.C_CurrencyInfo = savedPlan, savedRep, savedCI
   if not wasShown then ns.UI.Toggle() else ns.UI.Refresh() end

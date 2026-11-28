@@ -972,16 +972,21 @@ local function refresh()
       elseif i == 3 then names[#names + 1] = ("%d more"):format(#all - 2) end
       if fav then
         short = math.max(short, fav[1] - have)
-        tip[#tip + 1] = ("%s: %d Favor%s, saves ~%s"):format(r and r.n or "?", fav[1],
+        -- the planner's estimate includes its gap penalty when the pattern fills a gap: no
+        -- real gold figure then, so none is shown (as on the route's own tooltips)
+        local real = x.w.saves and x.w.saves < 1e8
+        tip[#tip + 1] = ("%s: %d Favor%s%s"):format(r and r.n or "?", fav[1],
           fav[2] > 0 and (", needs " .. Core.RankName(fav[2]) .. (togo and togo > 0 and (" (" .. thousands(togo) .. " rep to go)") or "")) or "",
-          money(x.w.saves))
+          real and (", saves ~" .. money(x.w.saves)) or "")
       end
     end
     tip[#tip + 1] = ("You have %d Favor."):format(have)
-    local per, crate = Core.CheapestFavor()
-    if short > 0 and per then
-      tip[#tip + 1] = ("%d more Favor: ~%s in crate materials at today's prices (cheapest: %s, ~%s per Favor). Waylaid Crates drop from mobs level 10 and up; hover one for its cheapest fill.")
-        :format(short, money(short * per), (GetItemInfo and GetItemInfo(crate)) or "a Waylaid Crate", money(per))
+    local tiers = Core.CheapestFavor()
+    if short > 0 and #tiers > 0 then
+      local parts = {}
+      for _, t in ipairs(tiers) do parts[#parts + 1] = ("%s crates ~%s"):format(t.tier, money(short * t.per)) end
+      tip[#tip + 1] = ("%d more Favor, in crate materials at today's prices: %s. Which crates you find depends on the mobs you fight; hover one for its cheapest fill.")
+        :format(short, table.concat(parts, ", "))
     end
     tip[#tip + 1] = "Reputation: Craftsman's Writs (75 / 125 / 200) and Crate Returns (50)."
     favorTip = tip
