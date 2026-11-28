@@ -917,7 +917,7 @@ function UI.UpdateButtons()
   -- shopping view: Send to Auctionator, or without it SkillRoute's buying panel at the AH
   local auc = Core.CanExportToAuctionator()
   local showAuc = state.mode == "shopping" and (auc or (Core.ahOpen and ns.BuyPanel and ns.BuyPanel.CanUse()))
-  if ahBtn then ahBtn:SetText(auc and "Send to Auctionator" or "Buy shopping list") end
+  if ahBtn then ahBtn:SetText(auc and "Send to AH list" or "Buy shopping list") end
   if ahBtn then
     ahBtn:ClearAllPoints()
     if scanBtn and scanBtn:IsShown() then ahBtn:SetPoint("RIGHT", scanBtn, "LEFT", -4, 0)
@@ -981,7 +981,7 @@ local function refresh()
     return
   end
   local src = Core.PriceSource()
-  src = src and (src .. " prices") or "|cffff4040No AH prices yet: scan the AH (Scan AH button, or Auctionator)|r"
+  src = src and (src .. " prices") or "|cffff4040No AH prices yet: scan the AH (Scan AH button)|r"
   local warn = {}
   local nSkip = 0
   for _ in pairs(Core.Skips(plan.line)) do nSkip = nSkip + 1 end
@@ -1256,7 +1256,7 @@ local function build()
 
   ahBtn = CreateFrame("Button", nil, frame, "UIPanelButtonTemplate")
   ahBtn:SetSize(150, 22); ahBtn:SetPoint("BOTTOMRIGHT", -14, 8)
-  ahBtn:SetText("Send to Auctionator")
+  ahBtn:SetText("Send to AH list")
   ahBtn:SetScript("OnClick", function()
     if not lastPlan then return end
     if Core.CanExportToAuctionator() then Core.ExportToAuctionator(lastPlan)
@@ -1299,7 +1299,7 @@ local function firstRunTips()
   SkillRouteDB.tipsShown = true
   local t = "|cff33ccffSkillRoute:|r "
   print(t .. "the route lists each step top to bottom. |cffffd100Hover|r a step for details, |cffffd100click|r to open the recipe or set a waypoint, |cffffd100right-click|r to skip a recipe you can't get.")
-  print(t .. "|cffffd100Shopping list|r (top right) is what to buy, minus what you have. Prices come from Auctionator or SkillRoute's own scan (Scan AH button at the auction house): scan first.")
+  print(t .. "|cffffd100Shopping list|r (top right) is what to buy, minus what you have. Prices come from SkillRoute's own scan (Scan AH button at the auction house) or your AH addon's: scan first.")
   print(t .. "|cffffd100Options|r for margins and settings; |cffffd100/sr help|r for commands, |cffffd100/sr check|r if something looks wrong.")
 end
 
@@ -1427,7 +1427,7 @@ SlashCmdList.SKILLROUTE = function(msg)
     end
   elseif cmd == "alts" and settings then
     settings.alts = (arg ~= "off")
-    print("SkillRoute: materials on your other characters are " .. (settings.alts and "counted (Syndicator/DataStore)" or "not counted"))
+    print("SkillRoute: materials on your other characters are " .. (settings.alts and "counted" or "not counted"))
   elseif cmd == "margin" and settings then
     local v = tonumber(arg)
     if v and v >= 50 and v <= 99 then

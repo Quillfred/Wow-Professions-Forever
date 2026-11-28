@@ -435,7 +435,7 @@ function Prices.Scan()
   if scan then print("SkillRoute: a scan is already running."); return false end
   if not Core.ahOpen then print("SkillRoute: open the auction house first, then scan."); return false end
   if not Prices.CanScan() then
-    print("SkillRoute: this client's auction house can't be scanned by SkillRoute. Auctionator's scan still works.")
+    print("SkillRoute: this client's auction house can't be scanned by SkillRoute. An AH addon's scan still works.")
     return false
   end
   scan = { started = GetTime(), lastPage = GetTime(), phase = "read" }

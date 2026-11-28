@@ -910,7 +910,7 @@ function Core.Waypoint(loc, title)
   -- pin (and its on-screen marker where the client has one)
   if TomTom and TomTom.AddWaypoint then
     TomTom:AddWaypoint(ui, x / 100, y / 100, { title = title, persistent = false, minimap = true, world = true })
-    print(("SkillRoute: TomTom waypoint set to %s, %s."):format(title, Core.Where(loc) or ""))
+    print(("SkillRoute: waypoint set to %s, %s."):format(title, Core.Where(loc) or ""))
     return "tomtom"
   end
   local pinned = false
@@ -1189,9 +1189,8 @@ end
 function Core.PriceSource()
   local own = ns.Prices and (ns.Prices.Book().t or 0) > 0
   local parts = {}
-  if auctionator() then parts[#parts + 1] = "Auctionator" end
   if own then parts[#parts + 1] = "SkillRoute scan" end
-  if TSM_API and TSM_API.GetCustomPriceValue then parts[#parts + 1] = "TSM" end
+  if auctionator() or (TSM_API and TSM_API.GetCustomPriceValue) then parts[#parts + 1] = "AH addon" end
   return #parts > 0 and table.concat(parts, " + ") or nil
 end
 
@@ -1932,7 +1931,7 @@ end
 function Core.AddStepToAuctionator(plan, st, remove)
   local api = Auctionator and Auctionator.API and Auctionator.API.v1
   if not (api and api.CreateShoppingList) then
-    print("SkillRoute: your Auctionator version can't create shopping lists.")
+    print("SkillRoute: your AH addon's version can't create shopping lists.")
     return false
   end
   local c = Core.Char()
@@ -1972,11 +1971,11 @@ function Core.AddStepToAuctionator(plan, st, remove)
   local listName = "SkillRoute " .. Data.professions[plan.line].name .. " (steps)"
   if api.DeleteShoppingList then pcall(api.DeleteShoppingList, addonName, listName) end
   if #terms == 0 then
-    print(("SkillRoute: Auctionator list \"%s\" is empty now."):format(listName))
+    print(("SkillRoute: AH shopping list \"%s\" is empty now."):format(listName))
     return true
   end
   local ok, err = pcall(api.CreateShoppingList, addonName, listName, terms)
-  if not ok then Core.ReportError("Auctionator step list", err); return false end
+  if not ok then Core.ReportError("AH step list", err); return false end
   local here = steps[key]
   -- open Auctionator's Shopping tab on this step's reagents (its public search; the
   -- quantities are on the list). Only with the AH open.
@@ -1997,11 +1996,11 @@ function Core.AddStepToAuctionator(plan, st, remove)
       searched = pcall(search, addonName, names)
     end
   end
-  print(("SkillRoute: %s %s - Auctionator list \"%s\" now has %d item(s)%s.%s"):format(
+  print(("SkillRoute: %s %s - AH shopping list \"%s\" now has %d item(s)%s.%s"):format(
     remove and "removed" or "added", st.name, listName, #terms,
     here and (": " .. table.concat((function() local t = {} for _, x in ipairs(here.items) do t[#t + 1] = x.qty .. " " .. x.name end return t end)(), ", ")) or "",
-    searched and (withQty and " Searching them in Auctionator's Shopping tab, with the amounts."
-      or (" Searching them in Auctionator's Shopping tab (amounts are on the \"%s\" list)."):format(listName)) or ""))
+    searched and (withQty and " Searching them in your AH addon's Shopping tab, with the amounts."
+      or (" Searching them in your AH addon's Shopping tab (amounts are on the \"%s\" list)."):format(listName)) or ""))
   return true
 end
 
@@ -2251,7 +2250,7 @@ end
 function Core.ExportToAuctionator(plan)
   local api = Auctionator and Auctionator.API and Auctionator.API.v1
   if not (api and api.CreateShoppingList) then
-    print("SkillRoute: your Auctionator version can't create shopping lists.")
+    print("SkillRoute: your AH addon's version can't create shopping lists.")
     return false
   end
   local terms, n = {}, 0
@@ -2274,9 +2273,9 @@ function Core.ExportToAuctionator(plan)
   local listName = "SkillRoute " .. Data.professions[plan.line].name
   local ok, err = pcall(api.CreateShoppingList, addonName, listName, terms)
   if ok then
-    print(("SkillRoute: Auctionator shopping list \"%s\" created with %d items (vendor items left out)."):format(listName, n))
+    print(("SkillRoute: AH shopping list \"%s\" created with %d items (vendor items left out)."):format(listName, n))
   else
-    Core.ReportError("Auctionator shopping list", err)
+    Core.ReportError("AH shopping list", err)
   end
   return ok
 end

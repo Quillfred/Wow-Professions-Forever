@@ -34,6 +34,14 @@
   of this node", the shopping list says when a price was seen (not where from), and the
   Buy and Scan AH tooltips describe what they do. Nothing changes in how prices, alts or
   waypoints work.
+- No other addon is named anywhere in SkillRoute now: the window header says "SkillRoute
+  scan + AH addon prices", the button is "Send to AH list", and chat messages and
+  `/sr check` say "AH addon", "waypoint addon" and so on.
+- Mining: the Amber chunks in Teldrassil are counted as Copper Veins (they are one in
+  game), so Copper Vein lists Teldrassil. Each node now keeps its top 16 zones instead of
+  6, so your side's starting zones make the list (Durotar, Tirisfal, Teldrassil). With
+  Mithril's spots fully counted, the route mines Mithril until 242 rather than switching
+  to Dark Iron (only in Burning Steppes and Searing Gorge) at 230.
 - Gathering routes in the mini panel and tracker: the step now says where to go (its
   three best zones, your faction's first), counts as a step ("13 steps left"), and the
   Craft buttons and "Left to buy" make way for "Nodes in all". A gathering step's tooltip

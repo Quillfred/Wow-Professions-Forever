@@ -25,6 +25,22 @@ import csv, json, os, re, sys, time, urllib.request
 HERE = os.path.dirname(os.path.abspath(__file__))
 LINES = {"mining": 186, "herb": 182}
 UA = {"User-Agent": "Mozilla/5.0"}
+# Forever models of a node that are the same node in game (same ore, same skill): their
+# spots count as that node's. Checked in game: the Amber chunks in Teldrassil are Copper Veins.
+SAME_NODE = {"Chunk of Amber": "Copper Vein", "Large Chunk of Amber": "Copper Vein"}
+
+
+def merged_rows(per_node, reqs):
+    """{name: {zone: spots}} -> gather rows, with SAME_NODE's models added to their node."""
+    out = {}
+    for name, zones in per_node.items():
+        to = SAME_NODE.get(name, name)
+        if reqs.get(name) is None or reqs.get(to) is None:
+            continue
+        z = out.setdefault(to, {})
+        for zone, n in zones.items():
+            z[zone] = z.get(zone, 0) + n
+    return sorted(({"n": n, "req": reqs[n], "zones": z} for n, z in out.items() if z), key=lambda x: (x["req"], x["n"]))
 
 
 def fetch_req(oid):
@@ -50,14 +66,13 @@ def from_points(cache, build):
     gpath = os.path.join(HERE, "gather.json")
     gather = json.load(open(gpath, encoding="utf-8"))
     for line in pts.get("lines", {}):
-        rows = []
+        per_node = {}
         for name in pts["lines"][line]:
-            zones = {}
+            zones = per_node.setdefault(name, {})
             for m, packed in pts["points"][name].items():
                 z = uimap[int(m)]["Name_lang"]
                 zones[z] = zones.get(z, 0) + len(packed) // 6
-            rows.append({"n": name, "req": reqs[name], "zones": zones})
-        gather[line] = sorted(rows, key=lambda x: (x["req"], x["n"]))
+        gather[line] = merged_rows(per_node, reqs)
     gather["_source"] = "wowhead"
     json.dump(gather, open(gpath, "w", encoding="utf-8"), separators=(",", ":"), sort_keys=True)
     print(f"Mining and Herbalism from Wowhead spots (tools/node_points.json) -> tools/gather.json")
@@ -111,16 +126,13 @@ def main():
     gpath = os.path.join(HERE, "gather.json")
     gather = json.load(open(gpath, encoding="utf-8")) if os.path.exists(gpath) else {}
     for k, line in LINES.items():
-        rows = []
+        per_node = {}
         for name, nd in nodes.items():
-            if nd["kind"] != k or reqs.get(name) is None:
-                continue
-            zones = {}
-            for m in nd["maps"].values():
-                zones[m["zone"]] = zones.get(m["zone"], 0) + len(m["pts"])
-            if zones:
-                rows.append({"n": name, "req": reqs[name], "zones": zones})
-        gather[str(line)] = sorted(rows, key=lambda x: (x["req"], x["n"]))
+            if nd["kind"] == k:
+                zones = per_node.setdefault(name, {})
+                for m in nd["maps"].values():
+                    zones[m["zone"]] = zones.get(m["zone"], 0) + len(m["pts"])
+        gather[str(line)] = merged_rows(per_node, reqs)
     gather["_source"] = "wowhead"  # gen_data: Forever's own spot counts, no Classic corrections needed
     json.dump(gather, open(gpath, "w", encoding="utf-8"), separators=(",", ":"), sort_keys=True)
 

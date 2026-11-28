@@ -745,7 +745,9 @@ def main():
         for nd in nodes:
             # Classic counts: Forever spawn points where checked; Wowhead's: already Forever's
             zs = nd["zones"] if wowhead_nodes else ck_gather.get(nd["n"], nd["zones"])
-            top = sorted(zs.items(), key=lambda kv: -kv[1])[:6]
+            # enough zones that each side's starting areas make the list (the route shows
+            # your side's first): Copper Vein's Durotar is 8th, Teldrassil 13th
+            top = sorted(zs.items(), key=lambda kv: -kv[1])[:16]
             rows_.append("{%s,%d,{%s}%s}" % (lua_str(nd["n"]), nd["req"],
                                               ",".join(f"{lua_str(z)},{round(c)}" for z, c in top),
                                               ",true" if nd["n"] in RARE_NODES else ""))

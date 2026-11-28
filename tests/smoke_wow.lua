@@ -2520,9 +2520,9 @@ do
   assert(Core.AHPrice(880002) == 5678 and not Core.AHFresh(880002), "TSM's 14-day market value: a price, not 'for sale now'")
   local own = Core.AHPrice(2589)
   assert(own and own ~= 1, "SkillRoute's scan / Auctionator win over TSM: " .. tostring(own))
-  assert(Core.PriceSource():find("TSM", 1, true), "source names TSM: " .. tostring(Core.PriceSource()))
+  assert(Core.PriceSource():find("AH addon", 1, true), "header counts TSM as an AH addon: " .. tostring(Core.PriceSource()))
   _G.TSM_API = nil
-  assert(Core.AHPrice(880001) == nil and not tostring(Core.PriceSource()):find("TSM", 1, true), "without TSM: as before")
+  assert(Core.AHPrice(880001) == nil, "without TSM: as before")
   print("TSM: fallback prices only (" .. Core.PriceSource() .. ")")
 end
 
@@ -2871,7 +2871,7 @@ do
   _G.print = realPrint
   assert(#out > 20, "check printed a report")
   local joined = table.concat(out, "\n")
-  assert(joined:find("Auctionator prices", 1, true) and joined:find("plan Tailoring", 1, true), "report covers APIs and a live plan")
+  assert(joined:find("AH price addon", 1, true) and not joined:find("Auctionator", 1, true) and joined:find("plan Tailoring", 1, true), "report covers APIs and a live plan")
   -- a failing refresh shows a message instead of erroring
   local savedPlan = Core.Plan
   Core.Plan = function() error("boom") end
@@ -2899,12 +2899,16 @@ do
   if not UI.IsShown() then UI.Toggle(186) end
   hoverAll()
   assert(#tipText > 50, "tooltips were shown: " .. #tipText)
+  -- and what's on screen now: window text, the header, button labels
+  local nTip = #tipText
+  for _, t in ipairs(texts) do if type(rawget(t, "text")) == "string" then tipText[#tipText + 1] = t.text end end
+  for _, f in ipairs(frames) do if type(rawget(f, "text")) == "string" then tipText[#tipText + 1] = f.text end end
   for _, t in ipairs(tipText) do
     local low = t:lower()
     for _, w in ipairs(BANNED) do
       assert(not low:find("%f[%a]" .. w .. "%f[%A]"), ("a tooltip names %s: %s"):format(w, t))
     end
   end
-  print(("tooltips: %d lines, none naming a website or another addon"):format(#tipText))
+  print(("tooltips: %d lines, screen: %d texts; none naming a website or another addon"):format(nTip, #tipText - nTip))
 end
 print("SMOKE TEST PASSED")
