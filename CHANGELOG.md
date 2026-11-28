@@ -1,6 +1,8 @@
 # Changelog
 
-## 0.38.6 (not released yet)
+## 0.38.7 (not released yet)
+
+## 0.38.6
 
 - **Waylaid Crate helper:** hovering a Waylaid Crate shows every bundle it accepts at
   today's AH prices, cheapest first, which ones you already have in your bags ("Dream
