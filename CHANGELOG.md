@@ -53,6 +53,15 @@
   Blacksmithing". The mini panel's Craft buttons stay off until you're at it ("Needs:
   Anvil", or a missing Blacksmith Hammer), and come on within half a second when you
   walk up, with the window open.
+- Gathering spots on the world map and minimap (on by default): where the nodes of your
+  Mining and Herbalism routes' current steps can spawn, both routes at once. That's the
+  step's node, the ones that count the same, and the rare "when you see them" ones (on
+  the Tin step: Tin Vein, Incendicite, Lesser Bloodstone, Silver Veins). Hover a spot for
+  what it is. 27,828 spots in 46 zones, using the game's Find Minerals / Find Herbs icons.
+- Spots you find: when you gather somewhere with no known spot of that node within about
+  10 yards, it's saved (for all your characters) and shown with the others, tinted gold.
+- Options has a Map tab: world map and minimap on or off, saving finds on or off,
+  transparency (25% to start), and how many spots you've found.
 - Gathering routes in the mini panel and tracker: the step now says where to go (its
   three best zones, your faction's first), counts as a step ("13 steps left"), and the
   Craft buttons and "Left to buy" make way for "Nodes in all". A gathering step's tooltip

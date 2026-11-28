@@ -10,6 +10,7 @@
 ## IconTexture: Interface\Icons\Trade_Tailoring
 
 Data.lua
+NodeSpots.lua
 Favor.lua
 Planner.lua
 Core.lua
@@ -24,4 +25,5 @@ BuyPanel.lua
 Tooltip.lua
 Options.lua
 Recorder.lua
+MapPins.lua
 Check.lua

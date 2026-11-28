@@ -17,6 +17,7 @@ function Options.Set(key, value)
   Core.InvalidatePatterns()
   Core.Changed()
   if key == "minimapHide" then Options.UpdateMinimap() end
+  if ns.MapPins and (key == "mapPins" or key == "miniPins" or key == "pinTransparency") then ns.MapPins.Refresh() end
 end
 
 -- Minimap button ---------------------------------------------------------------------
@@ -392,6 +393,29 @@ local function build()
     { ends = { "Cheapest materials", "Fewest crafts" }, example = Options.FewerExample })
 
   local y2 = y
+  local page3 = newPage()
+  pg = page3 -- and these on Map
+  y = -8
+  y = check(pg, y, "Show gathering spots on the world map",
+    "Where the nodes of your Mining and Herbalism routes' current steps can spawn: the step's node, the ones that count the same, and the rare ones to gather when you see them. Hover a spot for what it is.",
+    function() return S().mapPins ~= false end, function(v) Options.Set("mapPins", v) end)
+  y = check(pg, y, "Show them on the minimap",
+    "Only the spots within the minimap's range.",
+    function() return S().miniPins ~= false end, function(v) Options.Set("miniPins", v) end)
+  y = check(pg, y, "Save spots I find that the map doesn't have",
+    "When you gather somewhere with no known spot of that node within about 10 yards, it's saved and shown with the others (tinted gold), for all your characters.",
+    function() return S().recordFinds ~= false end, function(v) Options.Set("recordFinds", v) end)
+  y = separator(pg, y - 4)
+  y = number(pg, y, "Spot transparency",
+    "How see-through the spots are, on both maps.",
+    0, 80, 5, function(v) return ("%d%%"):format(v) end,
+    function() return S().pinTransparency or 25 end, function(v) Options.Set("pinTransparency", v) end,
+    { ends = { "Solid", "Faint" } })
+  y = separator(pg, y)
+  y = readout(pg, y, "Spots you've found",
+    function() return tostring(ns.MapPins and ns.MapPins.FindCount() or 0) end,
+    function() return "Gathers where the map data had no spot of that node nearby." end)
+  local y3 = y
   -- tabs: the page you last used opens again
   local tabs = {}
   local function showPage(i)
@@ -402,17 +426,18 @@ local function build()
   end
   Options.ShowPage = showPage
   Options._pages = pages
-  for i, name in ipairs({ "General", "Buying & selling" }) do
+  for i, name in ipairs({ "General", "Buying & selling", "Map" }) do
     local t = CreateFrame("Button", nil, frame, "UIPanelButtonTemplate")
-    t:SetSize(i == 1 and 90 or 130, 22)
+    t:SetSize(i == 2 and 130 or 90, 22)
     if i == 1 then t:SetPoint("TOPLEFT", 16, TABS_Y) else t:SetPoint("LEFT", tabs[i - 1], "RIGHT", 4, 0) end
     t:SetText(name)
     t:SetScript("OnClick", function() showPage(i) end)
     tabs[i] = t
   end
-  local tallest = math.max(-y1, -y2)
+  local tallest = math.max(-y1, -y2, -y3)
   for _, pg in ipairs(pages) do pg:SetHeight(tallest) end
-  showPage(settings().optionsTab == 2 and 2 or 1)
+  local last = settings().optionsTab
+  showPage((last == 2 or last == 3) and last or 1)
   y = PAGE_Y - tallest
   panel:SetHeight(-y + 46)
   panel:Hide() -- new frames start shown; the first Toggle must open it, not close it

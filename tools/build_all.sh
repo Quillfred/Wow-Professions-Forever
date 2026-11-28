@@ -72,7 +72,10 @@ python3 -I tools/import_favor.py "$ATT" "$CACHE" "$BUILD"
 (cd tools && python3 import_gather.py "$CLASSIC" "$CACHE" "$BUILD")
 # herb and ore spots from Wowhead's Forever maps (tools/node_points.json) replace the
 # Classic counts for Mining and Herbalism; Fishing stays from the Classic import
-if [ "${NO_WOWHEAD:-}" != 1 ]; then python3 -I tools/import_nodes.py --from-points "$CACHE" "$BUILD"; fi
+# and every spot, for the map and minimap pins (SkillRoute/NodeSpots.lua)
+if [ "${NO_WOWHEAD:-}" != 1 ]; then
+  python3 -I tools/import_nodes.py --from-points "$CACHE" "$BUILD"; python3 -I tools/gen_nodes.py
+else python3 -I tools/gen_nodes.py --empty; fi
 fetch SkillLineAbility "$BUILD"; fetch SpellReagents "$BUILD"; fetch ItemDisenchantLoot "$BUILD"
 (cd tools && python3 import_farm.py "$CLASSIC" "$CACHE" "$BUILD")
 (cd tools && python3 import_disenchant.py "$CLASSIC" "$CACHE" "$BUILD")

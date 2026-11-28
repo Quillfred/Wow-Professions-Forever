@@ -78,7 +78,14 @@ local ns = {}
 _G.Minimap = setmetatable({ GetWidth = function() return 140 end, GetCenter = function() return 1000, 700 end,
   GetEffectiveScale = function() return 1 end }, { __index = function() return function() end end })
 _G.GetCursorPosition = function() return 1000, 800 end -- straight above the minimap
-for _, f in ipairs({ "Data", "Favor", "Planner", "Core", "Prices", "Arrow", "UI", "MiniPanel", "Tracker", "TrainerPanel", "Helpers", "BuyPanel", "Tooltip", "Options", "Recorder", "Check" }) do
+-- every file the game loads, in the TOC's order (a new file can't be left out of the test)
+local tocFiles = {}
+for l in io.lines("SkillRoute/SkillRoute.toc") do
+  local f = l:match("^([%w_]+)%.lua%s*$")
+  if f then tocFiles[#tocFiles + 1] = f end
+end
+assert(#tocFiles >= 18, "files from the TOC")
+for _, f in ipairs(tocFiles) do
   local chunk = assert(loadfile("SkillRoute/" .. f .. ".lua"))
   chunk("SkillRoute", ns)
 end
@@ -1337,11 +1344,13 @@ do
     end
   end
   assert(moved >= 4, "sliders built: " .. moved)
-  -- two tabs: General and Buying & selling; one page at a time, the last one remembered
+  -- three tabs: General, Buying & selling, Map; one page at a time, the last one remembered
   local pg = O._pages
-  assert(pg and #pg == 2, "two pages")
+  assert(pg and #pg == 3, "three pages")
   O.ShowPage(2)
   assert(not pg[1].shown and pg[2].shown and SkillRouteDB.settings.optionsTab == 2, "Buying & selling shown")
+  O.ShowPage(3)
+  assert(not pg[2].shown and pg[3].shown, "Map shown")
   O.ShowPage(1)
   assert(pg[1].shown and not pg[2].shown and SkillRouteDB.settings.optionsTab == 1, "General shown")
   SkillRouteDB.settings.optionsTab = nil
@@ -2936,6 +2945,74 @@ do
   SkillRouteDB.lastError = nil
   realPrint(("check: %d lines, e.g. %s"):format(#out, out[2]:gsub("|c%x%x%x%x%x%x%x%x", ""):gsub("|r", "")))
 end
+-- map pins: spots of the current steps' nodes, your finds, world map and minimap
+do
+  local P = ns.MapPins
+  assert(#P.Spots("Copper Vein", 1411) / 2 == 174, "Durotar's Copper Vein spots: " .. #P.Spots("Copper Vein", 1411) / 2)
+  assert(#P.Spots("Copper Vein", 1438) > 0 and P.Canonical("Large Chunk of Amber") == "Copper Vein", "Amber is Copper Vein (Teldrassil)")
+  local savedSkills = Core.Skills
+  -- Mining on the Tin step, and Herbalism: both routes' nodes
+  Core.Skills = function() return { [186] = { rank = 75, max = 150 }, [182] = { rank = 1, max = 75 } } end
+  P.Invalidate()
+  local w = P.Wanted()
+  assert(w["Tin Vein"] == "step" and w["Silver Vein"] == "rare" and w["Incendicite Mineral Vein"] == "rare", "Tin step (75) + its rare veins, as on its tooltip")
+  assert(w["Peacebloom"] == "step" or w["Silverleaf"] == "step", "and Herbalism's step")
+  -- finds: a gather near a known spot isn't saved; elsewhere it is, once
+  local savedC, savedV = _G.C_Map, _G.CreateVector2D
+  _G.CreateVector2D = function(x, y) return { x = x, y = y } end
+  _G.C_Map = setmetatable({ GetWorldPosFromMapPos = function(_, v) -- a 5000 x 3000 yard zone
+    return 1, { GetXY = function() return v.y * 3000, v.x * 5000 end } end }, { __index = savedC })
+  SkillRouteDB.finds, SkillRouteDB.findCount, SkillRouteDB.findKind = nil, nil, nil
+  local sp = P.Spots("Tin Vein", 1413)
+  local x0, y0 = sp[1], sp[2]
+  assert(not P.Record("Tin Vein", 1413, x0 + 6 / 5000, y0), "6 yd from a known spot: the same spot")
+  assert(P.Record("Tin Vein", 1413, 0.995, 0.995, "ore") and P.FindCount() == 1, "nowhere near one: saved")
+  assert(not P.Record("Tin Vein", 1413, 0.995 + 3 / 5000, 0.995), "3 yd from your find: the same spot")
+  assert(P.Record("Large Chunk of Amber", 1411, 0.001, 0.001, "ore") and #P.Finds("Copper Vein", 1411) == 2, "saved as Copper Vein")
+  -- the gather events: the cast's target is the node
+  local realZone, realGSI = P.PlayerZone, _G.GetSpellInfo
+  _G.GetSpellInfo = function(id) return ({ [2575] = "Mining", [2366] = "Herb Gathering" })[id] end
+  P.PlayerZone = function() return 1413, 0.5, 0.001 end
+  P.OnEvent("UNIT_SPELLCAST_SENT", "player", "Tin Vein", "cast-1", 2575)
+  P.OnEvent("UNIT_SPELLCAST_SUCCEEDED", "player", "cast-1", 2575)
+  assert(P.FindCount() == 3, "a mined vein with no spot nearby is saved: " .. P.FindCount())
+  P.OnEvent("UNIT_SPELLCAST_SENT", "player", "Tin Vein", "cast-2", 2575)
+  P.OnEvent("UNIT_SPELLCAST_FAILED", "player", "cast-2", 2575)
+  P.OnEvent("UNIT_SPELLCAST_SUCCEEDED", "player", "cast-3", 133) -- another spell
+  assert(P.FindCount() == 3, "a failed cast or another spell saves nothing")
+  -- minimap placement: north is up; turned to face west, west is up; out of range: nothing
+  local x, y = P.MinimapOffset(0, -100, 233, 70)
+  assert(math.abs(x) < 1e-9 and math.abs(y - 100 / 233 * 70) < 1e-9, "north of you: straight up")
+  x, y = P.MinimapOffset(-100, 0, 233, 70, math.pi / 2)
+  assert(math.abs(x) < 1e-9 and y > 0, "facing west, a spot to the west is up")
+  assert(P.MinimapOffset(300, 0, 233, 70) == nil, "beyond the minimap's range")
+  -- drawing: the world map's zone, and the minimap around you
+  local canvas = stubObj()
+  canvas.GetSize = function() return 1000, 667 end
+  _G.WorldMapFrame = setmetatable({ ScrollContainer = { Child = canvas, GetCanvasScale = function() return 1 end },
+    GetMapID = function() return 1413 end, IsShown = function() return true end }, { __index = stubObj() })
+  local nWorld = P.RefreshWorld()
+  assert(nWorld == #P.PinsFor(1413) and nWorld > 147, "the Barrens: every Tin Vein spot and the rest: " .. nWorld)
+  SkillRouteDB.settings.mapPins = false
+  assert(P.RefreshWorld() == 0, "map spots off")
+  SkillRouteDB.settings.mapPins = nil
+  local mm = rawget(_G.Minimap, "IsShown")
+  rawset(_G.Minimap, "IsShown", function() return true end)
+  P.PlayerZone = function() return 1413, sp[1], sp[2] end -- standing on a Tin Vein spot
+  assert(P.RefreshMinimap() >= 1, "the spot you stand on shows on the minimap")
+  local t0 = os.clock()
+  for _ = 1, 200 do P.RefreshMinimap() end
+  print(("minimap pins: %.3f ms per update (%d spots in the zone, 5 updates a second)"):format((os.clock() - t0) / 200 * 1000, #P.PinsFor(1413)))
+  rawset(_G.Minimap, "IsShown", mm)
+  _G.WorldMapFrame = nil
+  P.PlayerZone, _G.GetSpellInfo, _G.C_Map, _G.CreateVector2D = realZone, realGSI, savedC, savedV
+  Core.Skills = savedSkills
+  P.Invalidate()
+  SkillRouteDB.finds, SkillRouteDB.findCount, SkillRouteDB.findKind = nil, nil, nil
+  print(("map pins: Tin step + Herbalism = %d nodes, %d spots in the Barrens"):format((function()
+    local n = 0; for _ in pairs(w) do n = n + 1 end; return n end)(), nWorld))
+end
+
 do
   local BANNED = { "wowhead", "auctionator", "tsm", "tradeskillmaster", "syndicator", "datastore", "tomtom",
                    "gathermate", "allthethings", "cmangos", "wago" }
