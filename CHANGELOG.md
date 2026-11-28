@@ -4,7 +4,8 @@
 
 - Gathering routes in the mini panel and tracker: the step now says where to go (its
   three best zones, your faction's first), counts as a step ("13 steps left"), and the
-  Craft buttons and "Left to buy" make way for "Gathers in all".
+  Craft buttons and "Left to buy" make way for "Nodes in all". A gathering step's tooltip
+  says it counts nodes: one skill-up per node, however many times you gather it.
 - A gathering step names an alternative needing the same skill: "Copper Vein (or Poor
   Copper Vein)" (Forever's starting-zone copper), Peacebloom's Wilted Peacebloom, etc.
 - Fixed: on the full route, a gathering step's "when you see them" list ran off the end

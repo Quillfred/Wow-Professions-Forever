@@ -670,7 +670,7 @@ local function routeRows(plan)
                       t[#t + 1] = { "When you see them", st.also[1] }
                       for i = 2, #st.also do t[#t + 1] = { "", st.also[i], sub = true } end
                     end
-                    t[#t + 1] = { note = "Gather anything orange or yellow on the way." }
+                    t[#t + 1] = { note = "Counts nodes: one skill-up per node at most, however many times you gather it (more swings give more ore or herbs, not more skill). Gather anything orange or yellow on the way." }
                     return t
                   end)() })
     elseif st.gap then

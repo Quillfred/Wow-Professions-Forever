@@ -392,7 +392,7 @@ local function draw()
   place(ui.costL, 12, y)
   ui.costR:ClearAllPoints(); ui.costR:SetPoint("TOPRIGHT", -12, y)
   if gathering then -- no gold to spend: how many nodes in all
-    ui.costL:SetText(plan.fishing and "Catches in all" or "Gathers in all")
+    ui.costL:SetText(plan.fishing and "Catches in all" or "Nodes in all")
     ui.costR:SetText(("~%d"):format(math.ceil(plan.gathers or 0)))
   else
     ui.costL:SetText("Left to buy")
