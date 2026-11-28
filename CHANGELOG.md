@@ -1,5 +1,7 @@
 # Changelog
 
+## 0.38.8 (not released yet)
+
 ## 0.38.7
 
 - **Smelting in the Mining route:** smelting ore gives Mining skill too (checked in
