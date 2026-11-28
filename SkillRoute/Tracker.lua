@@ -97,6 +97,20 @@ local function place()
   else frame:SetPoint("TOPRIGHT", UIParent, "TOPRIGHT", -40, -420) end -- the right side, below the quest list
 end
 
+-- Tooltips go beside the whole tracker, on the side with more room, never over it.
+local function tipBeside(owner)
+  GameTooltip:SetOwner(owner, "ANCHOR_NONE")
+  GameTooltip:ClearAllPoints()
+  local mid = UIParent and UIParent.GetWidth and UIParent:GetWidth()
+  local x = frame.GetCenter and frame:GetCenter()
+  if mid and x and x > mid / 2 then
+    GameTooltip:SetPoint("TOPRIGHT", frame, "TOPLEFT", -12, 0)  -- tracker on the right: tooltip to its left
+  else
+    GameTooltip:SetPoint("TOPLEFT", frame, "TOPRIGHT", 12, 0)
+  end
+end
+T._tipBeside = tipBeside
+
 local function build()
   frame = CreateFrame("Frame", "SkillRouteTracker", UIParent)
   frame:SetSize(W, 24)
@@ -109,7 +123,7 @@ local function build()
   header:SetScript("OnDragStop", function() frame:StopMovingOrSizing(); savePos(); place() end)
   header:SetScript("OnClick", function() if shownLine then UI.Toggle(shownLine) end end)
   header:SetScript("OnEnter", function(self)
-    GameTooltip:SetOwner(self, "ANCHOR_LEFT"); GameTooltip:SetText("SkillRoute")
+    tipBeside(self); GameTooltip:SetText("SkillRoute")
     GameTooltip:AddLine("Drag to move. Click: the full route.", 1, 1, 1)
     GameTooltip:AddLine("Turn it off in Options (General).", 0.6, 0.6, 0.6); GameTooltip:Show()
   end)
@@ -131,7 +145,7 @@ local function build()
     if not stepTip then return end
     local ok, r, tip = pcall(UI.StepTip, stepTip[1], stepTip[2])
     if not ok or not tip then return end
-    GameTooltip:SetOwner(self, "ANCHOR_LEFT")
+    tipBeside(self)
     if r.out and GameTooltip.SetItemByID then GameTooltip:SetItemByID(r.out)
     elseif GameTooltip.SetSpellByID then GameTooltip:SetSpellByID(stepTip[2].spell) end
     UI.AddTipLines(tip)

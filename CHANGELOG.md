@@ -24,7 +24,7 @@
   profession window is open (the docked mini panel takes over) and comes back when it
   closes, showing the profession you had open last. Drag its header to move it (saved),
   "-" folds it to one line, click the step for its waypoint or the full route, hover for
-  the full tooltip.
+  the full tooltip (shown beside the tracker, never over it).
 - **Notices** (Options, General; on by default): one notice in the middle of the screen,
   with a sound, when a step's materials are all in your bags ("Azure Silk Cloak is ready
   to craft"), when you reach a rank cap ("Tailoring 225 reached: Train Artisan at Daryl

@@ -2521,6 +2521,20 @@ do
   f.GetLeft, f.GetTop = function() return 812 end, function() return 640 end
   header.OnDragStop(header)
   assert(st.trackerPos and st.trackerPos[1] == 812 and st.trackerPos[2] == 640, "position saved")
+  -- tooltips sit beside the tracker on the roomier side, not over it
+  do
+    local savedGT, savedUIP = _G.GameTooltip, _G.UIParent
+    local pt
+    _G.GameTooltip = setmetatable({ SetPoint = function(_, a, _, b) pt = a .. ">" .. b end }, { __index = savedGT })
+    _G.UIParent = setmetatable({ GetWidth = function() return 1920 end }, { __index = savedUIP })
+    f.GetCenter = function() return 1700, 500 end
+    TR._tipBeside(header)
+    assert(pt == "TOPRIGHT>TOPLEFT", "tracker on the right: tooltip to its left: " .. tostring(pt))
+    f.GetCenter = function() return 200, 500 end
+    TR._tipBeside(header)
+    assert(pt == "TOPLEFT>TOPRIGHT", "tracker on the left: tooltip to its right: " .. tostring(pt))
+    _G.GameTooltip, _G.UIParent = savedGT, savedUIP
+  end
   -- fold to the header line, and back
   fold.OnClick(fold)
   assert(st.trackerFolded == true, "folded")
