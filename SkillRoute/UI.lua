@@ -308,6 +308,9 @@ local function stepTip(plan, st)
     elseif st.unlock and st.unlock.via == "ah" then
       learn = "  |cffffd100Buy pattern on the AH (last seen " .. money(st.learnCost, YELLOW) .. ")|r"
               .. ahWhy(st.unlock.item)
+    elseif st.unlock and st.unlock.via == "favor" then
+      local v = Core.NearestVendor(st.unlock.item)
+      learn = "  |cffffd100Buy pattern from " .. (v and v.npc or "the Favor vendor") .. " (" .. st.unlock.favor .. " Favor)|r"
     else
       local p = st.unlock and (Core.Place("vendor", st.unlock.item) or Core.NearestVendor(st.unlock.item))
       local who = (p and p.npc) or (st.unlock and st.unlock.vendorNames and st.unlock.vendorNames:match("^[^,]+")) or "a vendor"
@@ -392,6 +395,13 @@ local function stepTip(plan, st)
       row("Recipe", "your " .. itemName(st.unlock.item))
       sub("", st.unlock.owned .. (st.unlock.owned == "in your bank" and ": take it out and use it"
         or st.unlock.owned == "on an alt" and ": mail it to this character" or ""))
+    elseif st.unlock.via == "favor" then
+      local v = p or near
+      row("Recipe", ("%s, %d Merchant's Favor"):format(v and v.npc or "the Favor vendor", st.unlock.favor))
+      if v then sub("where", Core.Where(v)); sub("travel", travel(v)) end
+      sub("you have", ("%d Favor"):format(Core.FavorBalance()))
+      if (st.unlock.rank or 0) > 0 then sub("needs", Core.RankName(st.unlock.rank) .. " with your trade faction") end
+      note("Favor patterns cost no gold. Earn Favor by filling Waylaid Crates and handing them in.")
     elseif st.unlock.via == "ah" then
       row("Recipe", "AH, last seen " .. money(st.learnCost))
       local why = ahWhy(st.unlock.item, true):gsub("|c%x%x%x%x%x%x%x%x", ""):gsub("|r", ""):gsub("^ %(", ""):gsub("%)$", "")
@@ -756,6 +766,7 @@ local function shoppingRows(plan)
     local loc = p or near or nil
     local who = p and Core.FormatPlace(p, true) or near and (near.npc .. ", " .. (Core.Where(near) or "?")) or nil
     if b.book then tags[#tags + 1] = "|cffffd100rank-up book, from " .. (who or "a vendor") .. "|r"
+    elseif b.pattern and b.favor then tags[#tags + 1] = "|cffffd100pattern, for Merchant's Favor from " .. (who or "the Favor vendor") .. "|r"
     elseif b.pattern then tags[#tags + 1] = b.ah and ("|cffffd100pattern, on the AH (last seen price)|r" .. ahWhy(b.item))
                                          or ("|cffffd100pattern, from " .. (who or "a vendor") .. "|r")
     elseif b.tool then tags[#tags + 1] = "|cffff8040tool: keep it in your bags|r"
@@ -814,7 +825,7 @@ local function shoppingRows(plan)
                   (b.expected and b.expected < b.need) and (" (~%d expected)"):format(b.expected) or "",
                   b.have, (b.alts or 0) > 0 and (" |cff40bf40(+%d on alts)|r"):format(b.alts) or "",
                   #tags > 0 and ("  -  " .. table.concat(tags, ", ")) or ""),
-          right = b.price and money(b.price * b.buy) or money(nil),
+          right = b.favor and ("|cffffd100%d Favor|r"):format(b.favor) or b.price and money(b.price * b.buy) or money(nil),
           tipTitle = loc and b.name or nil, tip = tip, waypoint = loc })
     end
   end
@@ -934,6 +945,23 @@ local function refresh()
         :format(cap, need, mine)
     end
   end
+  -- Favor patterns that would save gold but can't be had yet (balance or reputation)
+  if plan.favorWanted and next(plan.favorWanted) and #warn < 2 then
+    local names, all = {}, {}
+    for key, w in pairs(plan.favorWanted) do all[#all + 1] = { key = key, w = w } end
+    table.sort(all, function(a, b) return a.w.saves > b.w.saves end)
+    for i, x in ipairs(all) do
+      if i > 2 then names[#names + 1] = ("%d more"):format(#all - 2); break end
+      local spell = tonumber(x.key:match("^p:(%d+)"))
+      local r = spell and Data.professions[plan.line].recipes[spell]
+      local fav = r and r.pat and Core.FavorOf(r.pat[1])
+      names[#names + 1] = (r and r.n or "?") .. (fav and (x.w.why == "rep" and (" (needs %s)"):format(Core.RankName(fav[2]))
+        or (" (%d Favor)"):format(fav[1])) or "")
+    end
+    warn[#warn + 1] = "|cff9d9d9dWould save gold with Merchant's Favor: " .. table.concat(names, ", ") .. "|r"
+  end
+  local fb = Data.favor and Core.FavorBalance() or 0
+  if fb > 0 then src = src .. ("   -   %d Favor"):format(fb) end
   info:SetText(("Skill %d/%d  ->  %d   -   %s%s"):format(plan.skill, plan.max, plan.target, src,
     #warn > 0 and ("\n" .. table.concat(warn, "\n")) or ""))
 

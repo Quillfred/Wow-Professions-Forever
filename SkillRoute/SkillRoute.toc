@@ -10,6 +10,7 @@
 ## IconTexture: Interface\Icons\Trade_Tailoring
 
 Data.lua
+Favor.lua
 Planner.lua
 Core.lua
 Prices.lua

@@ -70,7 +70,7 @@ local ns = {}
 _G.Minimap = setmetatable({ GetWidth = function() return 140 end, GetCenter = function() return 1000, 700 end,
   GetEffectiveScale = function() return 1 end }, { __index = function() return function() end end })
 _G.GetCursorPosition = function() return 1000, 800 end -- straight above the minimap
-for _, f in ipairs({ "Data", "Planner", "Core", "Prices", "Arrow", "UI", "MiniPanel", "Tracker", "TrainerPanel", "Helpers", "BuyPanel", "Tooltip", "Options", "Recorder", "Check" }) do
+for _, f in ipairs({ "Data", "Favor", "Planner", "Core", "Prices", "Arrow", "UI", "MiniPanel", "Tracker", "TrainerPanel", "Helpers", "BuyPanel", "Tooltip", "Options", "Recorder", "Check" }) do
   local chunk = assert(loadfile("SkillRoute/" .. f .. ".lua"))
   chunk("SkillRoute", ns)
 end
@@ -2572,6 +2572,73 @@ do
   Core.Plan = savedPlan
   st.notify = nil
   print("tracker: shown away from the profession window, position saved, notices once, no re-plan on loot")
+end
+
+-- Merchant's Favor: Favor patterns cost Favor (never gold), within your balance and rep
+do
+  local F = SkillRouteData.favor
+  assert(F and F.patterns[254028] and F.patterns[254028][1] == 60 and F.patterns[254028][2] == 4,
+    "Black Handwraps: 60 Favor, Friendly")
+  assert(F.patterns[249539][1] == 240 and F.patterns[249539][2] == 5, "Superior Deflection: 240, Honored")
+  local silky = SkillRouteData.items[253892]
+  assert(silky and silky[3] == nil, "Pattern: Silky Boots has no gold price any more")
+  assert(Core.NearestVendor(253892) == nil or Core.NearestVendor(253892).npc, "vendor lookup works")
+  local ids = SkillRouteData.vendorNpcs[253892]
+  local names = {}
+  for _, id in ipairs(ids) do names[#names + 1] = SkillRouteData.npcs[id][1] end
+  table.sort(names)
+  assert(table.concat(names, ",") == "Jim'bek,Mivin Shadowweave", "sold by Jim'bek / Mivin: " .. table.concat(names, ","))
+
+  local savedCI, savedRep = _G.C_CurrencyInfo, _G.C_Reputation
+  local balance, reaction = 0, 4 -- Neutral
+  _G.C_CurrencyInfo = { GetCurrencyInfo = function(id) if id == 3402 then return { quantity = balance } end end }
+  _G.C_Reputation = setmetatable({ GetFactionDataByID = function(f) if f == 2587 then return { reaction = reaction } end end },
+    { __index = savedRep })
+  local function favorUsed(plan)
+    local n, gated = 0, false
+    for _, u in pairs(plan.unlocks or {}) do
+      if u.via == "favor" then n = n + u.favor; if (u.rank or 0) > 3 then gated = true end end
+      assert(u.via ~= "vendor" or not F.patterns[u.item], "a Favor pattern is never bought for gold: " .. tostring(u.name))
+    end
+    return n, gated
+  end
+  -- no Favor: none used
+  Core.InvalidatePatterns()
+  local p0 = Core.Plan(197, 300)
+  assert(favorUsed(p0) == 0, "no Favor, no Favor patterns")
+  -- plenty of Favor, Neutral: only patterns that need no reputation
+  balance = 5000; Core.InvalidatePatterns()
+  local p1 = Core.Plan(197, 300)
+  local used1, gated1 = favorUsed(p1)
+  assert(not gated1, "Neutral: no Friendly/Honored patterns")
+  -- a small balance is kept to
+  balance = 30; Core.InvalidatePatterns()
+  local p2 = Core.Plan(197, 300)
+  assert(favorUsed(p2) <= 30, "spends at most the balance: " .. favorUsed(p2))
+  -- Honored: gated ones allowed too
+  balance, reaction = 5000, 6; Core.InvalidatePatterns()
+  local p3 = Core.Plan(197, 300)
+  assert(p3.total <= p1.total + 1, "more patterns available: never dearer")
+  -- the shopping list shows Favor, not gold, for them
+  for _, b in ipairs(p3.shopping.buy) do
+    if b.favor then assert(b.price == 0 and b.pattern, "Favor pattern on the list at 0 gold") end
+  end
+  print(("favor: used %d of 5000 at Neutral, %d of 30, route %s -> %s with Honored"):format(used1, favorUsed(p2),
+    UI.Money(p1.total):gsub("|c%x%x%x%x%x%x%x%x", ""):gsub("|r", ""), UI.Money(p3.total):gsub("|c%x%x%x%x%x%x%x%x", ""):gsub("|r", "")))
+  -- a vendor visit: the Favor price seen there wins over the data
+  local savedCount, savedLink, savedCI2, savedCII = _G.GetMerchantNumItems, _G.GetMerchantItemLink, _G.GetMerchantItemCostInfo, _G.GetMerchantItemCostItem
+  local savedMID = _G.GetMerchantItemID
+  _G.GetMerchantItemID = function() return 254028 end
+  _G.GetMerchantNumItems = function() return 1 end
+  _G.GetMerchantItemLink = function() return "|Hitem:254028::|h[Pattern: Black Handwraps]|h" end
+  _G.GetMerchantItemCostInfo = function() return 1 end
+  _G.GetMerchantItemCostItem = function() return 1, 55, "|Hcurrency:3402|h[Merchant's Favor]|h", "Merchant's Favor" end
+  Core.ScanMerchant()
+  assert(Core.FavorOf(254028)[1] == 55 and Core.FavorOf(254028)[2] == 4, "seen at the vendor: 55 Favor, still Friendly")
+  _G.GetMerchantNumItems, _G.GetMerchantItemLink, _G.GetMerchantItemCostInfo, _G.GetMerchantItemCostItem = savedCount, savedLink, savedCI2, savedCII
+  _G.GetMerchantItemID = savedMID
+  _G.C_CurrencyInfo, _G.C_Reputation = savedCI, savedRep
+  Core.InvalidatePatterns()
 end
 
 -- /sr check runs and reports; errors are caught, not thrown

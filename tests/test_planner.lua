@@ -563,6 +563,52 @@ end
 print(("rep check 250->300: none %.0fg, Cenarion Friendly %.0fg, exalted everywhere %.0fg"):format(
   none.total / 1e4, friendly.total / 1e4, exalted.total / 1e4))
 
+-- 12. Merchant's Favor patterns: no gold, within the balance, only with the reputation
+dofile("SkillRoute/Favor.lua")
+do
+  local F = SkillRouteData.favor
+  -- a market where Black Handwraps (a 60-Favor, Friendly pattern) is clearly the cheapest
+  local cheap = {}
+  for i = 1, #T[1257439].r, 2 do cheap[T[1257439].r[i]] = true end
+  local function anyPrice(id) if cheap[id] then return 1, false end local p = price(id); return p or 100, false end
+  local function favorPlan(budget, standing)
+    return P.Plan(ctxFor(150, 225, nil, { price = anyPrice, favorBudget = budget, favorStanding = standing,
+      favorOf = function(it) return F.patterns[it] end }))
+  end
+  local function spent(pl)
+    local n, maxRank = 0, 0
+    for _, u in pairs(pl.unlocks or {}) do
+      if u.via == "favor" then
+        n = n + u.favor; maxRank = math.max(maxRank, u.rank or 0)
+        check(u.price == 0, u.name .. ": a Favor pattern costs no gold")
+      end
+      check(not (u.via == "vendor" and F.patterns[u.item]), u.name .. ": never bought for gold")
+    end
+    return n, maxRank
+  end
+  local none = favorPlan(0, 5)
+  check(spent(none) == 0, "no Favor: no Favor patterns")
+  local rich = favorPlan(100000, 5)
+  local richSpent, richRank = spent(rich)
+  check(richSpent > 0, "with Favor and Honored, Favor patterns are used where they save gold")
+  check(rich.total + rich.fees <= none.total + none.fees + 1, "Favor never makes the route dearer (training fees included)")
+  local neutral = favorPlan(100000, 3)
+  local _, nRank = spent(neutral)
+  check(nRank <= 3, "Neutral: no Friendly or Honored patterns")
+  local wantedRep = false
+  for _, w in pairs(neutral.favorWanted or {}) do if w.why == "rep" then wantedRep = true end end
+  local function wanted(pl, why)
+    for _, w in pairs(pl.favorWanted or {}) do if w.why == why then return true end end
+    return false
+  end
+  check(wanted(neutral, "rep"), "Neutral: Friendly patterns that would help are remembered as needing reputation")
+  local poor = favorPlan(30, 5)
+  check(spent(poor) <= 30, "keeps to a 30 Favor balance: " .. spent(poor))
+  check(wanted(poor, "favor"), "30 Favor: 60-Favor patterns that would help are remembered")
+  print(("Favor 150->225: %d Favor used (highest rank %d), %.0fc vs %.0fc without; 30 Favor -> %d used"):format(
+    richSpent, richRank, rich.total + rich.fees, none.total + none.fees, spent(poor)))
+end
+
 print("\n110->300 route (mock prices):")
 for _, st in ipairs(sticky.steps) do
   if st.gap then print(("  %3d-%3d  GAP: needs a pattern"):format(st.from, st.to))

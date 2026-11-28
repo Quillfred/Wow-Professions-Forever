@@ -2,6 +2,21 @@
 
 ## 0.38.5 (not released yet)
 
+- **Fixed: Merchant's Favor patterns.** Forever's profession vendors in the Barrens
+  (Horde) and Redridge Mountains (Alliance) sell their patterns for Merchant's Favor
+  only, but SkillRoute priced about 280 of them in gold, so a route could plan on
+  patterns you can't buy with gold. Now:
+  - a Favor pattern costs no gold and is only used within your Favor balance, and only
+    with the reputation it needs with your side's trade faction (182 need Friendly or
+    Honored)
+  - the route says where: "Buy pattern from Jim'bek (60 Favor)", with a waypoint, and
+    its tooltip shows your balance and any reputation needed
+  - the shopping list shows "60 Favor" instead of a gold price
+  - the route's header shows your Favor; patterns that would save gold but need more
+    Favor or reputation are listed there
+  - a vendor visit records the Favor price you see, which wins over the data
+  Sources: costs and vendors from AllTheThings (MIT), reputation from Wowhead Forever's
+  item tooltips (tools/import_favor.py, tools/fetch_favor_rep.py).
 - **Keep the mini panel on screen** (Options, General; off by default). Away from the
   profession window, the next step stays on screen like the quest list: see-through,
   text only. You get the step, its materials as objectives ("- 4/51 Bolt of Silk Cloth",

@@ -61,6 +61,11 @@ if [ -n "${BLANK_CSV:-}" ]; then python3 -I tools/import_sources.py "$BLANK_CSV"
 (cd tools && python3 import_vendors.py "$CLASSIC" "$CACHE/FactionTemplate-$BUILD.csv")
 (cd tools && python3 import_npcs.py "$CLASSIC" "$CACHE" "$BUILD")
 python3 -I tools/import_att.py "$ATT" "$CACHE" "$BUILD"
+# Merchant's Favor patterns (cost, reputation) and their vendors -> SkillRoute/Favor.lua.
+# The reputation list (tools/favor_rep.json) is re-read from Wowhead only on request:
+#   FAVOR_REP=1 tools/build_all.sh   (about 3 minutes, one request per pattern)
+if [ "${FAVOR_REP:-}" = 1 ]; then (cd tools && python3 fetch_favor_rep.py "$ATT"); fi
+python3 -I tools/import_favor.py "$ATT" "$CACHE" "$BUILD"
 (cd tools && python3 import_gather.py "$CLASSIC" "$CACHE" "$BUILD")
 fetch SkillLineAbility "$BUILD"; fetch SpellReagents "$BUILD"; fetch ItemDisenchantLoot "$BUILD"
 (cd tools && python3 import_farm.py "$CLASSIC" "$CACHE" "$BUILD")

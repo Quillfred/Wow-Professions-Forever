@@ -973,6 +973,17 @@ function Core.ScanMerchant()
       local e = {}
       for k, val in pairs(spot) do e[k] = val end
       e.price, e.limited = price, (numAvailable and numAvailable >= 0) or nil
+      -- paid in Merchant's Favor (no gold): what it costs
+      if GetMerchantItemCostInfo and GetMerchantItemCostItem and Data.favor then
+        for j = 1, GetMerchantItemCostInfo(i) or 0 do
+          local _, amount, link, currencyName = GetMerchantItemCostItem(i, j)
+          local cid = type(link) == "string" and tonumber(link:match("currency:(%d+)"))
+          if amount and (cid == Data.favor.currency or currencyName == "Merchant's Favor") then
+            e.favor = amount
+            if not price or price == 0 then e.price = nil end
+          end
+        end
+      end
       v[id][npc] = e
       found = found + 1
     end
@@ -1359,6 +1370,32 @@ function Core.Standing(faction)
   return nil
 end
 
+-- Merchant's Favor ---------------------------------------------------------------
+-- Forever's profession vendors in the Barrens / Redridge sell patterns for Favor only.
+function Core.FavorBalance()
+  local F = Data.favor
+  local info = F and C_CurrencyInfo and C_CurrencyInfo.GetCurrencyInfo and C_CurrencyInfo.GetCurrencyInfo(F.currency)
+  return (info and info.quantity) or 0
+end
+-- your standing with your side's trade faction (Core.Standing's scale), or 0
+function Core.FavorStanding()
+  local F = Data.favor
+  local f = F and F.factions[myLetter() or ""]
+  return f and Core.Standing(f) or 0
+end
+-- { Favor, rank needed } for a Favor pattern, or nil. A price you saw at a vendor wins.
+function Core.FavorOf(item)
+  local F = Data.favor
+  local p = F and F.patterns[item]
+  if not p then return nil end
+  for _, e in pairs(places().vendors[item] or {}) do
+    if e.favor then return { e.favor, p[2] } end
+  end
+  return p
+end
+local RANK_NAME = { [4] = "Friendly", [5] = "Honored", [6] = "Revered", [7] = "Exalted" }
+function Core.RankName(rank) return RANK_NAME[rank] or "?" end
+
 local factionsFor = {}
 function Core.FactionsFor(line) -- factions any pattern of this profession needs
   if not factionsFor[line] then
@@ -1540,6 +1577,8 @@ function Core.Plan(line, target)
   -- bars for Blacksmithing, a tailor's bolts...): make it instead of buying when cheaper
   local otherRecipes, otherLine = Core.OtherMakers(line)
   key = key .. ":other" .. otherRecipes.n
+  local favorBudget, favorStanding = Core.FavorBalance(), Core.FavorStanding()
+  key = key .. ":favor" .. favorBudget .. "/" .. favorStanding
   otherRecipes.n = nil
   local cached = patternCache[line]
   local plan = Planner.Plan({
@@ -1555,6 +1594,7 @@ function Core.Plan(line, target)
     faction = (UnitFactionGroup and UnitFactionGroup("player") == "Alliance") and "A"
               or (UnitFactionGroup and UnitFactionGroup("player") == "Horde") and "H" or nil,
     patternVendors = Data.patternVendors,
+    favorOf = Core.FavorOf, favorBudget = favorBudget, favorStanding = favorStanding,
     vendorSeen = function(item) return Core.Place("vendor", item) ~= nil end,
     bonus = Core.Bonus(),
     fixedUnlocks = cached and cached.key == key and cached.set or nil,
@@ -2120,7 +2160,7 @@ f:SetScript("OnEvent", function(self, ev, ...)
 end)
 for _, ev in ipairs({ "ADDON_LOADED", "PLAYER_LOGIN", "TRADE_SKILL_SHOW", "TRADE_SKILL_LIST_UPDATE",
                       "NEW_RECIPE_LEARNED", "TRAINER_SHOW", "TRAINER_UPDATE", "SKILL_LINES_CHANGED", "MERCHANT_SHOW",
-                      "BAG_UPDATE_DELAYED", "UPDATE_FACTION", "TRADE_SKILL_CLOSE", "TAXIMAP_OPENED",
+                      "BAG_UPDATE_DELAYED", "UPDATE_FACTION", "TRADE_SKILL_CLOSE", "TAXIMAP_OPENED", "CURRENCY_DISPLAY_UPDATE",
                       "HEARTHSTONE_BOUND", "AUCTION_HOUSE_SHOW", "AUCTION_HOUSE_CLOSED" }) do
   pcall(f.RegisterEvent, f, ev) -- an event this client lacks must not break the addon
 end

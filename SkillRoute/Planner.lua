@@ -187,9 +187,19 @@ local function findUnlocks(ctx, unit)
         local best, bestItem, bestVia, bestInfo
         for _, it in ipairs(r.pat) do
           local own = ctx.ownedPatterns and ctx.ownedPatterns[it]
+          local fav = ctx.favorOf and ctx.favorOf(it) -- { Favor, reputation rank needed }
           if own and Planner.RepOK(ctx, r, it) then
             -- you already have it (bags, bank or an alt): free, nothing to buy
             if not best or best > 0 then best, bestItem, bestVia, bestInfo = 0, it, "owned", { where = own } end
+          elseif fav then
+            -- Merchant's Favor only: never gold, never the AH (it binds when picked up).
+            -- No gold cost; it spends Favor, and may need reputation with your side's
+            -- trade faction. The unlock search keeps to your balance (see Planner.Plan).
+            if not best then
+              local repLow = fav[2] > 0 and (ctx.favorStanding or 0) < fav[2]
+              best, bestItem, bestVia = 0, it, "favor"
+              bestInfo = { favor = fav[1], rank = fav[2], repLow = repLow or nil }
+            end
           elseif Planner.RepOK(ctx, r, it) then
             -- Can a vendor of YOUR faction sell it? A vendor you visited: yes. Else the
             -- vendor lists (Classic data): only if one serves your faction. Not listed
@@ -223,7 +233,9 @@ local function findUnlocks(ctx, unit)
           all["p:" .. spell] = { kind = "pattern", spell = spell, price = best, item = bestItem, from = 0,
                                  name = r.n, via = bestVia, owned = bestInfo and bestInfo.where or nil,
                                  vendorNames = bestInfo and bestInfo.names ~= "" and bestInfo.names or nil,
-                                 unverified = bestInfo and bestInfo.unverified or nil }
+                                 unverified = bestInfo and bestInfo.unverified or nil,
+                                 favor = bestInfo and bestInfo.favor or nil, rank = bestInfo and bestInfo.rank or nil,
+                                 repLow = bestInfo and bestInfo.repLow or nil }
         end
       end
     end
@@ -393,6 +405,7 @@ function Planner.Plan(ctx)
   end
 
   local chosen, plan = {}, nil
+  local favorWanted -- Favor patterns that would save gold but can't be had now (set below)
   if ctx.fixedUnlocks then
     for key in pairs(ctx.fixedUnlocks) do chosen[key] = all[key] end
     plan = run(chosen, credit)
@@ -401,12 +414,38 @@ function Planner.Plan(ctx)
     -- only if a full re-plan confirms the total (unlock prices included) drops.
     plan = run(chosen, credit)
     local rejected, tries = {}, 0
+    -- Favor patterns: within your balance, and only with the reputation they need. One
+    -- that would save gold but can't be had now is remembered (plan.favorWanted).
+    favorWanted = {}
+    local function favorSpent(set)
+      local n = 0
+      for key in pairs(set) do n = n + ((all[key] and all[key].favor) or 0) end
+      return n
+    end
+    local function favorBlock(key)
+      local need, rep = 0, false
+      for _, part in ipairs(keyParts(key)) do
+        local u = all[part]
+        if u and u.favor then need = need + u.favor; rep = rep or u.repLow end
+      end
+      if need == 0 then return nil end
+      if rep then return "rep" end
+      if favorSpent(chosen) + need > (ctx.favorBudget or 0) then return "favor" end
+    end
     while tries < 16 do
       local bestKey, bestGain
       for key, sav in pairs(plan.savings) do
         local gain = sav - keyPrice(all, key)
         if gain > 0 and not chosen[key] and not rejected[key] and (not bestGain or gain > bestGain) then
-          bestKey, bestGain = key, gain
+          local why = favorBlock(key)
+          if why then
+            rejected[key] = true
+            for _, part in ipairs(keyParts(key)) do
+              if all[part] and all[part].favor then favorWanted[part] = { why = why, saves = gain } end
+            end
+          else
+            bestKey, bestGain = key, gain
+          end
         end
       end
       if not bestKey then break end
@@ -433,6 +472,21 @@ function Planner.Plan(ctx)
     -- Greedy order can lock in an unlock that a cheaper route makes worse (a pattern
     -- bought early pushed out a cheaper recipe). Try dropping each one; keep a drop
     -- when the full route (unlock prices included) gets cheaper. Bounded passes.
+    -- Favor patterns cost no gold, so the greedy grabs them early; a set of them can
+    -- leave the route dearer than none at all (dropping one alone doesn't help). Try
+    -- without any of them, once.
+    do
+      local trial, any = copy(chosen), false
+      for key, u in pairs(chosen) do if u.favor then trial[key] = nil; any = true end end
+      if any then
+        local cr = copy(credit)
+        local tp = run(trial, cr)
+        if routeTotal(tp, trial) < routeTotal(plan, chosen) - 1 then
+          chosen, plan, credit = trial, tp, cr
+          tries = tries + 1
+        end
+      end
+    end
     for _ = 1, 3 do
       local improved = false
       local keys = {}
@@ -481,12 +535,13 @@ function Planner.Plan(ctx)
   -- Bought patterns and tools go on the shopping list and into the total; tools
   -- crafted by this profession are added to the crafts (Planner.Shopping).
   plan.unlocks = chosen
+  plan.favorWanted = favorWanted -- after the last re-plan, which makes a new plan object
   for key, u in pairs(chosen) do
     if not u.craftSpell and u.via ~= "owned" then
       local it = ctx.items[u.item]
       table.insert(plan.shopping.buy, 1, { item = u.item, name = it and it[1] or u.name, need = 1, expected = 1, have = 0,
-        buy = 1, price = u.price, vendor = u.via ~= "ah" and it and it[3] ~= nil, pattern = u.kind == "pattern",
-        ah = u.via == "ah",
+        buy = 1, price = u.price, vendor = u.via ~= "ah" and u.via ~= "favor" and it and it[3] ~= nil, pattern = u.kind == "pattern",
+        ah = u.via == "ah", favor = u.via == "favor" and u.favor or nil,
         tool = u.kind == "tool" })
       plan.total = plan.total + u.price
     end
