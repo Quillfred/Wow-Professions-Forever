@@ -2,6 +2,15 @@
 
 ## 0.38.6 (not released yet)
 
+- **Waylaid Crate helper:** hovering a Waylaid Crate shows every bundle it accepts at
+  today's AH prices, cheapest first, which ones you already have in your bags ("Dream
+  Dust: ready now"), what it pays in Merchant's Favor and the cost per Favor, a warning
+  when a bundle uses something one of your routes needs, the level it needs, where to
+  hand it in (Dokimi / Marcy Baker), and the one-time +50 Favor bonus if you haven't had
+  it yet. Gathering crates pay 5/10/15/20 Favor, crafted crates 10/20/30/40.
+- The route's Merchant's Favor note says how much reputation a pattern still needs
+  ("Black Handwraps (needs Friendly, 1,000 rep)"); hover it for each pattern's Favor,
+  reputation and saving, and what the Favor you're short would cost in crate materials.
 - Game data rebuilt for Forever build 1.60.1.71139: adds Centaur Hoofwarmers
   (Tailoring 170-180, a pattern). The other Favor recipes not in SkillRoute all need
   skill 300 to learn, so they can't give a skill-up and are left out on purpose.

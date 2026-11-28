@@ -26,6 +26,11 @@ STANDING = {"Friendly": 4, "Honored": 5, "Revered": 6, "Exalted": 7}  # Core.Sta
 PROF = {"Tailor": 197, "Enchanter": 333, "Enchanting": 333, "Alchemist": 171, "Blacksmith": 164,
         "Leatherworker": 165, "Engineer": 202, "Opportunist Engineer": 202, "Chef": 185}
 PATH = os.path.join("expansion features", "trade logistics.lua")
+CRATES = os.path.join("expansion features", "waylaid crates.lua")
+# Favor for handing in each Sealed Crate (Wowhead Forever quests 91899-91907): gathering
+# ("white") crates 5/10/15/20, crafted ("green") 10/20/30/40, Apprentice..Artisan.
+SEALED_FAVOR = {248765: 5, 248766: 10, 248767: 15, 248768: 20, 248770: 10, 248771: 20, 248772: 30, 248773: 40}
+FIRST_CRATE = 50  # the one-time Shipping Label quest (98247/98248): +50 Favor, +2,000 reputation
 
 
 def vendor_blocks(att):
@@ -127,6 +132,22 @@ def main():
             patterns[iid] = (min(cost, old[0]) if old else cost, STANDING.get(rep.get(str(iid)), 0), pname)
             sellers.setdefault(iid, []).append(nid)
 
+    # Waylaid Crates: what each accepts (tools/crates.json), what it pays, and who takes them
+    crates = json.load(open(os.path.join(HERE, "crates.json"), encoding="utf-8"))["crates"]
+    ctext = open(os.path.join(att, CRATES), encoding="utf-8").read()
+    hand = {}
+    for side, key in (("A", "aqd"), ("H", "hqd")):
+        m = re.search(key + r" = \{\s*qg = (\d+),\s*-- ([^<\n]+?) <[^\n]*\n\s*coord = \{ ([\d.]+), ([\d.]+), MAP\.(\w+)", ctext)
+        if not m:
+            sys.exit(f"no {key} hand-in NPC in {CRATES}")
+        nid, name, zx, zy, ui = int(m.group(1)), m.group(2).strip(), float(m.group(3)), float(m.group(4)), maps[m.group(5)]
+        w = to_world(ui, zx / 100, zy / 100)
+        cui, cx, cy = continent(*w)
+        npcs.append((nid, name, side, w[0], round(w[1], 1), round(w[2], 1), cui or 0, cx or 0, cy or 0,
+                     uimap[ui]["Name_lang"], zx, zy, ui))
+        hand[side] = nid
+    bundle_names = {}
+
     def lstr(s):
         return '"' + s.replace("\\", "\\\\").replace('"', '\\"') + '"'
 
@@ -141,6 +162,24 @@ def main():
     for iid in sorted(patterns):
         cost, rank, pname = patterns[iid]
         lines.append(f"    [{iid}]={{{cost},{rank}}}, -- {pname}")
+    lines += ["  },",
+              f"  firstCrate = {FIRST_CRATE},",
+              f"  handIn = {{ A = {hand['A']}, H = {hand['H']} }},",
+              "  -- Waylaid Crates: [crate item] = { Favor paid (nil: unknown), level needed, sealed crate,",
+              "  --   { bundle item, count, bundle item, count, ... } } (any ONE bundle fills it)",
+              "  crates = {"]
+    for cid in sorted(crates, key=int):
+        c = crates[cid]
+        fav = SEALED_FAVOR.get(c["sealed"])
+        flat = ",".join(f"{b[0]},{b[1]}" for b in c["bundles"])
+        for b in c["bundles"]:
+            bundle_names[b[0]] = b[2]
+        lines.append(f"    [{cid}]={{{fav if fav else 'nil'},{c['level'] or 0},{c['sealed']},{{{flat}}}}}, -- {c['name'][15:]}")
+    lines += ["  },",
+              "  -- names of bundle items (for ones SkillRoute's data doesn't otherwise have)",
+              "  names = {"]
+    for iid in sorted(bundle_names):
+        lines.append(f"    [{iid}]={lstr(bundle_names[iid])},")
     lines += ["  },", "}",
               "-- the vendors, in Data.npcs' format",
               "local npcs = {"]
@@ -166,7 +205,8 @@ def main():
     dst = os.path.join(HERE, "..", "SkillRoute", "Favor.lua")
     open(dst, "w", encoding="utf-8").write("\n".join(lines))
     gated = sum(1 for p in patterns.values() if p[1])
-    print(f"{len(patterns)} Favor patterns ({gated} need reputation), {len(npcs)} vendors -> SkillRoute/Favor.lua")
+    print(f"{len(patterns)} Favor patterns ({gated} need reputation), {len(npcs) - 2} vendors, {len(crates)} crates, "
+          f"2 crate hand-ins -> SkillRoute/Favor.lua")
 
 
 if __name__ == "__main__":

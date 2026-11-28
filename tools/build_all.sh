@@ -65,6 +65,9 @@ python3 -I tools/import_att.py "$ATT" "$CACHE" "$BUILD"
 # The reputation list (tools/favor_rep.json) is re-read from Wowhead only on request:
 #   FAVOR_REP=1 tools/build_all.sh   (about 3 minutes, one request per pattern)
 if [ "${FAVOR_REP:-}" = 1 ]; then (cd tools && python3 fetch_favor_rep.py "$ATT"); fi
+# what each Waylaid Crate accepts (tools/crates.json), also from Wowhead, also on request:
+#   CRATES=1 tools/build_all.sh   (~30 requests)
+if [ "${CRATES:-}" = 1 ]; then fetch ItemSparse "$BUILD"; python3 -I tools/fetch_crates.py "$ATT" "$CACHE" "$BUILD"; fi
 python3 -I tools/import_favor.py "$ATT" "$CACHE" "$BUILD"
 (cd tools && python3 import_gather.py "$CLASSIC" "$CACHE" "$BUILD")
 fetch SkillLineAbility "$BUILD"; fetch SpellReagents "$BUILD"; fetch ItemDisenchantLoot "$BUILD"

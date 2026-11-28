@@ -141,6 +141,46 @@ function TT.Lines(item, bound, vendorPrice)
   return lines
 end
 
+-- A Waylaid Crate: the cheapest way to fill it at today's prices, what you already have,
+-- what it pays in Merchant's Favor and where to hand it in. nil if it isn't a crate.
+function TT.CrateLines(item)
+  local a = Core.CrateAdvice(item)
+  if not a then return nil end
+  local lines = { { "|cff33ccffSkillRoute: cheapest way to fill it|r", "" } }
+  local routeUse = {}
+  for i, b in ipairs(a.bundles) do
+    local tags = {}
+    if i == 1 and b.cost then tags[#tags + 1] = "|cff40bf40(best)|r" end
+    if b.have > 0 then tags[#tags + 1] = ("|cff33ccff(in bags: %d/%d)|r"):format(math.min(b.have, b.n), b.n) end
+    if b.routeNeeds then routeUse[#routeUse + 1] = b.name end
+    lines[#lines + 1] = { ("%d %s %s"):format(b.n, b.name, table.concat(tags, " ")),
+                          b.cost and UI.Money(b.cost) or "|cff999999no price|r", 1, 1, 1 }
+  end
+  if a.favor then
+    lines[#lines + 1] = { "|cffffd100Pays|r", ("|cffffd100%d Merchant's Favor|r"):format(a.favor) }
+    if a.perFavor then lines[#lines + 1] = { "|cff999999  cheapest|r", "|cff999999~" .. UI.Money(a.perFavor) .. " per Favor|r" } end
+  else
+    lines[#lines + 1] = { "|cffffd100Pays|r", "|cff999999Merchant's Favor (amount not known yet)|r" }
+  end
+  if a.ready then
+    lines[#lines + 1] = { "|cff999999  with what's in your bags|r", ("|cff40bf40%s: ready now|r"):format(a.ready.name) }
+  end
+  if #routeUse > 0 then
+    lines[#lines + 1] = { ("|cffff8040A route of yours uses %s: filling a crate with it means buying more later.|r")
+      :format(table.concat(routeUse, ", ")), "", wrap = true }
+  end
+  if not a.levelOK then
+    lines[#lines + 1] = { ("|cffff4040Requires level %d (you're %d)|r"):format(a.level, UnitLevel("player")), "" }
+  end
+  if Core.FirstCrateDone() == false then
+    lines[#lines + 1] = { "|cff40bf40Your first crate also gives +50 Favor and 2,000 reputation.|r", "", wrap = true }
+  end
+  if a.handIn then
+    lines[#lines + 1] = { "|cff999999Hand in: " .. a.handIn.npc .. ", " .. (Core.Where(a.handIn) or "?") .. "|r", "", wrap = true }
+  end
+  return lines
+end
+
 -- Inside SkillRoute's own windows the step tooltips already give this advice.
 local function fromSkillRoute(tt)
   local o = tt.GetOwner and tt:GetOwner()
@@ -166,15 +206,23 @@ local function addLines(tt, link)
   local item = itemIDFromLink(link)
   if not item then return end
   local need = needsEnabled() and TT.NeedLine(item) or nil
+  local crate = TT.CrateLines(item)
   local lines
   if enabled() then
     local info = (C_Item and C_Item.GetItemInfo) or GetItemInfo
     local vendor = info and select(11, info(item)) or nil
     lines = TT.Lines(item, isSoulbound(tt), vendor)
   end
-  if not (lines or need) then return end
+  if not (lines or need or crate) then return end
   tt[MARK] = true
   if need then tt:AddLine(need, 1, 1, 1, true) end
+  if crate then
+    tt:AddLine(" ")
+    for _, l in ipairs(crate) do
+      if l[2] and l[2] ~= "" then tt:AddDoubleLine(l[1], l[2], l[3] or 1, l[4] or 1, l[5] or 1, 1, 1, 1)
+      else tt:AddLine(l[1], 1, 1, 1, l.wrap) end
+    end
+  end
   if not lines then tt:Show(); return end
   tt:AddLine(" ")
   for _, l in ipairs(lines) do

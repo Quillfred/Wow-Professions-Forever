@@ -1,0 +1,695 @@
+{
+"crates": {
+"248682": {
+"bundles": [
+[
+2447,
+20,
+"Peacebloom"
+],
+[
+765,
+20,
+"Silverleaf"
+],
+[
+2449,
+10,
+"Earthroot"
+],
+[
+785,
+10,
+"Mageroyal"
+],
+[
+2450,
+10,
+"Briarthorn"
+]
+],
+"level": 10,
+"name": "Waylaid Crate: Apprentice Herbs",
+"sealed": 248765
+},
+"248683": {
+"bundles": [
+[
+2770,
+20,
+"Copper Ore"
+],
+[
+2771,
+20,
+"Tin Ore"
+]
+],
+"level": 10,
+"name": "Waylaid Crate: Apprentice Ore",
+"sealed": 248765
+},
+"248684": {
+"bundles": [
+[
+2589,
+40,
+"Linen Cloth"
+],
+[
+2318,
+20,
+"Light Leather"
+]
+],
+"level": 10,
+"name": "Waylaid Crate: Apprentice Textiles",
+"sealed": 248765
+},
+"248685": {
+"bundles": [
+[
+10940,
+20,
+"Strange Dust"
+],
+[
+10939,
+4,
+"Greater Magic Essence"
+],
+[
+10978,
+6,
+"Small Glimmering Shard"
+],
+[
+11084,
+2,
+"Large Glimmering Shard"
+]
+],
+"level": 10,
+"name": "Waylaid Crate: Apprentice Curiosities",
+"sealed": 248765
+},
+"248686": {
+"bundles": [
+[
+3820,
+10,
+"Stranglekelp"
+],
+[
+2453,
+10,
+"Bruiseweed"
+],
+[
+3355,
+10,
+"Wild Steelbloom"
+],
+[
+3369,
+10,
+"Grave Moss"
+],
+[
+3356,
+10,
+"Kingsblood"
+]
+],
+"level": 10,
+"name": "Waylaid Crate: Journeyman Herbs",
+"sealed": 248766
+},
+"248687": {
+"bundles": [
+[
+2775,
+10,
+"Silver Ore"
+],
+[
+2772,
+20,
+"Iron Ore"
+]
+],
+"level": 10,
+"name": "Waylaid Crate: Journeyman Ore",
+"sealed": 248766
+},
+"248688": {
+"bundles": [
+[
+2592,
+20,
+"Wool Cloth"
+],
+[
+4306,
+40,
+"Silk Cloth"
+],
+[
+2319,
+20,
+"Medium Leather"
+]
+],
+"level": 10,
+"name": "Waylaid Crate: Journeyman Textiles",
+"sealed": 248766
+},
+"248689": {
+"bundles": [
+[
+11083,
+20,
+"Soul Dust"
+],
+[
+11082,
+4,
+"Greater Astral Essence"
+],
+[
+11138,
+6,
+"Small Glowing Shard"
+],
+[
+11139,
+2,
+"Large Glowing Shard"
+]
+],
+"level": 10,
+"name": "Waylaid Crate: Journeyman Curiosities",
+"sealed": 248766
+},
+"248690": {
+"bundles": [
+[
+3357,
+20,
+"Liferoot"
+],
+[
+3818,
+10,
+"Fadeleaf"
+],
+[
+3821,
+10,
+"Goldthorn"
+],
+[
+3358,
+10,
+"Khadgar's Whisker"
+]
+],
+"level": 20,
+"name": "Waylaid Crate: Earthly Expert Herbs",
+"sealed": 248767
+},
+"248691": {
+"bundles": [
+[
+3819,
+10,
+"Wintersbite"
+],
+[
+4625,
+10,
+"Firebloom"
+],
+[
+8831,
+20,
+"Purple Lotus"
+],
+[
+8836,
+10,
+"Arthas' Tears"
+]
+],
+"level": 20,
+"name": "Waylaid Crate: Flowering Expert Herbs",
+"sealed": 248767
+},
+"248692": {
+"bundles": [
+[
+2776,
+10,
+"Gold Ore"
+],
+[
+3858,
+20,
+"Mithril Ore"
+]
+],
+"level": 20,
+"name": "Waylaid Crate: Expert Ore",
+"sealed": 248767
+},
+"248693": {
+"bundles": [
+[
+4338,
+40,
+"Mageweave Cloth"
+],
+[
+4234,
+20,
+"Heavy Leather"
+]
+],
+"level": 20,
+"name": "Waylaid Crate: Expert Textiles",
+"sealed": 248767
+},
+"248694": {
+"bundles": [
+[
+11137,
+20,
+"Vision Dust"
+],
+[
+11135,
+4,
+"Greater Mystic Essence"
+],
+[
+11177,
+6,
+"Small Radiant Shard"
+],
+[
+11178,
+2,
+"Large Radiant Shard"
+]
+],
+"level": 20,
+"name": "Waylaid Crate: Expert Curiosities",
+"sealed": 248767
+},
+"248695": {
+"bundles": [
+[
+13464,
+10,
+"Golden Sansam"
+],
+[
+8838,
+20,
+"Sungrass"
+],
+[
+8839,
+10,
+"Blindweed"
+],
+[
+8845,
+10,
+"Ghost Mushroom"
+],
+[
+8846,
+10,
+"Gromsblood"
+]
+],
+"level": 35,
+"name": "Waylaid Crate: Earthly Artisan Herbs",
+"sealed": 248768
+},
+"248696": {
+"bundles": [
+[
+13463,
+20,
+"Dreamfoil"
+],
+[
+13465,
+20,
+"Mountain Silversage"
+],
+[
+13466,
+20,
+"Plaguebloom"
+],
+[
+13467,
+20,
+"Icecap"
+]
+],
+"level": 35,
+"name": "Waylaid Crate: Flowering Artisan Herbs",
+"sealed": 248768
+},
+"248697": {
+"bundles": [
+[
+7911,
+10,
+"Truesilver Ore"
+],
+[
+10620,
+20,
+"Thorium Ore"
+],
+[
+11370,
+20,
+"Dark Iron Ore"
+]
+],
+"level": 35,
+"name": "Waylaid Crate: Artisan Ore",
+"sealed": 248768
+},
+"248698": {
+"bundles": [
+[
+14047,
+40,
+"Runecloth"
+],
+[
+4304,
+20,
+"Thick Leather"
+],
+[
+8170,
+20,
+"Rugged Leather"
+]
+],
+"level": 35,
+"name": "Waylaid Crate: Artisan Textiles",
+"sealed": 248768
+},
+"248699": {
+"bundles": [
+[
+11176,
+20,
+"Dream Dust"
+],
+[
+11175,
+4,
+"Greater Nether Essence"
+],
+[
+14343,
+6,
+"Small Brilliant Shard"
+],
+[
+14344,
+2,
+"Large Brilliant Shard"
+]
+],
+"level": 35,
+"name": "Waylaid Crate: Artisan Curiosities",
+"sealed": 248768
+},
+"248702": {
+"bundles": [
+[
+4231,
+2,
+"Cured Light Hide"
+],
+[
+2996,
+20,
+"Bolt of Linen Cloth"
+]
+],
+"level": 10,
+"name": "Waylaid Crate: Apprentice Fabrics",
+"sealed": 248770
+},
+"248703": {
+"bundles": [
+[
+2840,
+20,
+"Copper Bar"
+],
+[
+3576,
+20,
+"Tin Bar"
+],
+[
+2841,
+10,
+"Bronze Bar"
+]
+],
+"level": 10,
+"name": "Waylaid Crate: Apprentice Ingots",
+"sealed": 248770
+},
+"248704": {
+"bundles": [
+[
+4359,
+16,
+"Handful of Copper Bolts"
+],
+[
+4361,
+16,
+"Copper Tube"
+],
+[
+4363,
+4,
+"Copper Modulator"
+]
+],
+"level": 10,
+"name": "Waylaid Crate: Apprentice Parts",
+"sealed": 248770
+},
+"248705": {
+"bundles": [
+[
+2997,
+6,
+"Bolt of Woolen Cloth"
+],
+[
+4305,
+10,
+"Bolt of Silk Cloth"
+],
+[
+4233,
+2,
+"Cured Medium Hide"
+]
+],
+"level": 10,
+"name": "Waylaid Crate: Journeyman Fabrics",
+"sealed": 248771
+},
+"248706": {
+"bundles": [
+[
+2842,
+10,
+"Silver Bar"
+],
+[
+3575,
+20,
+"Iron Bar"
+]
+],
+"level": 10,
+"name": "Waylaid Crate: Journeyman Ingots",
+"sealed": 248771
+},
+"248707": {
+"bundles": [
+[
+4371,
+8,
+"Bronze Tube"
+],
+[
+4375,
+7,
+"Whirring Bronze Gizmo"
+],
+[
+4382,
+4,
+"Bronze Framework"
+],
+[
+10558,
+45,
+"Gold Power Core"
+]
+],
+"level": 10,
+"name": "Waylaid Crate: Journeyman Parts",
+"sealed": 248771
+},
+"248708": {
+"bundles": [
+[
+4339,
+8,
+"Bolt of Mageweave"
+],
+[
+4236,
+2,
+"Cured Heavy Hide"
+]
+],
+"level": 20,
+"name": "Waylaid Crate: Expert Fabrics",
+"sealed": 248772
+},
+"248709": {
+"bundles": [
+[
+3860,
+20,
+"Mithril Bar"
+],
+[
+3859,
+15,
+"Steel Bar"
+],
+[
+3577,
+10,
+"Gold Bar"
+]
+],
+"level": 20,
+"name": "Waylaid Crate: Expert Ingots",
+"sealed": 248772
+},
+"248710": {
+"bundles": [
+[
+4387,
+8,
+"Iron Strut"
+],
+[
+10559,
+5,
+"Mithril Tube"
+],
+[
+10560,
+12,
+"Unstable Trigger"
+],
+[
+10561,
+5,
+"Mithril Casing"
+]
+],
+"level": 20,
+"name": "Waylaid Crate: Expert Parts",
+"sealed": 248772
+},
+"248711": {
+"bundles": [
+[
+14048,
+8,
+"Bolt of Runecloth"
+],
+[
+8172,
+2,
+"Cured Thick Hide"
+]
+],
+"level": 35,
+"name": "Waylaid Crate: Artisan Fabrics",
+"sealed": 248773
+},
+"248712": {
+"bundles": [
+[
+11371,
+2,
+"Dark Iron Bar"
+],
+[
+6037,
+10,
+"Truesilver Bar"
+],
+[
+12359,
+20,
+"Thorium Bar"
+]
+],
+"level": 35,
+"name": "Waylaid Crate: Artisan Ingots",
+"sealed": 248773
+},
+"248713": {
+"bundles": [
+[
+15994,
+5,
+"Thorium Widget"
+],
+[
+18631,
+5,
+"Truesilver Transformer"
+],
+[
+16000,
+2,
+"Thorium Tube"
+]
+],
+"level": 35,
+"name": "Waylaid Crate: Artisan Parts",
+"sealed": 248773
+}
+},
+"source": "Wowhead Forever crate tooltips; ATT (MIT) for the crate list"
+}

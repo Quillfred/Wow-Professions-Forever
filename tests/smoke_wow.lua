@@ -2682,6 +2682,75 @@ do
   SkillRouteDB.settings.testPos = nil
 end
 
+-- Waylaid Crates: the cheapest fill at today's prices, what you have, what it pays
+do
+  local TT = ns.Tooltip
+  local F = SkillRouteData.favor
+  assert(F.crates[248699] and F.crates[248699][1] == 20 and F.crates[248699][2] == 35, "Artisan Curiosities: 20 Favor, level 35")
+  assert(F.crates[248711] and F.crates[248711][1] == 40, "Artisan Fabrics (crafted): 40 Favor")
+  local savedP = { prices[11176], prices[11175], prices[14343], prices[14344], prices[11174] }
+  prices[11176], prices[11175], prices[14343], prices[14344] = 1150, 5200, 1900, 7600 -- Dream Dust, GNE, small, large
+  prices[11174] = 1800 -- Lesser Nether Essence (3 make a Greater: SkillRoute counts the cheaper)
+  local savedBags, savedNeeds, savedLevel = Core.InBags, Core.RouteNeeds, _G.UnitLevel
+  Core.InBags = function(it) return it == 11176 and 20 or 0 end -- 20 Dream Dust in the bags
+  Core.RouteNeeds = function() return { [11176] = { { "Enchanting", 30 } } } end
+  _G.UnitLevel = function() return 34 end
+  local a = Core.CrateAdvice(248699)
+  assert(a.best.item == 14343 and a.best.cost == 6 * 1900, "cheapest: 6 Small Brilliant Shard")
+  assert(math.abs(a.perFavor - 6 * 1900 / 20) < 0.01, "per Favor")
+  assert(a.ready and a.ready.item == 11176, "Dream Dust: ready now")
+  assert(not a.levelOK, "level 34: too low for 35")
+  local text = {}
+  for _, l in ipairs(TT.CrateLines(248699)) do text[#text + 1] = l[1] .. " | " .. (l[2] or "") end
+  local j = table.concat(text, "\n")
+  assert(j:find("6 Small Brilliant Shard |cff40bf40(best)", 1, true), j)
+  assert(j:find("(in bags: 20/20)", 1, true) and j:find("Dream Dust: ready now", 1, true), "bags shown")
+  assert(j:find("20 Merchant's Favor", 1, true) and j:find("per Favor", 1, true), "pays")
+  assert(j:find("A route of yours uses Dream Dust", 1, true), "route warning")
+  assert(j:find("Requires level 35 (you're 34)", 1, true), "level warning")
+  assert(j:find("Hand in: Dokimi", 1, true), "hand-in NPC (Horde): " .. j)
+  assert(TT.CrateLines(2589) == nil, "not a crate: nothing")
+  print("crate: " .. text[2]:gsub("|c%x%x%x%x%x%x%x%x", ""):gsub("|r", "") .. ", " .. text[#text - 3]:gsub("|c%x%x%x%x%x%x%x%x", ""):gsub("|r", ""))
+  local per, crate = Core.CheapestFavor()
+  assert(per and crate, "cheapest Favor across crates")
+  Core.InBags, Core.RouteNeeds, _G.UnitLevel = savedBags, savedNeeds, savedLevel
+  prices[11176], prices[11175], prices[14343], prices[14344], prices[11174] = savedP[1], savedP[2], savedP[3], savedP[4], savedP[5]
+  -- reputation still needed: Neutral 2,000 -> Honored (9,000) = 7,000
+  local savedRep = _G.C_Reputation
+  _G.C_Reputation = setmetatable({ GetFactionDataByID = function(f) if f == 2587 then return { reaction = 4, currentStanding = 2000 } end end },
+    { __index = savedRep })
+  assert(Core.RepToGo(5) == 7000 and Core.RepToGo(4) == 1000, "rep to go: " .. tostring(Core.RepToGo(5)))
+  _G.C_Reputation = savedRep
+end
+
+-- the route header's Favor note: patterns that would save gold, rep to go, and a hover breakdown
+do
+  local savedPlan, savedRep, savedCI = Core.Plan, _G.C_Reputation, _G.C_CurrencyInfo
+  _G.C_Reputation = setmetatable({ GetFactionDataByID = function(f) if f == 2587 then return { reaction = 4, currentStanding = 2000 } end end },
+    { __index = savedRep })
+  _G.C_CurrencyInfo = { GetCurrencyInfo = function() return { quantity = 60 } end }
+  Core.Plan = function(...)
+    local p = savedPlan(...)
+    if not p then return p end
+    return setmetatable({ favorWanted = { ["p:1257439"] = { why = "rep", saves = 5000 } } }, { __index = p })
+  end
+  local wasShown = ns.UI.IsShown()
+  if not wasShown then ns.UI.Toggle(197) else ns.UI.Refresh() end
+  local note
+  for _, t in ipairs(texts) do local v = rawget(t, "text"); if type(v) == "string" and v:find("Would save gold with Merchant", 1, true) then note = v end end
+  assert(note and note:find("Black Handwraps (needs Friendly, 1,000 rep)", 1, true), "note: " .. tostring(note))
+  local tip = ns.UI._favorTip()
+  local tj = table.concat(tip or {}, "\n")
+  -- (an earlier test's vendor visit recorded 55 Favor for it: the price seen at the vendor wins)
+  assert(tj:find(("Black Handwraps: %d Favor, needs Friendly (1,000 rep to go), saves"):format(Core.FavorOf(254028)[1]), 1, true)
+    and tj:find("You have 60 Favor", 1, true),
+    "hover: " .. tj)
+  Core.Plan, _G.C_Reputation, _G.C_CurrencyInfo = savedPlan, savedRep, savedCI
+  if not wasShown then ns.UI.Toggle() else ns.UI.Refresh() end
+  assert(not SkillRouteDB.lastError, tostring(SkillRouteDB.lastError))
+  print("favor note: " .. note:gsub("|c%x%x%x%x%x%x%x%x", ""):gsub("|r", ""))
+end
+
 -- /sr check runs and reports; errors are caught, not thrown
 do
   local out = {}

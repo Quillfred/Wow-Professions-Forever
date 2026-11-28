@@ -122,6 +122,13 @@ local function mats(spell, line)
 end
 
 -- Frame ----------------------------------------------------------------------------
+-- 7000 -> "7,000"
+local function thousands(n)
+  local s = tostring(math.floor(n))
+  local out = s:reverse():gsub("(%d%d%d)", "%1,"):reverse()
+  return (out:gsub("^,", ""))
+end
+local favorTip -- the Favor note's hover lines (set when the route is drawn)
 local frame, scroll, content, info, footer, targetBox, profText, modeBtn, hRange, ahBtn, scanBtn, hShop
 local autoOpened = false -- opened with the profession window (so it closes with it)
 local lastPlan
@@ -950,15 +957,37 @@ local function refresh()
     local names, all = {}, {}
     for key, w in pairs(plan.favorWanted) do all[#all + 1] = { key = key, w = w } end
     table.sort(all, function(a, b) return a.w.saves > b.w.saves end)
+    local tip = { "Merchant's Favor patterns that would save gold" }
+    local have = Core.FavorBalance()
+    local short = 0
     for i, x in ipairs(all) do
-      if i > 2 then names[#names + 1] = ("%d more"):format(#all - 2); break end
       local spell = tonumber(x.key:match("^p:(%d+)"))
       local r = spell and Data.professions[plan.line].recipes[spell]
       local fav = r and r.pat and Core.FavorOf(r.pat[1])
-      names[#names + 1] = (r and r.n or "?") .. (fav and (x.w.why == "rep" and (" (needs %s)"):format(Core.RankName(fav[2]))
-        or (" (%d Favor)"):format(fav[1])) or "")
+      local togo = fav and fav[2] > 0 and Core.RepToGo(fav[2])
+      if i <= 2 then
+        names[#names + 1] = (r and r.n or "?") .. (fav and (x.w.why == "rep"
+          and (" (needs %s%s)"):format(Core.RankName(fav[2]), togo and (", " .. thousands(togo) .. " rep") or "")
+          or (" (%d Favor, you have %d)"):format(fav[1], have)) or "")
+      elseif i == 3 then names[#names + 1] = ("%d more"):format(#all - 2) end
+      if fav then
+        short = math.max(short, fav[1] - have)
+        tip[#tip + 1] = ("%s: %d Favor%s, saves ~%s"):format(r and r.n or "?", fav[1],
+          fav[2] > 0 and (", needs " .. Core.RankName(fav[2]) .. (togo and togo > 0 and (" (" .. thousands(togo) .. " rep to go)") or "")) or "",
+          money(x.w.saves))
+      end
     end
-    warn[#warn + 1] = "|cff9d9d9dWould save gold with Merchant's Favor: " .. table.concat(names, ", ") .. "|r"
+    tip[#tip + 1] = ("You have %d Favor."):format(have)
+    local per, crate = Core.CheapestFavor()
+    if short > 0 and per then
+      tip[#tip + 1] = ("%d more Favor: ~%s in crate materials at today's prices (cheapest: %s, ~%s per Favor). Waylaid Crates drop from mobs level 10 and up; hover one for its cheapest fill.")
+        :format(short, money(short * per), (GetItemInfo and GetItemInfo(crate)) or "a Waylaid Crate", money(per))
+    end
+    tip[#tip + 1] = "Reputation: Craftsman's Writs (75 / 125 / 200) and Crate Returns (50)."
+    favorTip = tip
+    warn[#warn + 1] = "|cff9d9d9dWould save gold with Merchant's Favor: " .. table.concat(names, ", ") .. "  (hover)|r"
+  else
+    favorTip = nil
   end
   local fb = Data.favor and Core.FavorBalance() or 0
   if fb > 0 then src = src .. ("   -   %d Favor"):format(fb) end
@@ -1112,6 +1141,23 @@ local function build()
 
   info = frame:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
   info:SetPoint("TOPLEFT", 14, -60); info:SetPoint("RIGHT", -14, 0); info:SetJustifyH("LEFT")
+  -- hovering the lines under the title: the Merchant's Favor details, when there are any
+  local infoHit = CreateFrame("Frame", nil, frame)
+  infoHit:SetPoint("TOPLEFT", 14, -60); infoHit:SetPoint("RIGHT", -14, 0); infoHit:SetHeight(36)
+  infoHit:EnableMouse(true)
+  infoHit:SetScript("OnEnter", function(self)
+    if not favorTip then return end
+    GameTooltip:SetOwner(self, "ANCHOR_BOTTOM")
+    GameTooltip:SetText(favorTip[1])
+    for i = 2, #favorTip do GameTooltip:AddLine(favorTip[i], 1, 1, 1, true) end
+    GameTooltip:Show()
+  end)
+  infoHit:SetScript("OnLeave", function() GameTooltip:Hide() end)
+  -- still drags the window, like the rest of it
+  infoHit:RegisterForDrag("LeftButton")
+  infoHit:SetScript("OnDragStart", function() local f = frame:GetScript("OnDragStart"); if f then f(frame) end end)
+  infoHit:SetScript("OnDragStop", function() local f = frame:GetScript("OnDragStop"); if f then f(frame) end end)
+  UI._favorTip = function() return favorTip end -- for the tests
 
   scroll = CreateFrame("ScrollFrame", nil, frame, "UIPanelScrollFrameTemplate")
   scroll:SetPoint("TOPLEFT", 10, -112)

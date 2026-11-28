@@ -1396,6 +1396,72 @@ end
 local RANK_NAME = { [4] = "Friendly", [5] = "Honored", [6] = "Revered", [7] = "Exalted" }
 function Core.RankName(rank) return RANK_NAME[rank] or "?" end
 
+-- Reputation still needed for a rank (Core.Standing's scale) with your trade faction, or
+-- nil if the game doesn't say. Ranks start at 0 (Neutral), 3,000, 9,000, 21,000, 42,000.
+local RANK_START = { [3] = 0, [4] = 3000, [5] = 9000, [6] = 21000, [7] = 42000 }
+function Core.RepToGo(rank)
+  local F = Data.favor
+  local f = F and F.factions[myLetter() or ""]
+  local d = f and C_Reputation and C_Reputation.GetFactionDataByID and C_Reputation.GetFactionDataByID(f)
+  local start = RANK_START[rank]
+  if not (d and d.currentStanding and start) then return nil end
+  return math.max(0, start - d.currentStanding)
+end
+
+-- Waylaid Crates: what fills one, cheapest first, and what it pays. nil if not a crate.
+-- { favor, level, levelOK, bundles = { {item, n, name, cost (nil: unpriced), have, routeNeeds} },
+--   best (cheapest priced bundle), ready (a bundle already in your bags), perFavor, handIn }
+function Core.CrateAdvice(item)
+  local F = Data.favor
+  local c = F and F.crates and F.crates[item]
+  if not c then return nil end
+  local favor, level, _, flat = c[1], c[2], c[3], c[4]
+  local needs = Core.RouteNeeds()
+  local out = { favor = favor, level = level, bundles = {} }
+  out.levelOK = not (UnitLevel and level > 0 and UnitLevel("player") < level)
+  for i = 1, #flat, 2 do
+    local it, n = flat[i], flat[i + 1]
+    local p = Core.Price(it)
+    local b = { item = it, n = n, name = (Data.items[it] and Data.items[it][1]) or F.names[it] or ("item " .. it),
+                cost = p and p * n or nil, have = Core.InBags(it), routeNeeds = needs[it] and true or nil }
+    out.bundles[#out.bundles + 1] = b
+    if b.have >= n and not out.ready then out.ready = b end
+  end
+  table.sort(out.bundles, function(a, b)
+    if (a.cost ~= nil) ~= (b.cost ~= nil) then return a.cost ~= nil end
+    return (a.cost or 0) < (b.cost or 0)
+  end)
+  local best = out.bundles[1]
+  if best and best.cost then
+    out.best = best
+    if favor and favor > 0 then out.perFavor = best.cost / favor end
+  end
+  local side = myLetter()
+  local nid = side and F.handIn and F.handIn[side]
+  out.handIn = nid and Core.NPCLocation(nid) or nil
+  return out
+end
+
+-- The cheapest Favor you could earn by filling a crate, in copper per Favor, and which
+-- crate; nil if nothing is priced. (You still need the crate: they drop from mobs.)
+function Core.CheapestFavor()
+  local F = Data.favor
+  local best, bestCrate
+  for item in pairs(F and F.crates or {}) do
+    local a = Core.CrateAdvice(item)
+    if a and a.perFavor and (not best or a.perFavor < best) then best, bestCrate = a.perFavor, item end
+  end
+  return best, bestCrate
+end
+
+-- Have you done the one-time first-crate quest (+50 Favor, +2,000 reputation)?
+function Core.FirstCrateDone()
+  local q = myLetter() == "A" and 98247 or 98248
+  local f = C_QuestLog and C_QuestLog.IsQuestFlaggedCompleted
+  if f then return f(q) end
+  return nil
+end
+
 local factionsFor = {}
 function Core.FactionsFor(line) -- factions any pattern of this profession needs
   if not factionsFor[line] then
