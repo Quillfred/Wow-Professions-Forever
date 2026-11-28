@@ -59,6 +59,28 @@ function Mini.Entries(plan)
   return out
 end
 
+-- Smelting the ore in your bags needs a forge. Away from one (or out in the world, for
+-- the tracker: atForge nil) the vein step comes first and the smelt is a reminder under
+-- it, yellow once waiting would cost sure skill-ups. Returns the entries to show (a new
+-- list when it moves something) and the smelt entry, or nil.
+function Mini.DeferSmelt(entries, atForge)
+  local e = entries[1]
+  if atForge or not (e and e.kind == "craft" and e.st.smeltStep and entries[2]) then return entries, nil end
+  local out = {}
+  for i = 2, #entries do out[#out + 1] = entries[i] end
+  return out, e
+end
+function Mini.SmeltReminder(plan, st)
+  local r = Data.professions[186].recipes[st.spell]
+  local what = ("Smelt %d x %s"):format(st.crafts, st.ore)
+  if plan.skill >= r.y then
+    return ("|cffffd100%s soon: a chance at a skill-up each now, none from %d|r"):format(what, r.g)
+  elseif plan.skill + 5 >= r.y then
+    return ("|cffffd100%s soon: a sure skill-up each only until %d|r"):format(what, r.y)
+  end
+  return ("|cffcccccc%s at a forge (skill %d-%d)|r"):format(what, st.from, st.to)
+end
+
 -- How to learn a step's recipe: the full route's own words and waypoint (vendor, AH,
 -- your bank, quest, trainer), so the two panels always agree. nil if it says nothing.
 function Mini.LearnNote(plan, st)
@@ -241,10 +263,15 @@ local function draw()
   local y = -30
   for _, m in ipairs(ui.mats) do m.l:SetText(""); m.r:SetText("") end
   ui.note:SetText(""); ui.then1:SetText(""); ui.then2:SetText("")
-  ui.spell, ui.allN, ui.crafts, ui.learn, ui.st, ui.plan, ui.buyStep, ui.loc = nil, 0, 0, nil, nil, plan, nil, nil
+  ui.spell, ui.allN, ui.crafts, ui.learn, ui.st, ui.plan, ui.buyStep, ui.loc, ui.missing = nil, 0, 0, nil, nil, plan, nil, nil, nil
   ui.short:SetText(""); ui.after:SetText(""); ui.buy:Hide()
   local entries = plan and Mini.Entries(plan) or {}
-  local nCraft = 0
+  local remind -- smelting with no forge here: mine first, smelt later
+  if entries[1] and entries[1].kind == "craft" and entries[1].st.smeltStep then
+    local miss = Core.MissingTools(entries[1].st.spell)
+    entries, remind = Mini.DeferSmelt(entries, not (miss and #miss > 0))
+  end
+  local nCraft = remind and 1 or 0
   for _, e in ipairs(entries) do if e.kind == "craft" or e.kind == "gather" then nCraft = nCraft + 1 end end
   ui.head:SetText(plan and ("%d -> %d  -  %d step%s left"):format(plan.skill, plan.target, nCraft, nCraft == 1 and "" or "s") or "")
   y = y - 16
@@ -350,6 +377,11 @@ local function draw()
     end
     known = Core.IsRecipeKnown(line, ui.spell)
     ui.allN = math.min(crafts, Core.CraftableNow(line, ui.spell))
+    local miss = Core.MissingTools(ui.spell) -- a forge, an anvil, a rod you aren't at / don't carry
+    ui.missing = miss and #miss > 0 and miss or nil
+    if known and ui.missing then
+      ui.note:SetText("|cffff6060Needs: " .. table.concat(ui.missing, ", ") .. "|r")
+    end
     if not known then
       local how
       if ui.st then how, ui.loc = Mini.LearnNote(ui.plan, ui.st) end
@@ -361,6 +393,7 @@ local function draw()
       ui.note:SetText("Not learned yet: " .. how .. (ui.loc and " (click for a waypoint)" or ""))
     end
   end
+  if remind and ui.note:GetText() == "" then ui.note:SetText(Mini.SmeltReminder(plan, remind.st)) end
   ui.noteHit:Hide()
   if ui.note:GetText() ~= "" then
     place(ui.note, 12, y - 2)
@@ -375,7 +408,7 @@ local function draw()
   local gathering = plan and plan.gather and not ui.spell -- (smelting your ore has Craft buttons)
   for _, b in ipairs({ ui.craft1, ui.craftAll }) do if gathering then b:Hide() else b:Show() end end
   for _, b in ipairs({ ui.craft1, ui.craftAll }) do
-    if ui.spell and known and ui.allN > 0 then b:Enable() else b:Disable() end
+    if ui.spell and known and ui.allN > 0 and not ui.missing then b:Enable() else b:Disable() end
   end
   ui.craftAll:SetText(ui.allN > 0 and ("Craft all (%d)"):format(ui.allN) or "Craft all")
   ui.craft1:ClearAllPoints(); ui.craft1:SetPoint("TOPLEFT", 12, y)

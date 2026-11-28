@@ -2784,6 +2784,30 @@ do
   local e1 = ns.Mini.Entries(sp)[1]
   assert(e1.kind == "craft" and e1.text:find("^Smelt 12 x Copper Ore"), "mini panel: " .. tostring(e1.text))
   assert(#Core.StepShopping(sp, s1) == 0, "nothing to buy for smelting your own ore")
+  -- no forge here: the vein step first, the smelt a reminder under it; at a forge, smelt first
+  local all = ns.Mini.Entries(sp)
+  local shown, remind = ns.Mini.DeferSmelt(all, false)
+  assert(remind == all[1] and shown[1].kind == "gather" and #shown == #all - 1, "away from a forge: mine first")
+  assert(ns.Mini.DeferSmelt(all, true) == all, "at a forge: smelt first")
+  local rt = ns.Mini.SmeltReminder(sp, remind.st)
+  assert(rt:find("Smelt 12 x Copper Ore at a forge", 1, true), "reminder: " .. rt)
+  local cr = SkillRouteData.professions[186].recipes[s1.spell]
+  assert(ns.Mini.SmeltReminder({ skill = cr.y - 2 }, remind.st):find("sure skill%-up each only until " .. cr.y), "smelt soon")
+  -- which tools a recipe is missing: the modern list, the older pairs, the classic row
+  local savedT = _G.C_TradeSkillUI
+  _G.C_TradeSkillUI = { GetRecipeRequirements = function() return { { name = "Forge", met = false } } end }
+  assert(Core.MissingTools(s1.spell)[1] == "Forge", "requirements API")
+  _G.C_TradeSkillUI = { GetRecipeTools = function() return "Forge", true end }
+  assert(#Core.MissingTools(s1.spell) == 0, "older tools API: at a forge")
+  _G.C_TradeSkillUI = {}
+  _G.GetNumTradeSkills, _G.GetTradeSkillInfo = function() return 2 end, function(i) return i == 2 and "Smelt Copper" or "Smelting" end
+  _G.GetTradeSkillRecipeLink = function(i) return i == 2 and ("|Henchant:%d|h[Smelt Copper]|h"):format(s1.spell) or nil end
+  _G.GetTradeSkillTools = function(i) assert(i == 2); return "Forge", false end
+  assert(Core.MissingTools(s1.spell)[1] == "Forge", "classic row API")
+  _G.GetNumTradeSkills, _G.GetTradeSkillInfo, _G.GetTradeSkillRecipeLink, _G.GetTradeSkillTools = nil, nil, nil, nil
+  _G.C_TradeSkillUI = nil
+  assert(Core.MissingTools(s1.spell) == nil, "no API: can't tell")
+  _G.C_TradeSkillUI = savedT
   Core.InBags = savedBags
   print(("smelting: %d -> %d veins; %s, then ~%d %s smelting ~%d ore (or buy ~%d)"):format(plan.gathers, sp.gathers, e1.text,
     math.ceil(s2.crafts), s2.name, s2.smelt.n, s2.buy.n))

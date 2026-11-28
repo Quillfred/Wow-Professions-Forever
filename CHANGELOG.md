@@ -13,6 +13,13 @@
 - Mining route: a step with an alternative node ("or Poor Copper Vein") says "+ smelt"
   instead of being cut off; the mini panel shows "Nodes in all" (not "Left to buy 0c")
   while you smelt your bag ore.
+- Mining: away from a forge, the mini panel and the tracker show the vein step first; the
+  ore in your bags becomes a line under it ("Smelt 12 x Copper Ore at a forge"), yellow
+  once waiting would cost sure skill-ups ("soon: a sure skill-up each only until 46").
+  With the Mining window open at a forge, the smelt step comes first with its Craft
+  buttons.
+- Mini panel: Craft buttons stay off when the recipe needs a forge, anvil or rod you
+  aren't at or don't carry ("Needs: Anvil"). `/sr check` lists the API this uses.
 - Gathering routes in the mini panel and tracker: the step now says where to go (its
   three best zones, your faction's first), counts as a step ("13 steps left"), and the
   Craft buttons and "Left to buy" make way for "Nodes in all". A gathering step's tooltip

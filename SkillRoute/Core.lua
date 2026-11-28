@@ -1771,6 +1771,51 @@ function Core.Craft(spell, n)
   return (pcall(T.CraftRecipe, spell, n or 1))
 end
 
+-- A recipe's tools or places it needs that you aren't at ("Forge", "Anvil", "Runed
+-- Copper Rod"), from the open profession window. {} = all there; nil = can't tell (no
+-- window open, or no API for it). Forever mixes APIs: the modern requirement list, the
+-- older tool list, or the classic per-row one.
+local function missingFrom(t, ...) -- name, has, name, has, ...
+  local n = select("#", ...)
+  for i = 1, n, 2 do
+    local name, has = select(i, ...)
+    if type(name) == "string" and type(has) == "boolean" then
+      t.seen = true
+      if not has then t[#t + 1] = name end
+    end
+  end
+  return t
+end
+function Core.MissingTools(spell)
+  local T = C_TradeSkillUI
+  if T and T.GetRecipeRequirements then
+    local ok, reqs = pcall(T.GetRecipeRequirements, spell)
+    if ok and type(reqs) == "table" then
+      local out = {}
+      for _, q in ipairs(reqs) do if q.name and q.met == false then out[#out + 1] = q.name end end
+      return out
+    end
+  end
+  if T and T.GetRecipeTools then
+    local ok, t = pcall(function() return missingFrom({}, T.GetRecipeTools(spell)) end)
+    if ok and t.seen then t.seen = nil; return t end
+  end
+  if GetNumTradeSkills and GetTradeSkillTools and GetTradeSkillInfo then
+    local want = GetSpellInfo and GetSpellInfo(spell) -- (by name only when a row has no link)
+    local ok, n = pcall(GetNumTradeSkills)
+    for i = 1, (ok and tonumber(n)) or 0 do
+      local link = GetTradeSkillRecipeLink and GetTradeSkillRecipeLink(i)
+      local id = link and tonumber(link:match("enchant:(%d+)") or link:match("spell:(%d+)"))
+      if id == spell or (not id and want and GetTradeSkillInfo(i) == want) then
+        local t = missingFrom({}, GetTradeSkillTools(i))
+        t.seen = nil
+        return t
+      end
+    end
+  end
+  return nil
+end
+
 -- How many crafts the materials in your bags (not the bank) allow.
 function Core.CraftableNow(line, spell)
   local r = Data.professions[line].recipes[spell]

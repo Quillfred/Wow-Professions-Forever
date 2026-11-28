@@ -33,6 +33,8 @@ local APIS = {
   { "Bind location", { "GetBindLocation" }, "where your hearthstone goes" },
   { "Reputation", { "C_Reputation.GetFactionDataByID", "GetFactionInfoByID" }, "reputation patterns" },
   { "Craft from a button", { "C_TradeSkillUI.CraftRecipe" }, "Craft 1 / Craft all on the mini panel" },
+  { "Tools and forges", { "C_TradeSkillUI.GetRecipeRequirements", "C_TradeSkillUI.GetRecipeTools", "GetTradeSkillTools" },
+    "Craft buttons only at a forge or anvil" },
   { "Learn at a trainer", { "BuyTrainerService" }, "Learn buttons on the trainer panel" },
   { "Bank to bags", { "C_Container.UseContainerItem", "UseContainerItem" }, "Take mats at the bank" },
   { "Legacy Tree", { "C_Traits.GetConfigIDByTreeID", "C_Traits.GetTreeNodes" }, "read your Working Overtime rank" },

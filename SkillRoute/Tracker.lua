@@ -168,7 +168,7 @@ local function lineAt(i, template)
 end
 
 -- The step, as quest-style objectives.
-local function draw(lineID, plan, entries)
+local function draw(lineID, plan, entries, remind)
   local name = Data.professions[lineID].name
   title:SetText(("SkillRoute  |cffffffff%s %d/%d -> %d|r"):format(name, plan.skill, plan.max, plan.target))
   fold:SetText(S().trackerFolded and "+" or "-")
@@ -224,6 +224,7 @@ local function draw(lineID, plan, entries)
     if e.loc then add("- " .. (Core.Where(e.loc) or "?"), "GameFontHighlightSmall", 12) end
     if e.warn then add("- |cffff4040" .. e.warn .. "|r", "GameFontHighlightSmall", 12) end
   end
+  if remind then add("- " .. ns.Mini.SmeltReminder(plan, remind.st), "GameFontHighlightSmall", 12) end
   hit:ClearAllPoints(); hit:SetPoint("TOPLEFT", 0, stepTop); hit:SetSize(W, math.max(14, stepTop - y)); hit:Show()
   if entries[2] then y = y - 4; add("|cffccccccThen: " .. entries[2].text .. "|r", "GameFontHighlightSmall") end
   frame:SetHeight(-y + 4)
@@ -250,12 +251,16 @@ function T.Refresh()
     entries = plan and ns.Mini.Entries(plan) or {}
     cache = { key = key, plan = plan, entries = entries }
   end
+  -- out in the world: mine first, smelting the ore in your bags is a reminder (the mini
+  -- panel, in the profession window, knows whether you're at a forge)
+  local remind
+  entries, remind = ns.Mini.DeferSmelt(entries)
   check(lineID, plan, entries[1])
   local show = T.Enabled() and plan and entries[1] and not professionOpen()
   if not show then if frame then frame:Hide() end return end
   if not frame then build() end
   shownLine = lineID
-  draw(lineID, plan, entries)
+  draw(lineID, plan, entries, remind)
   frame:Show()
 end
 
