@@ -212,6 +212,36 @@ local function styled(f, p, size, alpha)
   f:Show()
 end
 
+-- Minimap: a hollow square, so the game's own tracking blip (drawn under anything an addon
+-- puts on the minimap) shows through the middle. Copper for ores, green for herbs, gold for finds.
+local RING = { ore = { 0.95, 0.55, 0.2 }, herb = { 0.35, 0.9, 0.3 }, find = { 1, 0.82, 0 } }
+local function newMiniPin(parent)
+  local f = CreateFrame("Button", nil, parent)
+  f.edges = {}
+  for i = 1, 4 do
+    local t = f:CreateTexture(nil, "OVERLAY")
+    if i == 1 then t:SetPoint("TOPLEFT"); t:SetPoint("TOPRIGHT"); t:SetHeight(2)
+    elseif i == 2 then t:SetPoint("BOTTOMLEFT"); t:SetPoint("BOTTOMRIGHT"); t:SetHeight(2)
+    elseif i == 3 then t:SetPoint("TOPLEFT"); t:SetPoint("BOTTOMLEFT"); t:SetWidth(2)
+    else t:SetPoint("TOPRIGHT"); t:SetPoint("BOTTOMRIGHT"); t:SetWidth(2) end
+    f.edges[i] = t
+  end
+  f:SetScript("OnEnter", pinTip)
+  f:SetScript("OnLeave", function() GameTooltip:Hide() end)
+  if f.SetMouseClickEnabled then pcall(f.SetMouseClickEnabled, f, false) end -- clicks go to the minimap
+  return f
+end
+local function styledMini(f, p, size, alpha)
+  f.pin = p
+  f:SetSize(size, size)
+  local c = p[5] and RING.find or RING[P.Kind(p[3]) or "ore"]
+  for _, t in ipairs(f.edges) do
+    if t.SetColorTexture then t:SetColorTexture(c[1], c[2], c[3], 1) else t:SetTexture(c[1], c[2], c[3], 1) end
+  end
+  f:SetAlpha(alpha)
+  f:Show()
+end
+
 -- World map: pins on the map canvas, sized against its zoom
 local worldOverlay, worldPool = nil, {}
 function P.RefreshWorld()
@@ -270,9 +300,9 @@ function P.RefreshMinimap()
     local ox, oy = P.MinimapOffset((p[1] - px) * w, (p[2] - py) * h, radiusYd, radiusPx, facing)
     if ox then
       n = n + 1
-      local f = miniPool[n] or newPin(Minimap)
+      local f = miniPool[n] or newMiniPin(Minimap)
       miniPool[n] = f
-      styled(f, p, 12, alpha)
+      styledMini(f, p, 14, alpha)
       f:ClearAllPoints()
       f:SetPoint("CENTER", Minimap, "CENTER", ox, oy)
     end

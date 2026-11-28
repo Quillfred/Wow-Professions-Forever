@@ -62,6 +62,9 @@
   10 yards, it's saved (for all your characters) and shown with the others, tinted gold.
 - Options has a Map tab: world map and minimap on or off, saving finds on or off,
   transparency (50% to start), and how many spots you've found.
+- On the minimap the spots are hollow squares (copper for ores, green for herbs, gold for
+  your finds), so the game's own yellow tracking blip shows through the middle; the
+  game draws its blips under anything an addon puts on the minimap.
 - Gathering routes in the mini panel and tracker: the step now says where to go (its
   three best zones, your faction's first), counts as a step ("13 steps left"), and the
   Craft buttons and "Left to buy" make way for "Nodes in all". A gathering step's tooltip

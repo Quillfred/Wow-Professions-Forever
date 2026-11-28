@@ -3000,6 +3000,9 @@ do
   rawset(_G.Minimap, "IsShown", function() return true end)
   P.PlayerZone = function() return 1413, sp[1], sp[2] end -- standing on a Tin Vein spot
   assert(P.RefreshMinimap() >= 1, "the spot you stand on shows on the minimap")
+  local ring
+  for _, f in ipairs(frames) do if rawget(f, "edges") and rawget(f, "pin") and f.shown then ring = f end end
+  assert(ring and #ring.edges == 4 and not rawget(ring, "tex"), "on the minimap: a hollow square, so the game's blip shows through")
   local t0 = os.clock()
   for _ = 1, 200 do P.RefreshMinimap() end
   print(("minimap pins: %.3f ms per update (%d spots in the zone, 5 updates a second)"):format((os.clock() - t0) / 200 * 1000, #P.PinsFor(1413)))
