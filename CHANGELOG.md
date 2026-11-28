@@ -47,6 +47,12 @@
   waypoint, and it's on the shopping list. From the game's own spell data, so a Forever
   item that counts (its multi-tool) counts too. Herbalism needs no tool. Crafting routes
   already did this for hammers, spanners and rods.
+- Every crafting profession: the station a recipe needs comes from the game's data (811
+  recipes: Anvil, Forge, Master Forge, Loom, Sewing Machine, Cooking Fire...). The step's
+  tooltip says "Craft at an Anvil", the tracker "Ready to craft: at an Anvil, open
+  Blacksmithing". The mini panel's Craft buttons stay off until you're at it ("Needs:
+  Anvil", or a missing Blacksmith Hammer), and come on within half a second when you
+  walk up, with the window open.
 - Gathering routes in the mini panel and tracker: the step now says where to go (its
   three best zones, your faction's first), counts as a step ("13 steps left"), and the
   Craft buttons and "Left to buy" make way for "Nodes in all". A gathering step's tooltip

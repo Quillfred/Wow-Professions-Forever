@@ -400,6 +400,8 @@ local function draw()
     ui.toolSpell, ui.toolKey = ui.spell, miss and table.concat(miss, ",")
     if known and ui.missing then
       ui.note:SetText("|cffff6060Needs: " .. table.concat(ui.missing, ", ") .. "|r")
+    elseif known and not miss and UI.Station(r) then -- the game can't tell us here: say where
+      ui.note:SetText("|cff999999Craft at " .. UI.Station(r) .. "|r")
     end
     if not known then
       local how

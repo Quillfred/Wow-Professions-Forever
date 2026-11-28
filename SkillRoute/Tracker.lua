@@ -200,7 +200,9 @@ local function draw(lineID, plan, entries, remind)
       stepLoc = loc
       add("|cffff8040Not learned yet: " .. (how or "learn it first") .. "|r", "GameFontHighlightSmall", 12)
     elseif ready then
-      add("|cffffd100Ready to craft: " .. (e.st and e.st.smeltStep and "at a forge" or ("open " .. name)) .. "|r", "GameFontHighlightSmall", 12)
+      local station = UI.Station(Data.professions[lineID].recipes[spell])
+      add("|cffffd100Ready to craft: " .. (station and ("at " .. station .. ", open " .. name) or ("open " .. name)) .. "|r",
+        "GameFontHighlightSmall", 12)
     end
     for _, m in ipairs(mats) do
       add(("- |cff%s%d/%d|r %s%s"):format(m.have >= m.need and "40bf40" or "ff6060", m.have, m.need, UI.ItemName(m.item),

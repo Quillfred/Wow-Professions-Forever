@@ -20,7 +20,8 @@ PROFESSIONS = {171: "Alchemy", 164: "Blacksmithing", 333: "Enchanting", 202: "En
                165: "Leatherworking", 197: "Tailoring", 185: "Cooking", 129: "First Aid"}
 TABLES = ["Map", "SkillLineAbility", "SpellReagents", "SpellName", "SpellEffect",
           "ItemSparse", "ItemEffect", "ItemXItemEffect", "SpellCooldowns",
-          "SpellTotems", "TotemCategory", "Faction", "TaxiNodes", "TaxiPath", "TaxiPathNode", "Item"]
+          "SpellTotems", "TotemCategory", "Faction", "TaxiNodes", "TaxiPath", "TaxiPathNode", "Item",
+          "SpellCastingRequirements", "SpellFocusObject"]
 # specialisations (ATT constant -> the spec's spell in Forever's SpellName table)
 SPEC_SPELL = {"ARMORSMITH": 9788, "WEAPONSMITH": 9787, "MASTER_AXESMITH": 17041, "MASTER_HAMMERSMITH": 17040,
               "MASTER_SWORDSMITH": 17039, "DRAGONSCALE_LEATHERWORKING": 10656, "ELEMENTAL_LEATHERWORKING": 10658,
@@ -181,6 +182,12 @@ def main():
             for it in effect_items.get(int(r["ID"]), []):
                 taught_by.setdefault(target, set()).add(it)
 
+    # the station a recipe is crafted at (Anvil, Forge, Loom, Cooking Fire...): the game
+    # checks it's nearby; the route says where to craft
+    focus_name = {int(r["ID"]): r["Name_lang"] for r in rows(p["SpellFocusObject"])}
+    focus = {int(r["SpellID"]): int(r["RequiresSpellFocus"]) for r in rows(p["SpellCastingRequirements"])
+             if int(r["RequiresSpellFocus"] or 0) in focus_name}
+    used_focus = set()
     cooldown = {}  # spell -> seconds (e.g. Mooncloth ~4 days): never grindable
     for r in rows(p["SpellCooldowns"]):
         s = int(r["SpellID"])
@@ -403,6 +410,9 @@ def main():
                 fields.append("rep={" + ",".join(map(str, reps)) + "}")
         if s in cooldown:
             fields.append(f"cd={cooldown[s]}")
+        if s in focus:
+            fields.append(f"fo={focus[s]}")
+            used_focus.add(focus[s])
         if s in needs_tool:
             fields.append("tool={" + ",".join(map(str, needs_tool[s])) + "}")
             for c in needs_tool[s]:
@@ -506,7 +516,9 @@ def main():
         lines.append(f"    [{c}]={{{lua_str(name)},{{{','.join(map(str, tool_items[c]))}}}}},")
     if poles:
         lines.append(f'    ["pole"]={{"Fishing Pole",{{{",".join(map(str, poles))}}},true}},  -- true: equipped, not in bags')
-    lines += ["  },", "  -- the tool each gathering profession needs: [skillLine] = toolKey",
+    lines += ["  },", "  -- stations recipes are crafted at (fo=): [id] = name",
+              "  focus = { " + ", ".join(f"[{f}]={lua_str(focus_name[f])}" for f in sorted(used_focus)) + " },"]
+    lines += ["  -- the tool each gathering profession needs: [skillLine] = toolKey",
               "  gatherTools = { " + ", ".join(f"[{l}]={k}" for l, k in sorted(gather_tool.items())) + " },"]
     lines += ["  -- reagents only made by cooldown crafts (Mooncloth...): avoided unless /sr cdmats on",
               "  cooldownMats = {"]

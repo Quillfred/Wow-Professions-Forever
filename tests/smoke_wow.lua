@@ -253,12 +253,19 @@ do
     "mini matches the full route: " .. tostring(note) .. " vs " .. tostring(learnText))
   print("mini = full route: " .. note)
   M.Refresh() -- live update path runs
-  do -- the step's recipe needs a forge: Craft buttons off, and back on once you're at one (window open)
-    local savedT, at, savedKnown = _G.C_TradeSkillUI, false, Core.IsRecipeKnown
+  do -- the step's recipe needs a station (Anvil, Forge): Craft buttons off, back on once you're at one (window open)
+    local savedT, at, savedKnown, savedCN = _G.C_TradeSkillUI, false, Core.IsRecipeKnown, Core.CraftableNow
     Core.IsRecipeKnown = function() return true end
-    _G.C_TradeSkillUI = setmetatable({ GetRecipeRequirements = function() return { { name = "Forge", met = at } } end },
-                                     { __index = savedT })
+    Core.CraftableNow = function() return 5 end -- materials in your bags: only the station decides
+    _G.C_TradeSkillUI = setmetatable({ GetRecipeRequirements = function()
+      return { { name = "Blacksmith Hammer", met = true }, { name = "Forge", met = at } } end }, { __index = savedT })
+    local craft1
+    for _, f in ipairs(frames) do if rawget(f, "text") == "Craft 1" then craft1 = f end end
+    assert(craft1, "the Craft 1 button")
+    rawset(craft1, "Enable", function(self) self.enabled = true end)
+    rawset(craft1, "Disable", function(self) self.enabled = false end)
     M.Refresh()
+    assert(craft1.enabled == false, "away from the station: Craft 1 is off")
     local function needs()
       for _, t in ipairs(texts) do
         local v = rawget(t, "text")
@@ -274,10 +281,23 @@ do
     pf.OnUpdate(pf, 0.2); assert(not needs(), "nothing redrawn yet")
     pf.OnUpdate(pf, 0.4)
     local cleared = not needs()
+    assert(craft1.enabled == true, "at the station: Craft 1 is on")
     at = false
     pf.OnUpdate(pf, 0.6)
-    assert(cleared and needs(), "redrawn when you walk up to a forge, and away again")
-    _G.C_TradeSkillUI, Core.IsRecipeKnown = savedT, savedKnown
+    assert(cleared and needs() and craft1.enabled == false, "redrawn when you walk up to a forge, and away again")
+    -- no API to ask: the buttons stay on, and the panel says where to craft
+    _G.C_TradeSkillUI = setmetatable({ GetRecipeRequirements = false }, { __index = savedT })
+    local spell = ns.Mini.Entries(Core.Plan(197, Core.Char().targets[197] or 300))[1].st.spell
+    local rec = SkillRouteData.professions[197].recipes[spell]
+    local savedFo = rec.fo
+    rec.fo = 2265 -- a Loom
+    M.Refresh()
+    local where
+    for _, t in ipairs(texts) do if rawget(t, "text") and t.text:find("Craft at a Loom", 1, true) then where = true end end
+    assert(where and craft1.enabled == true, "can't tell: Craft on, and 'Craft at a Loom'")
+    rec.fo = savedFo
+    _G.C_TradeSkillUI, Core.IsRecipeKnown, Core.CraftableNow = savedT, savedKnown, savedCN
+    rawset(craft1, "Enable", nil); rawset(craft1, "Disable", nil)
     M.Refresh()
   end
   SkillRouteDB.lastError = nil
@@ -2872,6 +2892,12 @@ do
   Core.HasTool = function() return true end
   for _, x in ipairs(ns.Mini.Entries(Core.Plan(186, 300))) do assert(x.kind ~= "tool", "you have a pick: no tool step") end
   Core.HasTool = savedHas
+  -- stations: most Blacksmithing recipes at an anvil, some at a forge; Engineering at an anvil too
+  local st164 = {}
+  for _, r in pairs(SkillRouteData.professions[164].recipes) do
+    local w = UI.Station(r); if w then st164[w] = (st164[w] or 0) + 1 end
+  end
+  assert((st164["an Anvil"] or 0) > 200 and (st164["a Master Forge"] or 0) > 0, "Blacksmithing stations")
   local GT = SkillRouteData.gatherTools
   assert(SkillRouteData.tools[GT[393]][1] == "Skinning Knife" and SkillRouteData.tools[GT[356]][1] == "Fishing Pole"
     and SkillRouteData.tools[GT[356]][3] and not GT[182], "Skinning: a knife, Fishing: a pole (equipped), Herbalism: nothing")

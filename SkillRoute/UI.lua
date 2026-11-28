@@ -309,6 +309,13 @@ end
 
 local function shortTravel(loc) local t = loc and Core.TravelText(loc); return t and t:gsub("^about ", "~"):gsub(" away", "") end
 
+-- The station a recipe is crafted at, with its article ("an Anvil", "a Loom"), or nil.
+function UI.Station(r)
+  local name = r and r.fo and Data.focus and Data.focus[r.fo]
+  if not name then return nil end
+  return (name:match("^[AEIOUaeiou]") and "an " or "a ") .. name
+end
+
 -- A craft step's tooltip (the full route's rows and the mini panel share it). Returns
 -- the recipe, the tooltip lines, the waypoint, the learn text for the row and the step
 -- for the AH Buy button (nil when the AH isn't open).
@@ -354,6 +361,7 @@ local function stepTip(plan, st)
   local function sub(l, v) if v and v ~= "" then tip[#tip + 1] = { l, v, sub = true } end end
   local function note(t) tip[#tip + 1] = { note = t } end
   local function gap() tip[#tip + 1] = { gap = true } end
+  if UI.Station(r) then row("Craft at", UI.Station(r)) end
   local function travel(loc) local t = Core.TravelText(loc); return t and t:gsub("^about ", "~"):gsub(" away", "") end
   row("Cost per craft", money(st.perCraft) .. (st.est and " |cffff8040(estimated)|r" or ""))
   -- the last skill at which the recipe is each colour (Planner.Color: green from the
