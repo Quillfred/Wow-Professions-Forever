@@ -2768,6 +2768,25 @@ do
   local e = ns.Mini.Entries(plan)[1]
   assert(e.kind == "gather" and e.st == st, "the mini panel gets the step")
   print("gathering: " .. st.name .. " (or " .. st.alt[1] .. "), " .. table.concat(zones, ", "))
+  -- smelting: ore in your bags is smelted first; then mining with the ore smelted as you go
+  local savedBags = Core.InBags
+  Core.InBags = function(it) return it == 2770 and 12 or 0 end -- 12 Copper Ore
+  local sp = Core.Plan(186, 300)
+  local s1, s2 = sp.steps[1], sp.steps[2]
+  assert(s1.smeltStep and s1.crafts == 12 and s1.ore == "Copper Ore" and s1.from == 2 and s1.to == 14,
+    "smelt the 12 Copper Ore first: " .. tostring(s1.crafts) .. " " .. tostring(s1.to))
+  assert(s2.gather and s2.name == "Copper Vein" and s2.smelt and s2.smelt.ore == "Copper Ore" and s2.buy and s2.buy.n > 0,
+    "then Copper Vein, smelting as you go, or buy the ore")
+  assert(sp.gathers < plan.gathers, ("the bagged ore saves veins: %d vs %d"):format(sp.gathers, plan.gathers))
+  for _, x in ipairs(sp.steps) do
+    if x.smelt then assert(x.from < 140 or (x.from >= 155 and x.to <= 185), "smelting only where it gives skill: " .. x.from) end
+  end
+  local e1 = ns.Mini.Entries(sp)[1]
+  assert(e1.kind == "craft" and e1.text:find("^Smelt 12 x Copper Ore"), "mini panel: " .. tostring(e1.text))
+  assert(#Core.StepShopping(sp, s1) == 0, "nothing to buy for smelting your own ore")
+  Core.InBags = savedBags
+  print(("smelting: %d -> %d veins; %s, then ~%d %s smelting ~%d ore (or buy ~%d)"):format(plan.gathers, sp.gathers, e1.text,
+    math.ceil(s2.crafts), s2.name, s2.smelt.n, s2.buy.n))
   Core.Skills = savedSkills
 end
 

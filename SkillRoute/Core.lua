@@ -1370,6 +1370,37 @@ function Core.Standing(faction)
   return nil
 end
 
+-- Smelting, for the Mining route: which ore each node gives, how many times a node
+-- can be mined before it's gone (cMaNGOS Classic gameobject_template data4-data5,
+-- average: 2-4 -> 3, 1-2 -> 1.5; Forever keeps Classic's nodes, Poor Copper Vein
+-- assumed like Copper), and the smelting recipe that takes that ore.
+local NODE_ORE = {
+  ["Copper Vein"] = { 2770, 3 }, ["Poor Copper Vein"] = { 2770, 3 }, ["Tin Vein"] = { 2771, 3 },
+  ["Silver Vein"] = { 2775, 3 }, ["Iron Deposit"] = { 2772, 3 }, ["Gold Vein"] = { 2776, 3 },
+  ["Mithril Deposit"] = { 3858, 3 }, ["Truesilver Deposit"] = { 7911, 3 }, ["Dark Iron Deposit"] = { 11370, 3 },
+  ["Small Thorium Vein"] = { 10620, 1.5 }, ["Rich Thorium Vein"] = { 10620, 3 },
+}
+local smeltData
+function Core.SmeltData()
+  if smeltData then return smeltData end
+  local byOre = {}
+  for spell, r in pairs(Data.professions[186] and Data.professions[186].recipes or {}) do
+    if r.r and #r.r == 2 and r.g > r.y then -- one kind of ore, and it gives skill at some point
+      byOre[r.r[1]] = { spell = spell, r = r, per = r.r[2] }
+    end
+  end
+  smeltData = {}
+  for node, d in pairs(NODE_ORE) do
+    local rec = byOre[d[1]]
+    if rec then
+      smeltData[node] = { ore = d[1], oreName = (Data.items[d[1]] and Data.items[d[1]][1]) or ("item " .. d[1]),
+                          perSmelt = rec.per, perVein = d[2] / rec.per, r = { y = rec.r.y, g = rec.r.g },
+                          learn = rec.r.learn or 1, spell = rec.spell, name = rec.r.n }
+    end
+  end
+  return smeltData
+end
+
 -- Merchant's Favor ---------------------------------------------------------------
 -- Forever's profession vendors in the Barrens / Redridge sell patterns for Favor only.
 function Core.FavorBalance()
@@ -1605,7 +1636,21 @@ function Core.Plan(line, target)
   target = math.max(s.rank + 1, math.min(target or MAX_SKILL, MAX_SKILL))
   if Data.professions[line].gather then -- Mining, Herbalism, Skinning: a zone route
     local t0g = debugprofilestop and debugprofilestop()
+    local smelt, bagOre = line == 186 and Core.SmeltData() or nil, nil
+    if smelt then -- ore in your bags whose smelting still gives skill: smelt it first
+      bagOre = {}
+      local seen = {}
+      for _, sm in pairs(smelt) do
+        if not seen[sm.ore] then
+          seen[sm.ore] = true
+          local n = Core.InBags(sm.ore)
+          if n >= sm.perSmelt then bagOre[#bagOre + 1] = { ore = sm.ore, count = n, sm = sm } end
+        end
+      end
+      table.sort(bagOre, function(a, b) return a.sm.learn < b.sm.learn end) -- lowest recipe first (Copper before Tin)
+    end
     local plan = Planner.GatherPlan({ nodes = Data.gather and Data.gather[line], skinning = line == 393,
+      smelt = smelt, bagOre = bagOre,
       fishing = line == 356 and Data.fishing or nil, zoneRank = zoneRank,
       skinZones = line == 393 and Data.skinZones or nil,
       skill = s.rank, target = target, maxSkill = s.max, bonus = Core.Bonus() })
@@ -1754,6 +1799,7 @@ function Core.FromVendor(item)
 end
 
 function Core.StepShopping(plan, st)
+  if plan.gather or not plan.shopping then return {} end -- a gathering route (smelting your own ore): nothing to buy
   local recipes = Data.professions[plan.line].recipes
   local r = st.spell and recipes[st.spell]
   if not (r and r.r) then return {} end

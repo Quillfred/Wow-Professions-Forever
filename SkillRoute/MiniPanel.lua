@@ -52,7 +52,8 @@ function Mini.Entries(plan)
                         text = ("~%d x %s (%d-%d)"):format(math.ceil(st.crafts - 1e-9), st.name, st.from, st.to) }
     elseif st.spell then
       out[#out + 1] = { kind = "craft", st = st, at = st.from,
-                        text = ("%d x %s (%d-%d)"):format(math.ceil(st.crafts - 1e-9), st.name, st.from, st.to) }
+                        text = st.smeltStep and ("Smelt %d x %s (%d-%d)"):format(st.crafts, st.ore, st.from, st.to)
+                               or ("%d x %s (%d-%d)"):format(math.ceil(st.crafts - 1e-9), st.name, st.from, st.to) }
     end
   end
   return out
@@ -264,7 +265,8 @@ local function draw()
     local r = Data.professions[line].recipes[st.spell]
     ui.spell, ui.crafts, ui.learn, ui.st, ui.buyStep = st.spell, math.ceil(st.crafts - 1e-9), st.learn, st, st
     ui.icon:SetTexture(UI.Icon(r.out, st.spell))
-    ui.main:SetText(("Craft |cffffffff%d x|r %s"):format(ui.crafts, st.name))
+    ui.main:SetText(st.smeltStep and ("Smelt |cffffffff%d x|r %s"):format(ui.crafts, st.ore)
+                    or ("Craft |cffffffff%d x|r %s"):format(ui.crafts, st.name))
     ui.sub:SetText(("|cff999999skill %d -> %d|r  %s"):format(st.from, st.to, bands(r)))
   elseif e.kind == "tool" and e.spell then -- a tool you craft: same as a craft, once
     ui.spell, ui.crafts, ui.learn, ui.buyStep = e.spell, 1, e.learn, e.buy
@@ -276,7 +278,8 @@ local function draw()
     ui.icon:SetTexture(st.skinning and "Interface\\Icons\\INV_Misc_Pelt_Wolf_01" or st.fishing and "Interface\\Icons\\Trade_Fishing"
       or line == 186 and "Interface\\Icons\\Trade_Mining" or "Interface\\Icons\\Trade_Herbalism")
     ui.main:SetText(("|cffffd100~%d x %s|r"):format(math.ceil(st.crafts - 1e-9), st.name)
-      .. ((st.alt and st.alt[1]) and (" |cffcccccc(or %s)|r"):format(st.alt[1]) or ""))
+      .. ((st.alt and st.alt[1]) and (" |cffcccccc(or %s)|r"):format(st.alt[1]) or "")
+      .. (st.smelt and "|cffffd100, smelting the ore|r" or ""))
     local zones = UI.GatherZones(st)
     ui.sub:SetText(("|cff999999skill %d -> %d|r  %s"):format(st.from, st.to, #zones > 0 and table.concat(zones, ", ") or ""))
   else
@@ -336,7 +339,8 @@ local function draw()
     -- afterwards: what to do with what you make (the full tooltip has the comparison)
     if ui.st then
       local after
-      if ui.st.credited then after = "used by later steps"
+      if ui.st.smeltStep then after = nil
+      elseif ui.st.credited then after = "used by later steps"
       elseif ui.st.resale then after = "|cff40bf40sell on the AH|r"
       elseif r.out then after = UI.AfterCrafting(r.out, crafts * (r.outN or 1)) end
       if after then
@@ -368,7 +372,7 @@ local function draw()
   end
 
   y = y - 4
-  local gathering = plan and plan.gather
+  local gathering = plan and plan.gather and not ui.spell -- (smelting your ore has Craft buttons)
   for _, b in ipairs({ ui.craft1, ui.craftAll }) do if gathering then b:Hide() else b:Show() end end
   for _, b in ipairs({ ui.craft1, ui.craftAll }) do
     if ui.spell and known and ui.allN > 0 then b:Enable() else b:Disable() end

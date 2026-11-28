@@ -976,19 +976,45 @@ function Planner.GatherPlan(ctx)
       end
       avail[i] = math.sqrt(math.max(n > 0 and n or all, 1))
     end
-    local pick = {}
-    for s = from, to - 1 do
-      local best, bestScore
+    -- Mining: smelting the ore you mine gives skill too, while its recipe isn't grey
+    -- (Forever: up to 140, then 155-185). ctx.smelt[node] = { ore, oreName, perVein
+    -- (smelts per vein: average mines / ore per smelt), r = {y, g}, learn, spell, name }
+    local function smeltChance(nd, s)
+      local sm = ctx.smelt and ctx.smelt[nd[1]]
+      if not sm or s < sm.learn then return 0, nil end
+      return Planner.Chance(sm.r, s, ctx.bonus), sm
+    end
+    -- ore already in your bags first: smelt it ("Smelt 12 x Copper Ore")
+    local s = from
+    for _, b in ipairs(ctx.bagOre or {}) do -- { ore, count, sm }, best first
+      local left, used, start, acc = b.count, 0, s, 0
+      while left >= b.sm.perSmelt and s < to do
+        local p = s >= b.sm.learn and Planner.Chance(b.sm.r, s, ctx.bonus) or 0
+        if p <= 0 then break end
+        acc, left, used = acc + p, left - b.sm.perSmelt, used + 1
+        while acc >= 1 and s < to do acc, s = acc - 1, s + 1 end
+      end
+      if s > start then
+        steps[#steps + 1] = { smeltStep = true, spell = b.sm.spell, name = b.sm.name, ore = b.sm.oreName, oreItem = b.sm.ore,
+                              from = start, to = s, crafts = used, color = Planner.Color(b.sm.r, start) }
+      end
+    end
+    local first = s
+    local pick, perVein, smelting = {}, {}, {}
+    for s = first, to - 1 do
+      local best, bestScore, bestV, bestP
       for i, nd in ipairs(ctx.nodes or {}) do
         if nd[2] <= s and not nd[4] and not (ctx.skip and ctx.skip[nd[1]]) then -- nd[4]: rare variant
           local p = Planner.Chance(nodeRule(nd[2]), s, ctx.bonus)
-          local score = p * avail[i]
-          if p > 0 and (not bestScore or score > bestScore) then best, bestScore = i, score end
+          local ps, sm = smeltChance(nd, s)
+          local v = p + (sm and sm.perVein * ps or 0) -- skill points per vein, mining + smelting
+          local score = v * avail[i]
+          if p > 0 and (not bestScore or score > bestScore) then best, bestScore, bestV, bestP = i, score, v, ps end
         end
       end
-      pick[s] = best
+      pick[s], perVein[s], smelting[s] = best, bestV, (bestP or 0) > 0
     end
-    local s = from
+    s = first
     while s < to do
       local i = pick[s]
       if not i then
@@ -999,10 +1025,14 @@ function Planner.GatherPlan(ctx)
         s = e
       else
         local nd, e, n = ctx.nodes[i], s, 0
+        local sm = ctx.smelt and ctx.smelt[nd[1]]
+        local buyN, buyAll = 0, true -- smelts if you bought all the ore instead
         repeat
-          n = n + 1 / Planner.Chance(nodeRule(nd[2]), e, ctx.bonus)
+          n = n + 1 / perVein[e]
+          local ps = smeltChance(nd, e)
+          if ps > 0 then buyN = buyN + 1 / ps else buyAll = false end
           e = e + 1
-        until e >= to or pick[e] ~= i or (e % 75 == 0 and e >= (ctx.maxSkill or 0))
+        until e >= to or pick[e] ~= i or smelting[e] ~= smelting[s] or (e % 75 == 0 and e >= (ctx.maxSkill or 0))
         -- rare ores that share these zones and give skill here: "mine when you see them"
         local also = {}
         for _, rn in ipairs(ctx.nodes) do
@@ -1024,8 +1054,15 @@ function Planner.GatherPlan(ctx)
         table.sort(alt, function(a, b) if a.n ~= b.n then return a.n > b.n end return a.name < b.name end)
         local altList = {}
         for _, a in ipairs(alt) do altList[#altList + 1] = a.name end
-        steps[#steps + 1] = { gather = true, name = nd[1], from = s, to = e, crafts = n, zones = nd[3],
-                              color = Planner.Color(nodeRule(nd[2]), s), also = alsoList, alt = altList }
+        local st = { gather = true, name = nd[1], from = s, to = e, crafts = n, zones = nd[3],
+                     color = Planner.Color(nodeRule(nd[2]), s), also = alsoList, alt = altList }
+        if smelting[s] and sm then
+          -- smelt the ore as you go; or buy the ore and only smelt (where smelting covers it all)
+          st.smelt = { name = sm.name, spell = sm.spell, ore = sm.oreName, oreItem = sm.ore,
+                       n = math.floor(n * sm.perVein * sm.perSmelt + 0.5) }
+          if buyAll then st.buy = { ore = sm.oreName, oreItem = sm.ore, n = math.ceil(buyN * sm.perSmelt - 1e-9) } end
+        end
+        steps[#steps + 1] = st
         total = total + n
         s = e
       end

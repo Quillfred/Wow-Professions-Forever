@@ -621,7 +621,18 @@ local function routeRows(plan)
         end
       end
     end
-    if st.gather then
+    if st.smeltStep then -- ore already in your bags whose smelting still gives skill
+      local r = Data.professions[plan.line].recipes[st.spell]
+      local known = Core.IsRecipeKnown(plan.line, st.spell)
+      add({ item = r and r.out, spell = st.spell,
+            text = ("|cff%sSmelt %d x %s|r"):format(COLORS[st.color] or "ffffff", st.crafts, st.ore),
+            sub = "The ore in your bags, at any forge" .. (known and "" or "  |cffffd100learn " .. st.name .. " at your Mining trainer|r"),
+            range = ("%d-%d"):format(st.from, st.to),
+            tipTitle = st.name,
+            tip = { { header = "SkillRoute" }, { "Smelt", ("%d x %s in your bags"):format(st.crafts, st.ore) },
+                    { "Skill-ups through", UI.Bands(r, " · ") },
+                    { note = "Smelting gives Mining skill until its recipe turns grey. Needs a forge (most towns)." } } })
+    elseif st.gather then
       local zones = UI.GatherZones(st)
       add({ icon = st.skinning and "Interface\\Icons\\INV_Misc_Pelt_Wolf_01"
                    or st.fishing and "Interface\\Icons\\Trade_Fishing"
@@ -629,7 +640,8 @@ local function routeRows(plan)
             text = st.skinning and ("|cff%s~%d|r x skin %s"):format(COLORS[st.color] or "ffffff", math.ceil(st.crafts), st.name)
                    or st.fishing and ("|cff%s~%d|r catches"):format(COLORS[st.color] or "ffffff", math.ceil(st.crafts - 1e-9))
                    or ("|cff%s~%d|r x %s"):format(COLORS[st.color] or "ffffff", math.ceil(st.crafts - 1e-9), st.name)
-                      .. ((st.alt and st.alt[1]) and (" |cffcccccc(or %s)|r"):format(st.alt[1]) or ""),
+                      .. ((st.alt and st.alt[1]) and (" |cffcccccc(or %s)|r"):format(st.alt[1]) or "")
+                      .. (st.smelt and ", |cffffd100smelting the ore as you go|r" or ""),
             sub = st.fishing and (#zones > 0 and ("No fish get away in: " .. table.concat(zones, ", "))
                                   or "Fish in your starting zone's waters")
                   or st.skinning and (#zones > 0 and ("Best zones: " .. table.concat(zones, ", "))
@@ -665,6 +677,15 @@ local function routeRows(plan)
                       t[#t + 1] = { "Or", st.alt[1] }
                       for i = 2, math.min(#st.alt, 5) do t[#t + 1] = { "", st.alt[i], sub = true } end
                       if #st.alt > 5 then t[#t + 1] = { "", ("and %d more"):format(#st.alt - 5), sub = true } end
+                    end
+                    if st.smelt then
+                      t[#t + 1] = { "Smelt", ("~%d %s as you go (%s)"):format(st.smelt.n, st.smelt.ore, st.smelt.name) }
+                      t[#t + 1] = { "", "each smelt is a chance at a skill-up too: fewer veins", sub = true }
+                    end
+                    if st.buy then
+                      local p = Core.Price(st.buy.oreItem)
+                      t[#t + 1] = { "Or buy", ("~%d %s on the AH%s and only smelt"):format(st.buy.n, st.buy.ore,
+                        p and (" (~" .. money(p * st.buy.n) .. ")") or "") }
                     end
                     if st.also and #st.also > 0 then
                       t[#t + 1] = { "When you see them", st.also[1] }

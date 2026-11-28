@@ -2,6 +2,14 @@
 
 ## 0.38.7 (not released yet)
 
+- **Smelting in the Mining route:** smelting ore gives Mining skill too (checked in
+  game), so the route now has you smelt the ore you mine as you go: "~23 x Copper Vein,
+  smelting the ore as you go" instead of ~80 veins for 1-65 (a vein gives ~3 ore: Classic
+  data, 2-4 mines a node). Ore already in your bags comes first: "Smelt 12 x Copper Ore",
+  with Craft 1 / Craft all at a forge. Only where smelting gives skill (Forever: up to 140,
+  then 155-185); mining only from 140 to 155 and after 185. Each step's tooltip (and the
+  tracker) also gives the other way: "or buy ~107 Copper Ore on the AH (~X) and smelt".
+  The whole Mining route drops from ~339 to ~270 veins.
 - Gathering routes in the mini panel and tracker: the step now says where to go (its
   three best zones, your faction's first), counts as a step ("13 steps left"), and the
   Craft buttons and "Left to buy" make way for "Nodes in all". A gathering step's tooltip

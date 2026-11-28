@@ -189,7 +189,8 @@ local function draw(lineID, plan, entries)
   local stepTop = y
   if e.kind == "craft" or (e.kind == "tool" and e.spell) then
     local spell, crafts = e.kind == "craft" and e.st.spell or e.spell, e.kind == "craft" and math.ceil(e.st.crafts - 1e-9) or 1
-    local label = e.kind == "craft" and ("Craft %d x %s  |cffcccccc%d-%d|r"):format(crafts, e.st.name, e.st.from, e.st.to) or e.text
+    local label = e.kind == "craft" and (e.st.smeltStep and ("Smelt %d x %s  |cffcccccc%d-%d|r"):format(crafts, e.st.ore, e.st.from, e.st.to)
+                  or ("Craft %d x %s  |cffcccccc%d-%d|r"):format(crafts, e.st.name, e.st.from, e.st.to)) or e.text
     add(label, "GameFontNormal")
     if e.kind == "craft" then stepTip = { plan, e.st } end
     local ready, mats = materials(lineID, spell, crafts)
@@ -199,7 +200,7 @@ local function draw(lineID, plan, entries)
       stepLoc = loc
       add("|cffff8040Not learned yet: " .. (how or "learn it first") .. "|r", "GameFontHighlightSmall", 12)
     elseif ready then
-      add("|cffffd100Ready to craft: open " .. name .. "|r", "GameFontHighlightSmall", 12)
+      add("|cffffd100Ready to craft: " .. (e.st and e.st.smeltStep and "at a forge" or ("open " .. name)) .. "|r", "GameFontHighlightSmall", 12)
     end
     for _, m in ipairs(mats) do
       add(("- |cff%s%d/%d|r %s%s"):format(m.have >= m.need and "40bf40" or "ff6060", m.have, m.need, UI.ItemName(m.item),
@@ -211,6 +212,12 @@ local function draw(lineID, plan, entries)
     add(e.text, "GameFontNormal")
     if e.st.alt and e.st.alt[1] then add("|cffcccccc- or " .. e.st.alt[1] .. "|r", "GameFontHighlightSmall", 12) end
     for _, z in ipairs(UI.GatherZones(e.st)) do add("- " .. z, "GameFontHighlightSmall", 12) end
+    if e.st.smelt then add(("- |cffffd100smelt the ore as you go (~%d %s)|r"):format(e.st.smelt.n, e.st.smelt.ore), "GameFontHighlightSmall", 12) end
+    if e.st.buy then
+      local p = Core.Price(e.st.buy.oreItem)
+      add(("|cffcccccc- or buy ~%d %s%s and smelt|r"):format(e.st.buy.n, e.st.buy.ore, p and (" (~" .. UI.Money(p * e.st.buy.n) .. ")") or ""),
+        "GameFontHighlightSmall", 12)
+    end
   else
     add(e.text, "GameFontNormal")
     stepLoc = e.loc
@@ -233,6 +240,9 @@ function T.Refresh()
   -- plan takes ~30 ms, and bags change with every loot. Materials are counted live.
   local sk = Core.Skills()[lineID]
   local key = table.concat({ lineID, sk.rank or 0, sk.max or 0, c.targets[lineID] or 300, Core.RouteVersion() }, ":")
+  if lineID == 186 then -- Mining: the ore in your bags decides the "smelt it" step
+    for _, sm in pairs(Core.SmeltData()) do key = key .. ":" .. Core.InBags(sm.ore) end
+  end
   local plan, entries
   if cache and cache.key == key then plan, entries = cache.plan, cache.entries
   else

@@ -618,6 +618,26 @@ do
     richSpent, richRank, rich.total + rich.fees, none.total + none.fees, spent(poor)))
 end
 
+-- 13. Mining: smelting the ore you mine gives skill too, so fewer veins; only where it can
+do
+  local nodes = SkillRouteData.gather[186]
+  local recs = SkillRouteData.professions[186].recipes
+  local copper = recs[2657] -- Smelt Copper: orange below 25, grey from 70
+  local smelt = { ["Copper Vein"] = { ore = 2770, oreName = "Copper Ore", perSmelt = 1, perVein = 3,
+                    r = { y = copper.y, g = copper.g }, learn = 1, spell = 2657, name = "Smelt Copper" } }
+  local plain = P.GatherPlan({ nodes = nodes, skill = 1, target = 65, maxSkill = 75 })
+  local withS = P.GatherPlan({ nodes = nodes, skill = 1, target = 65, maxSkill = 75, smelt = smelt })
+  check(withS.gathers < plain.gathers * 0.5, ("1-65 with smelting: %.0f veins vs %.0f"):format(withS.gathers, plain.gathers))
+  -- below 25 a vein is worth about 4 points (1 mined + ~3 smelted, all orange)
+  local early = P.GatherPlan({ nodes = nodes, skill = 1, target = 25, maxSkill = 75, smelt = smelt })
+  check(math.abs(early.gathers - 24 / 4) < 0.5, "1-25: ~6 veins, got " .. early.gathers)
+  -- ore in the bags first
+  local bag = P.GatherPlan({ nodes = nodes, skill = 1, target = 65, maxSkill = 75, smelt = smelt,
+    bagOre = { { ore = 2770, count = 10, sm = smelt["Copper Vein"] } } })
+  check(bag.steps[1].smeltStep and bag.steps[1].crafts == 10 and bag.steps[1].to == 11, "10 ore: smelt to 11 first")
+  print(("Mining 1-65: %.0f veins mining only, %.0f smelting as you go"):format(plain.gathers, withS.gathers))
+end
+
 print("\n110->300 route (mock prices):")
 for _, st in ipairs(sticky.steps) do
   if st.gap then print(("  %3d-%3d  GAP: needs a pattern"):format(st.from, st.to))
