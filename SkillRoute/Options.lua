@@ -409,7 +409,7 @@ local function build()
   y = number(pg, y, "Spot transparency",
     "How see-through the spots are, on both maps.",
     0, 80, 5, function(v) return ("%d%%"):format(v) end,
-    function() return S().pinTransparency or 50 end, function(v) Options.Set("pinTransparency", v) end,
+    function() return S().pinTransparency or 25 end, function(v) Options.Set("pinTransparency", v) end,
     { ends = { "Solid", "Faint" } })
   y = separator(pg, y)
   y = readout(pg, y, "Spots you've found",
