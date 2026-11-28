@@ -248,6 +248,17 @@ local function build(parent)
   ui.costL = font("GameFontHighlightSmall"); ui.costL:SetText("Left to buy")
   ui.costR = font("GameFontHighlightSmall")
   panel:SetScript("OnShow", function() dock(parent); Mini.Refresh() end)
+  -- walking up to (or away from) a forge with the window open: the game sends no event
+  -- for it, so look twice a second, and redraw only when the answer changes
+  local since = 0
+  panel:SetScript("OnUpdate", function(_, dt)
+    if not ui.toolSpell then return end
+    since = since + (dt or 0)
+    if since < 0.5 then return end
+    since = 0
+    local miss = Core.MissingTools(ui.toolSpell)
+    if (miss and table.concat(miss, ",")) ~= ui.toolKey then Mini.Refresh() end
+  end)
   dock(parent)
 end
 
@@ -264,11 +275,13 @@ local function draw()
   for _, m in ipairs(ui.mats) do m.l:SetText(""); m.r:SetText("") end
   ui.note:SetText(""); ui.then1:SetText(""); ui.then2:SetText("")
   ui.spell, ui.allN, ui.crafts, ui.learn, ui.st, ui.plan, ui.buyStep, ui.loc, ui.missing = nil, 0, 0, nil, nil, plan, nil, nil, nil
+  ui.toolSpell, ui.toolKey = nil, nil -- the recipe whose forge/tools decide what's shown (watched while open)
   ui.short:SetText(""); ui.after:SetText(""); ui.buy:Hide()
   local entries = plan and Mini.Entries(plan) or {}
   local remind -- smelting with no forge here: mine first, smelt later
   if entries[1] and entries[1].kind == "craft" and entries[1].st.smeltStep then
     local miss = Core.MissingTools(entries[1].st.spell)
+    ui.toolSpell, ui.toolKey = entries[1].st.spell, miss and table.concat(miss, ",")
     entries, remind = Mini.DeferSmelt(entries, not (miss and #miss > 0))
   end
   local nCraft = remind and 1 or 0
@@ -379,6 +392,7 @@ local function draw()
     ui.allN = math.min(crafts, Core.CraftableNow(line, ui.spell))
     local miss = Core.MissingTools(ui.spell) -- a forge, an anvil, a rod you aren't at / don't carry
     ui.missing = miss and #miss > 0 and miss or nil
+    ui.toolSpell, ui.toolKey = ui.spell, miss and table.concat(miss, ",")
     if known and ui.missing then
       ui.note:SetText("|cffff6060Needs: " .. table.concat(ui.missing, ", ") .. "|r")
     end

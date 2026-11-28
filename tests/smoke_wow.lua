@@ -245,6 +245,33 @@ do
     "mini matches the full route: " .. tostring(note) .. " vs " .. tostring(learnText))
   print("mini = full route: " .. note)
   M.Refresh() -- live update path runs
+  do -- the step's recipe needs a forge: Craft buttons off, and back on once you're at one (window open)
+    local savedT, at, savedKnown = _G.C_TradeSkillUI, false, Core.IsRecipeKnown
+    Core.IsRecipeKnown = function() return true end
+    _G.C_TradeSkillUI = setmetatable({ GetRecipeRequirements = function() return { { name = "Forge", met = at } } end },
+                                     { __index = savedT })
+    M.Refresh()
+    local function needs()
+      for _, t in ipairs(texts) do
+        local v = rawget(t, "text")
+        if type(v) == "string" and v:find("Needs: Forge", 1, true) then return true end
+      end
+    end
+    assert(needs(), "a missing forge is named")
+    local pf
+    for _, f in ipairs(frames) do if rawget(f, "OnUpdate") and rawget(f, "onShow") then pf = f end end
+    assert(pf, "the mini panel watches for a forge")
+    for _, t in ipairs(texts) do if rawget(t, "text") and t.text:find("Needs: Forge", 1, true) then t.text = "" end end
+    at = true
+    pf.OnUpdate(pf, 0.2); assert(not needs(), "nothing redrawn yet")
+    pf.OnUpdate(pf, 0.4)
+    local cleared = not needs()
+    at = false
+    pf.OnUpdate(pf, 0.6)
+    assert(cleared and needs(), "redrawn when you walk up to a forge, and away again")
+    _G.C_TradeSkillUI, Core.IsRecipeKnown = savedT, savedKnown
+    M.Refresh()
+  end
   SkillRouteDB.lastError = nil
   local after, short
   for _, t in ipairs(texts) do

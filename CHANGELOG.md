@@ -20,6 +20,9 @@
   buttons.
 - Mini panel: Craft buttons stay off when the recipe needs a forge, anvil or rod you
   aren't at or don't carry ("Needs: Anvil"). `/sr check` lists the API this uses.
+- Mini panel: walking up to a forge (or away) with the profession window open now
+  switches between smelting and mining within half a second; before, you had to close
+  and reopen the window.
 - Gathering routes in the mini panel and tracker: the step now says where to go (its
   three best zones, your faction's first), counts as a step ("13 steps left"), and the
   Craft buttons and "Left to buy" make way for "Nodes in all". A gathering step's tooltip
