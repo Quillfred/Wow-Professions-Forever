@@ -23,7 +23,7 @@ local function S() SkillRouteDB.settings = SkillRouteDB.settings or {}; return S
 function P.MapOn() return S().mapPins ~= false end
 function P.MiniOn() return S().miniPins ~= false end
 function P.RecordOn() return S().recordFinds ~= false end
-function P.Alpha() return 1 - (S().pinTransparency or 25) / 100 end
+function P.Alpha() return 1 - (S().pinTransparency or 50) / 100 end
 
 -- Spots ---------------------------------------------------------------------------------
 local decoded = {}
