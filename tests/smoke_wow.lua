@@ -3052,6 +3052,9 @@ do
       pin:OnLoad(); pin:OnAcquired(...)
       acquired[#acquired + 1] = pin
     end
+    -- the map sets a pin's OnEnter/OnLeave itself and asserts the template didn't (Blizzard_MapCanvas)
+    local xml = io.open("SkillRoute/MapPins.xml"):read("*a")
+    assert(not xml:find("<OnEnter") and not xml:find("<OnLeave"), "the pin template leaves OnEnter/OnLeave to the map")
     assert(P.UseProvider() and provider, "registered with the world map")
     local n = P.RefreshWorld()
     local want = P.PinsFor(1413)

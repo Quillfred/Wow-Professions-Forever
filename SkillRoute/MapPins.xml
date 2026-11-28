@@ -11,9 +11,9 @@
       </Layer>
     </Layers>
     <Scripts>
+      <!-- only OnLoad: the map sets OnEnter/OnLeave itself (it asserts they're unset) and calls
+           the mixin's OnMouseEnter/OnMouseLeave -->
       <OnLoad method="OnLoad"/>
-      <OnEnter method="OnMouseEnter"/>
-      <OnLeave method="OnMouseLeave"/>
     </Scripts>
   </Frame>
 </Ui>

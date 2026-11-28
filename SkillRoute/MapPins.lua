@@ -285,13 +285,15 @@ local function makeMixin() -- once the map's own pin mixin exists (the map can l
     pcall(self.UseFrameLevelType, self, "PIN_FRAME_LEVEL_AREA_POI")
     if self.SetScalingLimits then self:SetScalingLimits(1, 1.0, 1.2) end -- about the same size at any zoom
     self.edges = { self.top, self.bottom, self.left, self.right }
+    -- hover for the tooltip, clicks through to the map; set here, before the map looks
+    if self.SetMouseMotionEnabled then pcall(self.SetMouseMotionEnabled, self, true) end
+    if self.SetMouseClickEnabled then pcall(self.SetMouseClickEnabled, self, false) end
   end
   function SkillRouteMapPinMixin:OnAcquired(p, alpha)
     self.pin, self.also = p, p[6]
     local c = p[5] and RING.find or RING[P.Kind(p[3]) or "ore"]
     for _, t in ipairs(self.edges) do t:SetColorTexture(c[1], c[2], c[3], 1) end
     self:SetAlpha(alpha)
-    if self.SetMouseClickEnabled then pcall(self.SetMouseClickEnabled, self, false) end -- clicks go to the map
     self:SetPosition(p[1], p[2])
   end
   function SkillRouteMapPinMixin:OnMouseEnter() pinTip(self) end

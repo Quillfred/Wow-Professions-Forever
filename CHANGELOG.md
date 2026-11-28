@@ -76,6 +76,8 @@
 - Map spots: the nodes shown follow your Mining and Herbalism ranks, so the first answer
   right after login (before the game reports your professions) no longer sticks; squares
   are placed again when the map resizes; `/sr check` says how the world map draws them.
+- World map spots: fixed the map refusing them (its pins mustn't set their own hover
+  scripts; it asserted on every new one), which left only a few, misplaced.
 - Gathering routes in the mini panel and tracker: the step now says where to go (its
   three best zones, your faction's first), counts as a step ("13 steps left"), and the
   Craft buttons and "Left to buy" make way for "Nodes in all". A gathering step's tooltip
