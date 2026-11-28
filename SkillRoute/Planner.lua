@@ -999,20 +999,51 @@ function Planner.GatherPlan(ctx)
                               from = start, to = s, crafts = used, color = Planner.Color(b.sm.r, start) }
       end
     end
+    -- Bronze (Copper Bar + Tin Bar), only for the bars another route of yours uses
+    -- (ctx.bronze.smelts of them): bars you can make from your bags first, then smelted
+    -- from the Tin Veins' ore (with bought Copper Ore)
+    local bz = ctx.bronze
+    local bzLeft = bz and bz.smelts or 0
+    if bz and (bz.bag or 0) > 0 then
+      local left, used, start, acc = math.min(bz.bag, bzLeft), 0, s, 0
+      while left >= 1 and s < to do
+        local p = s >= bz.learn and Planner.Chance(bz.r, s, ctx.bonus) or 0
+        if p <= 0 then break end
+        acc, left, used = acc + p, left - 1, used + 1
+        while acc >= 1 and s < to do acc, s = acc - 1, s + 1 end
+      end
+      if s > start then
+        bzLeft = bzLeft - used
+        steps[#steps + 1] = { smeltStep = true, bronzeStep = true, spell = bz.spell, name = bz.name, ore = "Bronze",
+                              from = start, to = s, crafts = used, color = Planner.Color(bz.r, start) }
+      end
+    end
     local first = s
-    local pick, perVein, smelting = {}, {}, {}
+    local pick, perVein, smelting, bronzeAt = {}, {}, {}, {}
     for s = first, to - 1 do
-      local best, bestScore, bestV, bestP
+      local best, bestScore, bestV, bestP, bestB
+      local pb = (bz and bzLeft > 0 and s >= bz.learn) and Planner.Chance(bz.r, s, ctx.bonus) or 0
       for i, nd in ipairs(ctx.nodes or {}) do
         if nd[2] <= s and not nd[4] and not (ctx.skip and ctx.skip[nd[1]]) then -- nd[4]: rare variant
           local p = Planner.Chance(nodeRule(nd[2]), s, ctx.bonus)
           local ps, sm = smeltChance(nd, s)
-          local v = p + (sm and sm.perVein * ps or 0) -- skill points per vein, mining + smelting
+          local b = (pb > 0 and ctx.smelt and ctx.smelt[nd[1]] and ctx.smelt[nd[1]].ore == bz.tinOre) and bz.tinPerVein * pb or 0
+          local v = p + (sm and sm.perVein * ps or 0) + b -- skill points per vein: mining, smelting, Bronze
           local score = v * avail[i]
-          if p > 0 and (not bestScore or score > bestScore) then best, bestScore, bestV, bestP = i, score, v, ps end
+          if p > 0 and (not bestScore or score > bestScore) then best, bestScore, bestV, bestP, bestB = i, score, v, ps, b end
         end
       end
       pick[s], perVein[s], smelting[s] = best, bestV, (bestP or 0) > 0
+      if (bestB or 0) > 0 then
+        local per = bz.tinPerVein / bestV -- Bronze smelts for this point
+        if per > bzLeft then -- the last bars: only part of the ore goes to Bronze
+          local frac = bzLeft / per
+          perVein[s] = bestV - bestB * (1 - frac)
+          per = bz.tinPerVein * frac / perVein[s]
+        end
+        bronzeAt[s] = per
+        bzLeft = bzLeft - per
+      end
     end
     s = first
     while s < to do
@@ -1026,13 +1057,15 @@ function Planner.GatherPlan(ctx)
       else
         local nd, e, n = ctx.nodes[i], s, 0
         local sm = ctx.smelt and ctx.smelt[nd[1]]
-        local buyN, buyAll = 0, true -- smelts if you bought all the ore instead
+        local buyN, buyAll, bzN = 0, not bronzeAt[s], 0 -- smelts if you bought all the ore instead
         repeat
           n = n + 1 / perVein[e]
+          bzN = bzN + (bronzeAt[e] or 0)
           local ps = smeltChance(nd, e)
           if ps > 0 then buyN = buyN + 1 / ps else buyAll = false end
           e = e + 1
-        until e >= to or pick[e] ~= i or smelting[e] ~= smelting[s] or (e % 75 == 0 and e >= (ctx.maxSkill or 0))
+        until e >= to or pick[e] ~= i or smelting[e] ~= smelting[s] or (not bronzeAt[e]) ~= (not bronzeAt[s])
+              or (e % 75 == 0 and e >= (ctx.maxSkill or 0))
         -- rare ores that share these zones and give skill here: "mine when you see them"
         local also = {}
         for _, rn in ipairs(ctx.nodes) do
@@ -1061,6 +1094,10 @@ function Planner.GatherPlan(ctx)
           st.smelt = { name = sm.name, spell = sm.spell, ore = sm.oreName, oreItem = sm.ore,
                        n = math.floor(n * sm.perVein * sm.perSmelt + 0.5) }
           if buyAll then st.buy = { ore = sm.oreName, oreItem = sm.ore, n = math.ceil(buyN * sm.perSmelt - 1e-9) } end
+        end
+        if bzN > 0 then
+          local k = math.max(1, math.floor(bzN + 0.5))
+          st.bronze = { n = k, bars = k * bz.outN, copper = k, name = bz.name, spell = bz.spell, who = bz.who }
         end
         steps[#steps + 1] = st
         total = total + n

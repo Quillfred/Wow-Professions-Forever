@@ -213,6 +213,12 @@ local function draw(lineID, plan, entries, remind)
     if e.st.alt and e.st.alt[1] then add("|cffcccccc- or " .. e.st.alt[1] .. "|r", "GameFontHighlightSmall", 12) end
     for _, z in ipairs(UI.GatherZones(e.st)) do add("- " .. z, "GameFontHighlightSmall", 12) end
     if e.st.smelt then add(("- |cffffd100smelt the ore as you go (~%d %s)|r"):format(e.st.smelt.n, e.st.smelt.ore), "GameFontHighlightSmall", 12) end
+    if e.st.bronze then
+      local b, p = e.st.bronze, Core.Price(2770)
+      add(("- |cffffd100smelt ~%d Bronze Bars for %s|r"):format(b.bars, table.concat(b.who or {}, ", ")), "GameFontHighlightSmall", 12)
+      add(("|cffcccccc- buy ~%d Copper Ore for them%s|r"):format(b.copper, p and (" (~" .. UI.Money(p * b.copper) .. ")") or ""),
+        "GameFontHighlightSmall", 12)
+    end
     if e.st.buy then
       local p = Core.Price(e.st.buy.oreItem)
       add(("|cffcccccc- or buy ~%d %s%s and smelt|r"):format(e.st.buy.n, e.st.buy.ore, p and (" (~" .. UI.Money(p * e.st.buy.n) .. ")") or ""),
@@ -243,6 +249,8 @@ function T.Refresh()
   local key = table.concat({ lineID, sk.rank or 0, sk.max or 0, c.targets[lineID] or 300, Core.RouteVersion() }, ":")
   if lineID == 186 then -- Mining: the ore in your bags decides the "smelt it" step
     for _, sm in pairs(Core.SmeltData()) do key = key .. ":" .. Core.InBags(sm.ore) end
+    local bd = Core.BronzeData() -- bars for Bronze, and the bars you've made
+    if bd then key = key .. ":" .. Core.InBags(bd.copperBar) .. ":" .. Core.InBags(bd.tinBar) .. ":" .. Core.Owned(bd.bar) end
   end
   local plan, entries
   if cache and cache.key == key then plan, entries = cache.plan, cache.entries

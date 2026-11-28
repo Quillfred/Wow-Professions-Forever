@@ -2835,7 +2835,20 @@ do
   _G.C_TradeSkillUI = nil
   assert(Core.MissingTools(s1.spell) == nil, "no API: can't tell")
   _G.C_TradeSkillUI = savedT
+  -- Bronze: only when another route of yours uses Bronze Bars
+  for _, st in ipairs(sp.steps) do assert(not st.bronze and not st.bronzeStep, "no Bronze: no route wants it") end
+  local savedNeeds = Core.RouteNeeds
+  Core.RouteNeeds = function() return { [2841] = { { "Blacksmithing", 40 } } } end
+  local bp = Core.Plan(186, 300)
+  local bzN, bzStep = 0, nil
+  for _, st in ipairs(bp.steps) do if st.bronze then bzN = bzN + st.bronze.n; bzStep = bzStep or st end end
+  assert(bzN >= 20 and bzN <= 21 and bzStep.name == "Tin Vein" and bzStep.bronze.who[1] == "Blacksmithing",
+    "40 bars for Blacksmithing: ~20 Bronze smelts on the Tin Veins, got " .. bzN)
+  assert(bp.gathers < sp.gathers, "fewer veins with Bronze")
+  UI.Toggle(186); UI.Toggle(186) -- the route draws with Bronze rows
+  Core.RouteNeeds = savedNeeds
   Core.InBags = savedBags
+  print(("bronze: %d -> %d veins, ~%d Bronze smelts on %s %d-%d"):format(sp.gathers, bp.gathers, bzN, bzStep.name, bzStep.from, bzStep.to))
   print(("smelting: %d -> %d veins; %s, then ~%d %s smelting ~%d ore (or buy ~%d)"):format(plan.gathers, sp.gathers, e1.text,
     math.ceil(s2.crafts), s2.name, s2.smelt.n, s2.buy.n))
   Core.Skills = savedSkills

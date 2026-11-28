@@ -1401,6 +1401,32 @@ function Core.SmeltData()
   return smeltData
 end
 
+-- Smelt Bronze: Copper Bar + Tin Bar -> 2 Bronze Bars, skill until it turns grey. Two
+-- ores, so not in Core.SmeltData. nil if the data has no such recipe.
+local bronzeData
+function Core.BronzeData()
+  if bronzeData ~= nil then return bronzeData or nil end
+  bronzeData = false
+  local BAR, CU_BAR, TIN_BAR = 2841, 2840, 3576
+  for spell, r in pairs(Data.professions[186] and Data.professions[186].recipes or {}) do
+    if r.out == BAR and r.r and #r.r == 4 and r.g > r.y then
+      bronzeData = { spell = spell, name = r.n, r = { y = r.y, g = r.g }, learn = r.learn or r.y, bar = BAR,
+                     outN = r.outN or 1, copperBar = CU_BAR, tinBar = TIN_BAR, copperOre = 2770, tinOre = 2771 }
+    end
+  end
+  return bronzeData or nil
+end
+
+-- Bronze Bars your other routes use (Blacksmithing, Engineering) that you don't have yet:
+-- the Mining route smelts them on the Tin Vein steps, and no more. Returns bars, {prof names}.
+function Core.BronzeWanted()
+  local bd = Core.BronzeData()
+  if not bd then return 0, {} end
+  local n, who = 0, {}
+  for _, e in ipairs(Core.RouteNeeds()[bd.bar] or {}) do n = n + e[2]; who[#who + 1] = e[1] end
+  return math.max(0, n - Core.Owned(bd.bar)), who
+end
+
 -- Merchant's Favor ---------------------------------------------------------------
 -- Forever's profession vendors in the Barrens / Redridge sell patterns for Favor only.
 function Core.FavorBalance()
@@ -1649,8 +1675,23 @@ function Core.Plan(line, target)
       end
       table.sort(bagOre, function(a, b) return a.sm.learn < b.sm.learn end) -- lowest recipe first (Copper before Tin)
     end
+    -- Bronze, only for bars another of your routes uses
+    local bronze
+    local bd = smelt and Core.BronzeData()
+    if bd then
+      local bars, who = Core.BronzeWanted()
+      if bars > 0 then
+        local tinPer
+        for _, sm in pairs(smelt) do if sm.ore == bd.tinOre then tinPer = sm.perVein * sm.perSmelt end end
+        bronze = { smelts = math.ceil(bars / bd.outN), r = bd.r, learn = bd.learn, spell = bd.spell, name = bd.name,
+                   outN = bd.outN, tinOre = bd.tinOre, tinPerVein = tinPer or 3, who = who,
+                   -- what's in your bags for it now: bars, or ore to smelt into bars
+                   bag = math.min(Core.InBags(bd.copperBar) + Core.InBags(bd.copperOre),
+                                  Core.InBags(bd.tinBar) + Core.InBags(bd.tinOre)) }
+      end
+    end
     local plan = Planner.GatherPlan({ nodes = Data.gather and Data.gather[line], skinning = line == 393,
-      smelt = smelt, bagOre = bagOre,
+      smelt = smelt, bagOre = bagOre, bronze = bronze,
       fishing = line == 356 and Data.fishing or nil, zoneRank = zoneRank,
       skinZones = line == 393 and Data.skinZones or nil,
       skill = s.rank, target = target, maxSkill = s.max, bonus = Core.Bonus() })

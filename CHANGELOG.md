@@ -23,6 +23,13 @@
 - Mini panel: walking up to a forge (or away) with the profession window open now
   switches between smelting and mining within half a second; before, you had to close
   and reopen the window.
+- Mining: Bronze, only when another of your professions' routes uses Bronze Bars
+  (Blacksmithing, Engineering), and only as many as it needs. The Tin Vein steps then say
+  "smelting the ore into Bronze", with how many bars, for which route, and the Copper Ore
+  to buy for them (each Bronze needs a Copper Bar and a Tin Bar). Bars or ore already in
+  your bags become a "Smelt N x Bronze" step with Craft buttons at a forge. Bronze is a
+  chance at a skill-up from 65 to 115: with plenty of bars wanted, 75-125 drops from
+  ~62 Tin Veins to ~39.
 - Gathering routes in the mini panel and tracker: the step now says where to go (its
   three best zones, your faction's first), counts as a step ("13 steps left"), and the
   Craft buttons and "Left to buy" make way for "Nodes in all". A gathering step's tooltip

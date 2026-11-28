@@ -319,7 +319,7 @@ local function draw()
       or line == 186 and "Interface\\Icons\\Trade_Mining" or "Interface\\Icons\\Trade_Herbalism")
     ui.main:SetText(("|cffffd100~%d x %s|r"):format(math.ceil(st.crafts - 1e-9), st.name)
       .. ((st.alt and st.alt[1]) and (" |cffcccccc(or %s)|r"):format(st.alt[1]) or "")
-      .. (st.smelt and "|cffffd100, smelting the ore|r" or ""))
+      .. (st.bronze and "|cffffd100, smelting Bronze|r" or st.smelt and "|cffffd100, smelting the ore|r" or ""))
     local zones = UI.GatherZones(st)
     ui.sub:SetText(("|cff999999skill %d -> %d|r  %s"):format(st.from, st.to, #zones > 0 and table.concat(zones, ", ") or ""))
   else
@@ -390,6 +390,9 @@ local function draw()
     end
     known = Core.IsRecipeKnown(line, ui.spell)
     ui.allN = math.min(crafts, Core.CraftableNow(line, ui.spell))
+    if ui.st and ui.st.bronzeStep and ui.allN < crafts then
+      ui.note:SetText("Smelt your Copper and Tin Ore into bars first (no skill-up)")
+    end
     local miss = Core.MissingTools(ui.spell) -- a forge, an anvil, a rod you aren't at / don't carry
     ui.missing = miss and #miss > 0 and miss or nil
     ui.toolSpell, ui.toolKey = ui.spell, miss and table.concat(miss, ",")

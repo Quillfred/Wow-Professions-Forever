@@ -626,12 +626,18 @@ local function routeRows(plan)
       local known = Core.IsRecipeKnown(plan.line, st.spell)
       add({ item = r and r.out, spell = st.spell,
             text = ("|cff%sSmelt %d x %s|r"):format(COLORS[st.color] or "ffffff", st.crafts, st.ore),
-            sub = "The ore in your bags, at any forge" .. (known and "" or "  |cffffd100learn " .. st.name .. " at your Mining trainer|r"),
+            sub = (st.bronzeStep and "Copper and Tin Bars (or their ore) in your bags, at any forge" or "The ore in your bags, at any forge")
+                  .. (known and "" or "  |cffffd100learn " .. st.name .. " at your Mining trainer|r"),
             range = ("%d-%d"):format(st.from, st.to),
             tipTitle = st.name,
-            tip = { { header = "SkillRoute" }, { "Smelt", ("%d x %s in your bags"):format(st.crafts, st.ore) },
-                    { "Skill-ups through", UI.Bands(r, " · ") },
-                    { note = "Smelting gives Mining skill until its recipe turns grey. Needs a forge (most towns)." } } })
+            tip = st.bronzeStep
+                  and { { header = "SkillRoute" }, { "Smelt", ("%d x Bronze: a Copper Bar and a Tin Bar each"):format(st.crafts) },
+                        { "", "smelt Copper and Tin Ore into bars first (no skill-up)", sub = true },
+                        { "Skill-ups through", UI.Bands(r, " · ") },
+                        { note = "For the Bronze Bars your other route uses. Needs a forge (most towns)." } }
+                  or { { header = "SkillRoute" }, { "Smelt", ("%d x %s in your bags"):format(st.crafts, st.ore) },
+                       { "Skill-ups through", UI.Bands(r, " · ") },
+                       { note = "Smelting gives Mining skill until its recipe turns grey. Needs a forge (most towns)." } } })
     elseif st.gather then
       local zones = UI.GatherZones(st)
       add({ icon = st.skinning and "Interface\\Icons\\INV_Misc_Pelt_Wolf_01"
@@ -642,8 +648,10 @@ local function routeRows(plan)
                    or ("|cff%s~%d|r x %s"):format(COLORS[st.color] or "ffffff", math.ceil(st.crafts - 1e-9), st.name)
                       .. ((st.alt and st.alt[1]) and (" |cffcccccc(or %s)|r"):format(st.alt[1]) or "")
                       -- one line: with an alternative there's only room for the short form
-                      .. (st.smelt and ((st.alt and st.alt[1]) and " |cffffd100+ smelt|r"
-                                        or ", |cffffd100smelting the ore as you go|r") or ""),
+                      .. (st.bronze and ((st.alt and st.alt[1]) and " |cffffd100+ Bronze|r"
+                                         or ", |cffffd100smelting the ore into Bronze|r")
+                          or st.smelt and ((st.alt and st.alt[1]) and " |cffffd100+ smelt|r"
+                                           or ", |cffffd100smelting the ore as you go|r") or ""),
             sub = st.fishing and (#zones > 0 and ("No fish get away in: " .. table.concat(zones, ", "))
                                   or "Fish in your starting zone's waters")
                   or st.skinning and (#zones > 0 and ("Best zones: " .. table.concat(zones, ", "))
@@ -683,6 +691,14 @@ local function routeRows(plan)
                     if st.smelt then
                       t[#t + 1] = { "Smelt", ("~%d %s as you go (%s)"):format(st.smelt.n, st.smelt.ore, st.smelt.name) }
                       t[#t + 1] = { "", "each smelt is a chance at a skill-up too: fewer veins", sub = true }
+                    end
+                    if st.bronze then
+                      local p = Core.Price(2770)
+                      t[#t + 1] = { "Bronze", ("~%d x %s: ~%d Bronze Bars for your %s route"):format(st.bronze.n, st.bronze.name,
+                        st.bronze.bars, table.concat(st.bronze.who or {}, " and ")) }
+                      t[#t + 1] = { "", ("each needs a Copper Bar: buy ~%d Copper Ore%s"):format(st.bronze.copper,
+                        p and (" (~" .. money(p * st.bronze.copper) .. ")") or ""), sub = true }
+                      t[#t + 1] = { "", "smelt the Tin and Copper into bars, then Bronze", sub = true }
                     end
                     if st.buy then
                       local p = Core.Price(st.buy.oreItem)

@@ -638,6 +638,39 @@ do
   print(("Mining 1-65: %.0f veins mining only, %.0f smelting as you go"):format(plain.gathers, withS.gathers))
 end
 
+-- 14. Bronze on the Tin Vein steps: only the bars another route uses, and fewer veins for it
+do
+  local nodes = SkillRouteData.gather[186]
+  local bronzeR = SkillRouteData.professions[186].recipes[2659] -- Copper Bar + Tin Bar -> 2 Bronze
+  local tinR = SkillRouteData.professions[186].recipes[3304]
+  local smelt = { ["Tin Vein"] = { ore = 2771, oreName = "Tin Ore", perSmelt = 1, perVein = 3,
+                    r = { y = tinR.y, g = tinR.g }, learn = 65, spell = 3304, name = "Smelt Tin" } }
+  local function bz(smelts, bag)
+    return { smelts = smelts, r = { y = bronzeR.y, g = bronzeR.g }, learn = 65, spell = 2659, name = "Smelt Bronze",
+             outN = 2, tinOre = 2771, tinPerVein = 3, who = { "Blacksmithing" }, bag = bag }
+  end
+  local none = P.GatherPlan({ nodes = nodes, skill = 75, target = 125, maxSkill = 150, smelt = smelt })
+  local lots = P.GatherPlan({ nodes = nodes, skill = 75, target = 125, maxSkill = 150, smelt = smelt, bronze = bz(1000) })
+  local few = P.GatherPlan({ nodes = nodes, skill = 75, target = 125, maxSkill = 150, smelt = smelt, bronze = bz(10) })
+  check(math.abs(none.gathers - 62) < 3 and math.abs(lots.gathers - 39) < 3,
+    ("75-125: ~62 Tin Veins, ~39 with Bronze: %.0f / %.0f"):format(none.gathers, lots.gathers))
+  check(few.gathers < none.gathers and few.gathers > lots.gathers, "a few bars: a few veins fewer")
+  local made, before = 0, nil
+  for _, st in ipairs(few.steps) do
+    if st.bronze then made = made + st.bronze.n; check(st.name == "Tin Vein" and not st.buy, "Bronze on a Tin Vein step") end
+  end
+  check(made >= 10 and made <= 11, "no more Bronze than wanted: " .. made)
+  local noBronze = true
+  for _, st in ipairs(none.steps) do if st.bronze or st.bronzeStep then noBronze = false end end
+  check(noBronze, "no Bronze unless another route wants it")
+  -- bars (or their ore) in your bags: a Bronze step first, no more than wanted
+  local bag = P.GatherPlan({ nodes = nodes, skill = 75, target = 125, maxSkill = 150, smelt = smelt, bronze = bz(4, 9) })
+  check(bag.steps[1].bronzeStep and bag.steps[1].crafts == 4 and bag.steps[1].ore == "Bronze", "smelt 4 Bronze from the bags")
+  local below = P.GatherPlan({ nodes = nodes, skill = 40, target = 60, maxSkill = 75, bronze = bz(4, 9) })
+  check(not below.steps[1].bronzeStep, "no Bronze step before 65")
+  print(("Mining 75-125: %.0f Tin Veins, %.0f with Bronze (%.0f with 20 bars)"):format(none.gathers, lots.gathers, few.gathers))
+end
+
 print("\n110->300 route (mock prices):")
 for _, st in ipairs(sticky.steps) do
   if st.gap then print(("  %3d-%3d  GAP: needs a pattern"):format(st.from, st.to))
