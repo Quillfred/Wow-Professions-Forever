@@ -22,6 +22,7 @@ local function S() SkillRouteDB.settings = SkillRouteDB.settings or {}; return S
 function P.MapOn() return S().mapPins ~= false end
 function P.MiniOn() return S().miniPins ~= false end
 function P.RecordOn() return S().recordFinds ~= false end
+function P.KindOn(kind) if kind == "herb" then return S().mapHerbs ~= false end return S().mapOres ~= false end
 function P.Alpha() return 1 - (S().pinTransparency or 25) / 100 end
 
 -- Spots ---------------------------------------------------------------------------------
@@ -173,10 +174,12 @@ function P.PinsFor(map)
   if c and c.finds == P.FindCount() then return c.list end
   local all = {}
   for name, role in pairs(w) do
-    local s = P.Spots(name, map)
-    for i = 1, #s, 2 do all[#all + 1] = { s[i], s[i + 1], name, role } end
-    local f = P.Finds(name, map)
-    for i = 1, #f, 2 do all[#all + 1] = { f[i], f[i + 1], name, role, true } end
+    if P.KindOn(P.Kind(name) or "ore") then -- Veins/Deposits and Herbs can each be turned off in Options
+      local s = P.Spots(name, map)
+      for i = 1, #s, 2 do all[#all + 1] = { s[i], s[i + 1], name, role } end
+      local f = P.Finds(name, map)
+      for i = 1, #f, 2 do all[#all + 1] = { f[i], f[i + 1], name, role, true } end
+    end
   end
   -- the step's node stands for a merged spot before an alternative or a rare one
   table.sort(all, function(a, b)

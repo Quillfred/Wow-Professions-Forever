@@ -3012,6 +3012,21 @@ do
     GetMapID = function() return 1413 end, IsShown = function() return true end }, { __index = stubObj() })
   local nWorld = P.RefreshWorld()
   assert(nWorld == #P.PinsFor(1413) and nWorld > 147, "the Barrens: every Tin Vein spot and the rest: " .. nWorld)
+  -- Veins/Deposits and Herbs each on or off (both maps)
+  local function kinds()
+    local o, h = 0, 0
+    for _, q in ipairs(P.PinsFor(1413)) do if P.Kind(q[3]) == "herb" then h = h + 1 else o = o + 1 end end
+    return o, h
+  end
+  local o0, h0 = kinds()
+  assert(o0 > 0 and h0 > 0, "both by default")
+  SkillRouteDB.settings.mapHerbs = false; P.Invalidate()
+  local o1, h1 = kinds()
+  assert(o1 == o0 and h1 == 0, "Herbs off: ores only")
+  SkillRouteDB.settings.mapHerbs, SkillRouteDB.settings.mapOres = nil, false; P.Invalidate()
+  local o2, h2 = kinds()
+  assert(o2 == 0 and h2 == h0, "Veins/Deposits off: herbs only")
+  SkillRouteDB.settings.mapOres = nil; P.Invalidate()
   SkillRouteDB.settings.mapPins = false
   assert(P.RefreshWorld() == 0, "map spots off")
   SkillRouteDB.settings.mapPins = nil

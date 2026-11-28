@@ -17,7 +17,7 @@ function Options.Set(key, value)
   Core.InvalidatePatterns()
   Core.Changed()
   if key == "minimapHide" then Options.UpdateMinimap() end
-  if ns.MapPins and (key == "mapPins" or key == "miniPins" or key == "pinTransparency") then ns.MapPins.Refresh() end
+  if ns.MapPins and (key == "mapPins" or key == "miniPins" or key == "pinTransparency" or key == "mapOres" or key == "mapHerbs") then ns.MapPins.Refresh() end
 end
 
 -- Minimap button ---------------------------------------------------------------------
@@ -396,12 +396,18 @@ local function build()
   local page3 = newPage()
   pg = page3 -- and these on Map
   y = -8
-  y = check(pg, y, "Show gathering spots on the world map",
+  y = check(pg, y, "Show Gathering Nodes on the World Map",
     "Where the nodes of your Mining and Herbalism routes' current steps can spawn: the step's node, the ones that count the same, and the rare ones to gather when you see them. Hover a spot for what it is.",
     function() return S().mapPins ~= false end, function(v) Options.Set("mapPins", v) end)
-  y = check(pg, y, "Show them on the minimap",
+  y = check(pg, y, "Show Gathering Nodes on the Mini Map",
     "Only the spots within the minimap's range.",
     function() return S().miniPins ~= false end, function(v) Options.Set("miniPins", v) end)
+  y = check(pg, y, "Veins/Deposits",
+    "Ore spots (copper squares), on both maps.",
+    function() return S().mapOres ~= false end, function(v) Options.Set("mapOres", v) end)
+  y = check(pg, y, "Herbs",
+    "Herb spots (green squares), on both maps.",
+    function() return S().mapHerbs ~= false end, function(v) Options.Set("mapHerbs", v) end)
   y = check(pg, y, "Save spots I find that the map doesn't have",
     "When you gather somewhere with no known spot of that node within about 10 yards, it's saved and shown with the others (tinted gold), for all your characters.",
     function() return S().recordFinds ~= false end, function(v) Options.Set("recordFinds", v) end)
