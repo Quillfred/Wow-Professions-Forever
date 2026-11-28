@@ -45,11 +45,14 @@ are not affiliated with Blizzard.
 Recipes, reagents, items, spells, maps, flight paths and factions read from the game
 client's own tables. World of Warcraft content is the property of Blizzard Entertainment.
 
-## Wowhead (tools/wowhead_forever.json, tools/forever_sources.json)
+## Wowhead (tools/wowhead_forever.json, tools/forever_sources.json, tools/node_points.json, tools/node_reqs.json, tools/favor_rep.json, tools/crates.json)
 
 Recipe learn levels, trainer costs and recipe sources were taken from Wowhead's WoW
 Forever pages (https://www.wowhead.com/forever), and some corrections in
-tools/source_overrides.json and tools/forever_checks.json were checked there. Thanks to
+tools/source_overrides.json and tools/forever_checks.json were checked there. Herb and
+ore spots and the skill each node needs (Mining and Herbalism routes), the reputation
+Merchant's Favor patterns need, and what each Waylaid Crate accepts come from Wowhead's
+WoW Forever maps and tooltips. Thanks to
 Wowhead and its contributors. If you represent Wowhead and want this data removed,
 open an issue at https://github.com/Quillfred/Wow-Professions-Forever and it will be:
 `NO_WOWHEAD=1 tools/build_all.sh` rebuilds the addon without it.

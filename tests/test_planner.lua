@@ -302,8 +302,17 @@ do
   local ok = true
   for _, s in ipairs(D.farm[2924] or {}) do if s[3] ~= "Loch Modan" then ok = false end end
   check(ok, "Crocolisk Meat: Loch Modan only")
-  local g = D.gather[186][1]
-  check(g[1] == "Copper Vein" and g[3][1] == "Zephras Isle", "Copper Vein: Forever spawn counts (Zephras Isle leads)")
+  local g
+  for _, nd in ipairs(D.gather[186]) do if nd[1] == "Copper Vein" then g = nd end end
+  check(g and g[3][1] == "Zephras Isle", "Copper Vein: Forever spawn counts (Zephras Isle leads)")
+  -- Wowhead's Forever map data: Forever-only nodes, with their skill (tooltips match the game's)
+  local byName = {}
+  for _, line in ipairs({ 182, 186 }) do for _, nd in ipairs(D.gather[line]) do byName[nd[1]] = nd end end
+  check(byName["Heavy Thorium Vein"] and byName["Heavy Thorium Vein"][2] == 300, "Heavy Thorium Vein: Forever-only, 300")
+  check(byName["Cold Iron Deposit"] and byName["Cold Iron Deposit"][2] == 125, "Cold Iron Deposit: 125")
+  check(byName["Marefoil"] and byName["Demonsage"], "Marefoil, Demonsage: Forever-only herbs")
+  check(byName["Black Lotus"] and byName["Black Lotus"][4] == true, "Black Lotus: when you see it, never a planned step")
+  check(byName["Truesilver Deposit"][2] == 230 and byName["Iron Deposit"][2] == 125, "skills as in the game's tables")
   local found = false
   for item, v in pairs(D.disenchant.of) do if v[1] == 13256 then found = true end end
   check(found and D.disenchant.loot[13256][1] == 16204, "green armor 56-60: Forever-observed disenchant (no shard)")

@@ -730,15 +730,21 @@ def main():
     gather = json.load(open(gpath, encoding="utf-8")) if os.path.exists(gpath) else {}
     # rare variants that replace common ore at the same spots now and then: never a
     # planned step (the pool data gives them equal shares, overstating them)
-    RARE_NODES = {"Silver Vein", "Gold Vein", "Truesilver Deposit"}
+    RARE_NODES = {"Silver Vein", "Gold Vein", "Truesilver Deposit",
+                  # special or quest nodes: never a planned step, "gather when you see them"
+                  "Black Lotus", "Incendicite Mineral Vein", "Lesser Bloodstone Deposit",
+                  "Ooze Covered Silver Vein", "Ooze Covered Gold Vein", "Ooze Covered Mithril Deposit",
+                  "Ooze Covered Truesilver Deposit", "Ooze Covered Thorium Vein", "Ooze Covered Rich Thorium Vein"}
+    wowhead_nodes = gather.get("_source") == "wowhead"  # Forever's own spot counts (tools/import_nodes.py)
     lines += ["  -- gathering nodes: [skillLine] = {{node, skill needed, {zone, spawns, ...}, rare}, ...} (top zones)",
               "  gather = {"]
     for line, nodes in sorted(gather.items()):
-        if line == "fishing":
+        if line in ("fishing", "_source"):
             continue
         rows_ = []
         for nd in nodes:
-            zs = ck_gather.get(nd["n"], nd["zones"])  # Forever spawn points where checked
+            # Classic counts: Forever spawn points where checked; Wowhead's: already Forever's
+            zs = nd["zones"] if wowhead_nodes else ck_gather.get(nd["n"], nd["zones"])
             top = sorted(zs.items(), key=lambda kv: -kv[1])[:6]
             rows_.append("{%s,%d,{%s}%s}" % (lua_str(nd["n"]), nd["req"],
                                               ",".join(f"{lua_str(z)},{round(c)}" for z, c in top),

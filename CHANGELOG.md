@@ -2,6 +2,14 @@
 
 ## 0.38.7 (not released yet)
 
+- **Mining and Herbalism from Forever's own maps:** the gathering routes now use the
+  herb and ore spots on Wowhead's WoW Forever maps (27,800 spots in 46 zones) instead of
+  Classic spawn data. 32 nodes SkillRoute didn't know are in: Forever's Heavy Thorium
+  Vein, Cold Iron Deposit, Starsilver Vein, Fool's Gold Vein, Greater Moonstone, Amber,
+  Demonsage, Marefoil, Dreamroot, Moonroot and others, plus Black Lotus and the Ooze
+  Covered veins (shown as "gather when you see them"). Zones are ranked by real spot
+  counts: The Barrens now features for Mageroyal, Briarthorn and Bruiseweed, Mount Hyjal
+  for Rich Thorium. The skill each node needs matches the game's own tables.
 - Data: AllTheThings reorganised its Forever database; SkillRoute's importer reads the new
   layout. 33 materials gain vendors (no vendor lost), 36 more recipe sources and 7 more
   learn levels, NPC positions refreshed. Trainer tiers stay as checked in game: ATT's new

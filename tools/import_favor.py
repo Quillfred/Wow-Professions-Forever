@@ -101,7 +101,9 @@ def main():
                     return ui, round(u * 100, 2), round(v * 100, 2)
         return None, None, None
 
-    rep = json.load(open(os.path.join(HERE, "favor_rep.json"), encoding="utf-8"))["rep"]
+    # NO_WOWHEAD=1: without Wowhead-derived data (reputation needs, crate contents)
+    no_wowhead = os.environ.get("NO_WOWHEAD") == "1"
+    rep = {} if no_wowhead else json.load(open(os.path.join(HERE, "favor_rep.json"), encoding="utf-8"))["rep"]
     npcs, patterns, sellers = [], {}, {}
     vendors = vendor_blocks(att)
     # The two sides' vendors of a profession sell the same Favor patterns (checked: same
@@ -133,7 +135,7 @@ def main():
             sellers.setdefault(iid, []).append(nid)
 
     # Waylaid Crates: what each accepts (tools/crates.json), what it pays, and who takes them
-    crates = json.load(open(os.path.join(HERE, "crates.json"), encoding="utf-8"))["crates"]
+    crates = {} if no_wowhead else json.load(open(os.path.join(HERE, "crates.json"), encoding="utf-8"))["crates"]
     ctext = open(os.path.join(att, CRATES), encoding="utf-8").read()
     hand = {}
     for side, key in (("A", "aqd"), ("H", "hqd")):

@@ -70,6 +70,9 @@ if [ "${FAVOR_REP:-}" = 1 ]; then (cd tools && python3 fetch_favor_rep.py "$ATT"
 if [ "${CRATES:-}" = 1 ]; then fetch ItemSparse "$BUILD"; python3 -I tools/fetch_crates.py "$ATT" "$CACHE" "$BUILD"; fi
 python3 -I tools/import_favor.py "$ATT" "$CACHE" "$BUILD"
 (cd tools && python3 import_gather.py "$CLASSIC" "$CACHE" "$BUILD")
+# herb and ore spots from Wowhead's Forever maps (tools/node_points.json) replace the
+# Classic counts for Mining and Herbalism; Fishing stays from the Classic import
+if [ "${NO_WOWHEAD:-}" != 1 ]; then python3 -I tools/import_nodes.py --from-points "$CACHE" "$BUILD"; fi
 fetch SkillLineAbility "$BUILD"; fetch SpellReagents "$BUILD"; fetch ItemDisenchantLoot "$BUILD"
 (cd tools && python3 import_farm.py "$CLASSIC" "$CACHE" "$BUILD")
 (cd tools && python3 import_disenchant.py "$CLASSIC" "$CACHE" "$BUILD")
