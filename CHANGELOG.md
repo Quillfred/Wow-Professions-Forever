@@ -65,9 +65,6 @@
 - The spots also show on a continent map (map addons that show Kalimdor zoomed in, or the
   game's own continent view): each zone's spots placed where the game puts that zone,
   as smaller icons. `/sr check` says what the world map spots last drew.
-- World map spots are now the map's own pins (as its quest and flight-point icons): the
-  map places, layers and scales them, so they show with map addons that rearrange the
-  map. They keep about the same size at any zoom.
 - Gathering routes in the mini panel and tracker: the step now says where to go (its
   three best zones, your faction's first), counts as a step ("13 steps left"), and the
   Craft buttons and "Left to buy" make way for "Nodes in all". A gathering step's tooltip

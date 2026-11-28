@@ -26,5 +26,4 @@ Tooltip.lua
 Options.lua
 Recorder.lua
 MapPins.lua
-MapPins.xml
 Check.lua

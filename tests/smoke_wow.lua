@@ -3014,26 +3014,6 @@ do
   SkillRouteDB.settings.mapPins = false
   assert(P.RefreshWorld() == 0, "map spots off")
   SkillRouteDB.settings.mapPins = nil
-  -- the map's own data provider (as the game's quest icons): pins it places and scales itself
-  local acquired, removed, provider = {}, 0, nil
-  _G.MapCanvasPinMixin = { SetPosition = function(self, x, y) self.x, self.y = x, y end }
-  _G.MapCanvasDataProviderMixin = { GetMap = function(self) return self.map end }
-  _G.CreateFromMixins = function(...) local t = {}; for _, m in ipairs({ ... }) do for k, v in pairs(m) do t[k] = v end end; return t end
-  _G.WorldMapFrame.AddDataProvider = function(self, pr) provider = pr; pr.map = self end
-  _G.WorldMapFrame.RemoveAllPinsByTemplate = function() removed = removed + 1; acquired = {} end
-  _G.WorldMapFrame.AcquirePin = function(_, tmpl, ...)
-    local pin = setmetatable({ tex = stubObj() }, { __index = function(t, k) return _G.SkillRouteMapPinMixin[k] or stubObj()[k] end })
-    pin:OnAcquired(...)
-    acquired[#acquired + 1] = pin
-    assert(tmpl == "SkillRouteMapPinTemplate", "our template")
-  end
-  assert(P.UseProvider() and provider, "registered with the world map")
-  local nProv = P.RefreshWorld()
-  assert(nProv == #P.PinsFor(1413) and #acquired == nProv and P.lastWorld.mode == "map pins", "the map's own pins: " .. nProv .. " " .. #acquired .. " " .. tostring(P.lastWorld.mode))
-  assert(acquired[1].x == P.PinsFor(1413)[1][1] and acquired[1].pin[3], "placed by the map at the spot")
-  P.RefreshWorld()
-  assert(removed == 2 and #acquired == nProv, "a redraw replaces them, no duplicates")
-  _G.MapCanvasPinMixin, _G.MapCanvasDataProviderMixin, _G.CreateFromMixins = nil, nil, nil
   local mm = rawget(_G.Minimap, "IsShown")
   rawset(_G.Minimap, "IsShown", function() return true end)
   P.PlayerZone = function() return 1413, sp[1], sp[2] end -- standing on a Tin Vein spot

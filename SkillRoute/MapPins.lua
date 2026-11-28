@@ -272,14 +272,9 @@ end
 -- World map: pins on the map canvas, sized against its zoom. A zone map gets pins you can
 -- hover; a continent (thousands of spots) gets plain, smaller icons.
 local worldOverlay, worldPool, texPool = nil, {}, {}
-local provider -- the map's own pins, when the client has them (useProvider, below)
 P.lastWorld = nil -- what the last draw did, for /sr check
 function P.RefreshWorld()
   local W = WorldMapFrame
-  if provider and W then -- the map's own pins (see below)
-    if W:IsShown() then provider:RefreshAllData() end
-    return P.lastWorld and P.lastWorld.n or 0
-  end
   local canvas = W and W.ScrollContainer and W.ScrollContainer.Child
   if not canvas then P.lastWorld = { why = "no world map canvas" }; return 0 end
   if not worldOverlay then
@@ -365,57 +360,6 @@ function P.RefreshMinimap()
   return n
 end
 
--- The world map's own way: a data provider whose pins the map places, layers and scales
--- itself (as for its quest and flight-point icons), so map addons that rearrange the map
--- show them too. Its pin template (MapPins.xml) names this mixin, so it has to be global.
-local TEMPLATE = "SkillRouteMapPinTemplate"
-local function makeMixin() -- once the map's own pin mixin exists (the map can load after us)
-  if SkillRouteMapPinMixin or not (MapCanvasPinMixin and CreateFromMixins) then return end
-  SkillRouteMapPinMixin = CreateFromMixins(MapCanvasPinMixin)
-  function SkillRouteMapPinMixin:OnLoad()
-    pcall(self.UseFrameLevelType, self, "PIN_FRAME_LEVEL_AREA_POI")
-    if self.SetScalingLimits then self:SetScalingLimits(1, 1.0, 1.2) end -- about the same size at any zoom
-  end
-  function SkillRouteMapPinMixin:OnAcquired(p, size, alpha, hover)
-    self.pin = p
-    self:SetSize(size, size)
-    self.tex:SetTexture(ICON[P.Kind(p[3]) or "ore"])
-    if self.tex.SetTexCoord then self.tex:SetTexCoord(0.08, 0.92, 0.08, 0.92) end
-    if p[5] then self.tex:SetVertexColor(1, 0.85, 0.5) else self.tex:SetVertexColor(1, 1, 1) end
-    self:SetAlpha(alpha)
-    self:EnableMouse(hover)
-    if hover and self.SetMouseClickEnabled then pcall(self.SetMouseClickEnabled, self, false) end
-    self:SetPosition(p[1], p[2])
-  end
-  function SkillRouteMapPinMixin:OnMouseEnter() pinTip(self) end
-  function SkillRouteMapPinMixin:OnMouseLeave() GameTooltip:Hide() end
-end
-local function useProvider()
-  makeMixin()
-  local W = WorldMapFrame
-  if provider or not (W and W.AddDataProvider and MapCanvasDataProviderMixin and CreateFromMixins and SkillRouteMapPinMixin) then
-    return provider
-  end
-  provider = CreateFromMixins(MapCanvasDataProviderMixin)
-  function provider:RemoveAllData() self:GetMap():RemoveAllPinsByTemplate(TEMPLATE) end
-  function provider:RefreshAllData()
-    self:RemoveAllData()
-    local m = self:GetMap()
-    local map = m:GetMapID()
-    if not (P.MapOn() and map) then P.lastWorld = { map = map, why = "off" }; return end
-    local mtype = P.MapType(map)
-    local continent = mtype and mtype <= 2
-    local pins = continent and P.ProjectedFor(map) or P.PinsFor(map)
-    local size, alpha = continent and 9 or 14, P.Alpha()
-    for _, p in ipairs(pins) do m:AcquirePin(TEMPLATE, p, size, alpha, not continent) end
-    P.lastWorld = { map = map, type = mtype, n = #pins, mode = "map pins" }
-  end
-  local ok = pcall(W.AddDataProvider, W, provider)
-  if not ok then provider = nil end
-  return provider
-end
-P.UseProvider = useProvider
-
 function P.Refresh()
   P.Invalidate()
   P.RefreshWorld()
@@ -461,19 +405,13 @@ do
   local f = CreateFrame("Frame")
   for _, ev in ipairs({ "UNIT_SPELLCAST_SENT", "UNIT_SPELLCAST_SUCCEEDED", "UNIT_SPELLCAST_FAILED",
                         "UNIT_SPELLCAST_INTERRUPTED", "SKILL_LINES_CHANGED", "CHAT_MSG_SKILL", "ZONE_CHANGED_NEW_AREA",
-                        "PLAYER_LOGIN", "ADDON_LOADED" }) do
+                        "PLAYER_LOGIN" }) do
     pcall(f.RegisterEvent, f, ev)
   end
   f:SetScript("OnEvent", function(_, ev, ...)
-    if ev == "ADDON_LOADED" then -- the game's world map, loaded after us: its pins
-      if ... == "Blizzard_WorldMap" and not provider then pcall(useProvider) end
-      return
-    end
     if ev == "PLAYER_LOGIN" then
       local W = WorldMapFrame
-      if useProvider() then
-        -- the map refreshes its providers itself (map changes, showing); nothing to hook
-      elseif W and hooksecurefunc then
+      if W and hooksecurefunc then
         pcall(hooksecurefunc, W, "OnMapChanged", function() P.RefreshWorld() end)
         pcall(hooksecurefunc, W, "OnCanvasScaleChanged", function() P.RefreshWorld() end)
         if W.HookScript then W:HookScript("OnShow", function() P.RefreshWorld() end) end
