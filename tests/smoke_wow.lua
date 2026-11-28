@@ -3015,6 +3015,37 @@ do
   SkillRouteDB.settings.mapPins = false
   assert(P.RefreshWorld() == 0, "map spots off")
   SkillRouteDB.settings.mapPins = nil
+  -- the map's own pins (as the game's quest icons): placed by the map at each spot's map coordinates
+  do
+    local acquired, removed, provider = {}, 0, nil
+    _G.MapCanvasPinMixin = { SetPosition = function(self, x, y) self.x, self.y = x, y end }
+    _G.MapCanvasDataProviderMixin = { GetMap = function(self) return self.map end }
+    _G.CreateFromMixins = function(...) local t = {}; for _, m in ipairs({ ... }) do for k, v in pairs(m) do t[k] = v end end; return t end
+    _G.WorldMapFrame.AddDataProvider = function(self, pr) provider = pr; pr.map = self end
+    _G.WorldMapFrame.RemoveAllPinsByTemplate = function() removed = removed + 1; acquired = {} end
+    _G.WorldMapFrame.AcquirePin = function(_, tmpl, ...)
+      assert(tmpl == "SkillRouteMapPinTemplate", "our template")
+      local pin = setmetatable({}, { __index = function(_, k) return _G.SkillRouteMapPinMixin[k] or stubObj()[k] end })
+      for _, e in ipairs({ "top", "bottom", "left", "right" }) do
+        pin[e] = setmetatable({}, { __index = stubObj() }); rawset(pin[e], "SetColorTexture", function(t, r, g, b) t.rgb = { r, g, b } end)
+      end
+      pin:OnLoad(); pin:OnAcquired(...)
+      acquired[#acquired + 1] = pin
+    end
+    assert(P.UseProvider() and provider, "registered with the world map")
+    local n = P.RefreshWorld()
+    local want = P.PinsFor(1413)
+    assert(n == #want and #acquired == #want, "every spot, as the map's own pins: " .. #acquired .. "/" .. #want)
+    assert(acquired[1].x == want[1][1] and acquired[1].y == want[1][2], "placed at the spot's own map coordinates")
+    local herb, ore
+    for _, a in ipairs(acquired) do
+      if P.Kind(a.pin[3]) == "herb" then herb = a.top.rgb else ore = a.top.rgb end
+    end
+    assert(herb and ore and herb[2] > herb[1] and ore[1] > ore[2], "squares: green for herbs, copper for ores")
+    P.RefreshWorld()
+    assert(removed == 2 and #acquired == #want, "a redraw replaces them, no duplicates")
+    _G.MapCanvasPinMixin, _G.MapCanvasDataProviderMixin, _G.CreateFromMixins = nil, nil, nil
+  end
   local mm = rawget(_G.Minimap, "IsShown")
   rawset(_G.Minimap, "IsShown", function() return true end)
   P.PlayerZone = function() return 1413, sp[1], sp[2] end -- standing on a Tin Vein spot

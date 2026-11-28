@@ -14,7 +14,6 @@ local GATHER_SPELLS = { 2575, 2366 }           -- Mining, Herb Gathering (names,
 local GRACE_YARDS = 10 -- a find closer than this to a known spot is that spot: a couple of
                        -- yards, plus your reach (you gather from ~5 yd) and the data's rounding
 local MAX_FINDS = 2000
-local ICON = { ore = "Interface\\Icons\\Spell_Nature_Earthquake", herb = "Interface\\Icons\\INV_Misc_Flower_02" }
 -- minimap diameter in yards at each zoom level (0-5), outdoors and indoors
 local MINI_OUT = { [0] = 466.67, 400, 333.33, 266.67, 200, 133.33 }
 local MINI_IN = { [0] = 300, 240, 180, 120, 80, 50 }
@@ -237,25 +236,6 @@ local function pinTip(self)
   end
   GameTooltip:Show()
 end
-local function newPin(parent)
-  local f = CreateFrame("Button", nil, parent)
-  f.tex = f:CreateTexture(nil, "OVERLAY")
-  f.tex:SetAllPoints()
-  if f.tex.SetTexCoord then f.tex:SetTexCoord(0.08, 0.92, 0.08, 0.92) end
-  f:SetScript("OnEnter", pinTip)
-  f:SetScript("OnLeave", function() GameTooltip:Hide() end)
-  if f.SetMouseClickEnabled then pcall(f.SetMouseClickEnabled, f, false) end -- clicks go to the map
-  return f
-end
-local function styled(f, p, size, alpha)
-  f.pin, f.also = p, p[6]
-  f:SetSize(size, size)
-  f.tex:SetTexture(ICON[P.Kind(p[3]) or "ore"])
-  if p[5] then f.tex:SetVertexColor(1, 0.85, 0.5) else f.tex:SetVertexColor(1, 1, 1) end
-  f:SetAlpha(alpha)
-  f:Show()
-end
-
 -- Minimap: a hollow square, so the game's own tracking blip (drawn under anything an addon
 -- puts on the minimap) shows through the middle. Copper for ores, green for herbs, gold for finds.
 local RING = { ore = { 0.95, 0.55, 0.2 }, herb = { 0.35, 0.9, 0.3 }, find = { 1, 0.82, 0 } }
@@ -286,10 +266,60 @@ local function styledMini(f, p, size, alpha)
   f:Show()
 end
 
--- World map: pins on the map canvas, sized against its zoom
+-- World map: the map's own pins (a data provider, as for its quest icons): the map places each
+-- one by its map coordinates, layers and scales it. The same hollow squares as the minimap.
+-- The pin template (MapPins.xml) names this mixin, so it has to be global.
+local TEMPLATE = "SkillRouteMapPinTemplate"
+local provider
+local function makeMixin() -- once the map's own pin mixin exists (the map can load after us)
+  if SkillRouteMapPinMixin or not (MapCanvasPinMixin and CreateFromMixins) then return end
+  SkillRouteMapPinMixin = CreateFromMixins(MapCanvasPinMixin)
+  function SkillRouteMapPinMixin:OnLoad()
+    pcall(self.UseFrameLevelType, self, "PIN_FRAME_LEVEL_AREA_POI")
+    if self.SetScalingLimits then self:SetScalingLimits(1, 1.0, 1.2) end -- about the same size at any zoom
+    self.edges = { self.top, self.bottom, self.left, self.right }
+  end
+  function SkillRouteMapPinMixin:OnAcquired(p, alpha)
+    self.pin, self.also = p, p[6]
+    local c = p[5] and RING.find or RING[P.Kind(p[3]) or "ore"]
+    for _, t in ipairs(self.edges) do t:SetColorTexture(c[1], c[2], c[3], 1) end
+    self:SetAlpha(alpha)
+    if self.SetMouseClickEnabled then pcall(self.SetMouseClickEnabled, self, false) end -- clicks go to the map
+    self:SetPosition(p[1], p[2])
+  end
+  function SkillRouteMapPinMixin:OnMouseEnter() pinTip(self) end
+  function SkillRouteMapPinMixin:OnMouseLeave() GameTooltip:Hide() end
+end
+local function useProvider()
+  makeMixin()
+  local W = WorldMapFrame
+  if provider or not (W and W.AddDataProvider and MapCanvasDataProviderMixin and CreateFromMixins and SkillRouteMapPinMixin) then
+    return provider
+  end
+  local pr = CreateFromMixins(MapCanvasDataProviderMixin)
+  function pr:RemoveAllData() self:GetMap():RemoveAllPinsByTemplate(TEMPLATE) end
+  function pr:RefreshAllData()
+    self:RemoveAllData()
+    local m = self:GetMap()
+    local map = m:GetMapID()
+    if not (P.MapOn() and map) then return end
+    local alpha = P.Alpha()
+    for _, p in ipairs(P.PinsFor(map)) do m:AcquirePin(TEMPLATE, p, alpha) end
+  end
+  if pcall(W.AddDataProvider, W, pr) then provider = pr end
+  return provider
+end
+P.UseProvider = useProvider
+
+-- Without the map's pin system: our own squares laid over its canvas
 local worldOverlay, worldPool = nil, {}
 function P.RefreshWorld()
   local W = WorldMapFrame
+  if provider and W then
+    if W:IsShown() then provider:RefreshAllData() end
+    local map = W.GetMapID and W:GetMapID()
+    return map and P.MapOn() and #P.PinsFor(map) or 0
+  end
   local canvas = W and W.ScrollContainer and W.ScrollContainer.Child
   if not canvas then return 0 end
   if not worldOverlay then
@@ -303,11 +333,12 @@ function P.RefreshWorld()
   local pins = P.PinsFor(map)
   local w, h = canvas:GetSize()
   local scale = (W.ScrollContainer.GetCanvasScale and W.ScrollContainer:GetCanvasScale()) or 1
-  local size, alpha = 14 / math.max(scale, 0.1), P.Alpha()
+  local size, alpha = 12 / math.max(scale, 0.1), P.Alpha()
   for i, p in ipairs(pins) do
-    local f = worldPool[i] or newPin(worldOverlay)
+    local f = worldPool[i] or newMiniPin(worldOverlay)
     worldPool[i] = f
-    styled(f, p, size, alpha)
+    styledMini(f, p, size, alpha)
+    f.also = p[6]
     f:ClearAllPoints()
     f:SetPoint("CENTER", worldOverlay, "TOPLEFT", p[1] * w, -p[2] * h)
   end
@@ -415,13 +446,19 @@ do
   local f = CreateFrame("Frame")
   for _, ev in ipairs({ "UNIT_SPELLCAST_SENT", "UNIT_SPELLCAST_SUCCEEDED", "UNIT_SPELLCAST_FAILED",
                         "UNIT_SPELLCAST_INTERRUPTED", "SKILL_LINES_CHANGED", "CHAT_MSG_SKILL", "ZONE_CHANGED_NEW_AREA",
-                        "PLAYER_LOGIN" }) do
+                        "PLAYER_LOGIN", "ADDON_LOADED" }) do
     pcall(f.RegisterEvent, f, ev)
   end
   f:SetScript("OnEvent", function(_, ev, ...)
+    if ev == "ADDON_LOADED" then -- the game's world map, loaded after us: its pins
+      if ... == "Blizzard_WorldMap" and not provider then pcall(useProvider) end
+      return
+    end
     if ev == "PLAYER_LOGIN" then
       local W = WorldMapFrame
-      if W and hooksecurefunc then
+      if useProvider() then
+        -- the map refreshes its providers itself (map changes, showing)
+      elseif W and hooksecurefunc then
         pcall(hooksecurefunc, W, "OnMapChanged", function() P.RefreshWorld() end)
         pcall(hooksecurefunc, W, "OnCanvasScaleChanged", function() P.RefreshWorld() end)
         if W.HookScript then W:HookScript("OnShow", function() P.RefreshWorld() end) end

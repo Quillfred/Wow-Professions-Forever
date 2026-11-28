@@ -69,6 +69,9 @@
   data has some spots twice, and herbs share spawn points): the step's node stands for
   it, and its tooltip names the others ("Also here: Peacebloom"). Zoomed out, squares
   that would still overlap share one too. The Barrens: 467 spots -> 261.
+- World map spots are the map's own pins now (as its quest icons): the map places each
+  one at its map coordinates, so they line up with the minimap's (they were off before),
+  as the same hollow squares.
 - Gathering routes in the mini panel and tracker: the step now says where to go (its
   three best zones, your faction's first), counts as a step ("13 steps left"), and the
   Craft buttons and "Left to buy" make way for "Nodes in all". A gathering step's tooltip
