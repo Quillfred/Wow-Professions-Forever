@@ -144,7 +144,15 @@ def read_maps(path):
 def main():
     att, cache, build = sys.argv[1], sys.argv[2], sys.argv[3]
     maps = read_maps(os.path.join(att, ".config", "constants", "maps.lua"))
-    tiers = read_tiers(os.path.join(att, ".config", "structures"))
+    struct_dir = os.path.join(att, ".config", "structures")
+    if not os.path.isdir(struct_dir):
+        # ATT reorganised its Forever folder (Nov 2026): the recipe tier lists moved into
+        # "profession db/" in a new format this importer doesn't read yet. Keep the last
+        # good tools/att_forever.json instead of failing the whole rebuild.
+        print("WARNING: ATT's .config/structures is gone (new ATT layout); keeping the committed "
+              "tools/att_forever.json. Update import_att.py to read 'profession db/'.")
+        return
+    tiers = read_tiers(struct_dir)
 
     # zone (uiMap) -> world rectangle, to turn zone coordinates into world positions
     tbl = lambda t: os.path.join(cache, f"{t}-{build}.csv")

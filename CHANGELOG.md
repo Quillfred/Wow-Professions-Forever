@@ -2,6 +2,9 @@
 
 ## 0.38.6 (not released yet)
 
+- Game data rebuilt for Forever build 1.60.1.71139: adds Centaur Hoofwarmers
+  (Tailoring 170-180, a pattern). The other Favor recipes not in SkillRoute all need
+  skill 300 to learn, so they can't give a skill-up and are left out on purpose.
 ## 0.38.5
 
 - Fixed: the full route window and the options window went back to the middle of the
