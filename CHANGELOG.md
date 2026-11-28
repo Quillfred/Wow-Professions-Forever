@@ -2,6 +2,10 @@
 
 ## 0.38.7 (not released yet)
 
+- Data: AllTheThings reorganised its Forever database; SkillRoute's importer reads the new
+  layout. 33 materials gain vendors (no vendor lost), 36 more recipe sources and 7 more
+  learn levels, NPC positions refreshed. Trainer tiers stay as checked in game: ATT's new
+  trainer tags don't reliably say which rank a trainer teaches.
 ## 0.38.6
 
 - **Waylaid Crate helper:** hovering a Waylaid Crate shows every bundle it accepts at

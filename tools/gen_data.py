@@ -598,10 +598,15 @@ def main():
     # where it lists the item, else Classic vendors without a stock limit
     supply_items = 0
     for i in sorted(used_items - set(vendor_patterns) - teaching_items):
+        # ATT's vendors plus Classic's: ATT lists common supplies (thread, dye) at only some of
+        # their vendors (others use shared lists outside its Forever folder), so ATT alone
+        # would drop most sellers. A Classic NPC ATT already places (same name) isn't repeated.
         keys = [att_npc(k) for k, lim in att["vendors"].get(str(i), []) if k in att["npcs"] and not lim]
-        if not keys:
-            keys = [k for k in (classic_npc(e) for e, lim in npcdata.get("supplies", {}).get(str(i), [])
-                                if not lim and vendor_ok(i, e)) if k is not None]
+        named = {npc_rows[k][0] for k in keys}
+        for k in (classic_npc(e) for e, lim in npcdata.get("supplies", {}).get(str(i), [])
+                  if not lim and vendor_ok(i, e)):
+            if k is not None and k not in keys and npc_rows[k][0] not in named:
+                keys.append(k)
         if keys:
             vend_lines.append(f"    [{i}]={{{','.join(map(str, keys))}}},")
             supply_items += 1

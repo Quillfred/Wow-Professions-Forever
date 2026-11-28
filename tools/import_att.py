@@ -81,6 +81,32 @@ def read_tiers(struct_dir):
     return out
 
 
+def read_tiers_v2(prof_dir):
+    """The same, from ATT's newer layout (Nov 2026): professions/<name>.lua holds one
+    header(HEADERS.SpellWithRank, <rank spell>, { symselector = SymSelector.<PROF>_<TIER>,
+    ... r(spell) ... }) per rank, with its rank-up spell (r(spell, { rank = N })) and recipes."""
+    out = {}
+    for fn in sorted(os.listdir(prof_dir)):
+        if not fn.endswith(".lua"):
+            continue
+        code = strip_comments(open(os.path.join(prof_dir, fn), encoding="utf-8").read())
+        for h in re.finditer(r"\bheader\(\s*HEADERS\.SpellWithRank\s*,\s*\d+\s*,\s*\{", code):
+            end = block_end(code, h.end() - 1)
+            body = code[h.end() - 1:end]
+            sm = re.search(r"\bsymselector\s*=\s*SymSelector\.([A-Z_]+)", body)
+            if not sm or "_" not in sm.group(1):
+                continue
+            prefix, tier = sm.group(1).rsplit("_", 1)
+            if prefix not in RECIPE_PREFIX or tier not in TIERS:
+                continue  # specialisations (TAILORING_SHADOWEAVE), gathering professions
+            rank = None
+            for _, rk in re.findall(r"\br\((\d+),\s*\{[^}]*?\brank\s*=\s*(\d)", body):
+                rank = int(rk)
+            spells = [int(x) for x in re.findall(r"\br\((\d+)", body)]
+            out.setdefault(RECIPE_PREFIX[prefix], {})[tier] = {"rank": rank, "spells": spells}
+    return out
+
+
 def read_sources(db_dir):
     """How each recipe / rank spell is learned in Forever, from ATT's "profession db"
     lists: {spell: {"how": [...], "items": [...], "spec": bool}}. Sections: TRAINER
@@ -145,14 +171,11 @@ def main():
     att, cache, build = sys.argv[1], sys.argv[2], sys.argv[3]
     maps = read_maps(os.path.join(att, ".config", "constants", "maps.lua"))
     struct_dir = os.path.join(att, ".config", "structures")
-    if not os.path.isdir(struct_dir):
-        # ATT reorganised its Forever folder (Nov 2026): the recipe tier lists moved into
-        # "profession db/" in a new format this importer doesn't read yet. Keep the last
-        # good tools/att_forever.json instead of failing the whole rebuild.
-        print("WARNING: ATT's .config/structures is gone (new ATT layout); keeping the committed "
-              "tools/att_forever.json. Update import_att.py to read 'profession db/'.")
-        return
-    tiers = read_tiers(struct_dir)
+    # ATT's older layout kept the tier lists in .config/structures; the newer one (Nov 2026)
+    # in professions/. Either is read.
+    tiers = read_tiers(struct_dir) if os.path.isdir(struct_dir) else read_tiers_v2(os.path.join(att, "professions"))
+    if not tiers:
+        sys.exit("no recipe tiers found in ATT (neither .config/structures nor professions/): ATT's layout changed again")
 
     # zone (uiMap) -> world rectangle, to turn zone coordinates into world positions
     tbl = lambda t: os.path.join(cache, f"{t}-{build}.csv")
@@ -254,22 +277,59 @@ def main():
                 side = "H" if "HORDE_ONLY" in body else "A" if "ALLIANCE_ONLY" in body else "AH"
                 key = add_npc(int(m.group(1)), name, title, side, ui, zx, zy)
                 if "trainer" in ctx:
-                    for prefix, tier in re.findall(r"\b([A-Z_]+)_RECIPES\.([A-Z_]+)", body):
+                    # older layout: TAILORING_RECIPES.JOURNEYMAN; newer: SymSelector.select("TAILORING_JOURNEYMAN"),
+                    # a string (blanked in `code`), so read from the raw text at the same offsets
+                    taught = re.findall(r"\b([A-Z_]+)_RECIPES\.([A-Z_]+)", body)
+                    taught += [tuple(x.rsplit("_", 1)) for x in
+                               re.findall(r'SymSelector\.select\(\s*"([A-Z_]+_[A-Z]+)"', text[start:end])]
+                    for prefix, tier in taught:
                         if prefix in RECIPE_PREFIX and tier in TIERS:
                             trainers.setdefault(str(RECIPE_PREFIX[prefix]), {}).setdefault(key, set()).add(TIERS[tier])
                 if "vendor" in ctx:
                     for im in re.finditer(r"\bi\((\d+)", body):
                         limited = "isLimited" in body[im.end():im.end() + 80].split("i(")[0]
                         vendors.setdefault(im.group(1), {})[key] = limited
+                    # newer layout: what a vendor sells can be a list,
+                    # (shared lists outside the Forever folder, SymSelector.select("VENDOR_FOOD_BREAD"),
+                    # aren't read: none of them sell anything SkillRoute uses)
+                    # sym = {{ "select", "itemID", 2692, 2678, ... }} (strings: read the raw text)
+                    for sm in re.finditer(r'\{\s*"select"\s*,\s*"itemID"\s*,([^}]*)\}', text[start:end]):
+                        for iid in re.findall(r"\b(\d+)\s*,", sm.group(1) + ","):
+                            vendors.setdefault(iid, {}).setdefault(key, False)
 
     recipe_tier = {}
     for line, ts in tiers.items():
+        # ATT's older layout had no Cooking or First Aid tier lists, and their trainers (kept
+        # from that import, above) and rank books are built around that: don't mix in the
+        # newer layout's tiers for them (they'd leave Expert recipes with no trainer)
+        if not os.path.isdir(struct_dir) and line in (185, 129):
+            continue  # (their tiers from the previous import are carried over below)
         for tname, t in ts.items():
             if tname in TIERS:
                 for s in t["spells"]:
                     recipe_tier.setdefault(str(s), TIERS[tname])
+    trainers_out = {l: {k: sorted(v) for k, v in d.items()} for l, d in trainers.items()}
+    prev_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "att_forever.json")
+    prev = json.load(open(prev_path, encoding="utf-8")) if os.path.exists(prev_path) else {}
+    if not os.path.isdir(struct_dir):
+        # Cooking and First Aid tiers: as in the previous import (see above); others: ATT's
+        for sp, t in prev.get("recipeTier", {}).items():
+            recipe_tier.setdefault(sp, t)
+    if not os.path.isdir(struct_dir):
+        # In ATT's newer layout a trainer's SymSelector.select("<PROF>_<TIER>") doesn't reliably
+        # mean "teaches that rank": an Expert Alchemist is tagged ALCHEMY_EXPERT (Forever: a
+        # trainer teaches the tier BELOW its title), and First Aid trainers are tagged EXPERT
+        # though only the Silk Bandage recipe comes from them (the rank is a book). Keep the
+        # trainer tiers from the last import of the older, checked-in-game layout instead.
+        if prev:
+            old = prev.get("trainers", {})
+            if old:
+                newer = sum(1 for l, d in trainers_out.items() for k in d if k not in old.get(l, {}))
+                print(f"note: trainer tiers kept from the previous import ({sum(len(d) for d in old.values())} trainers); "
+                      f"{newer} trainer entries from ATT's newer layout not used (its tier tags aren't reliable)")
+                trainers_out = old
     out = {"npcs": npcs,
-           "trainers": {l: {k: sorted(v) for k, v in d.items()} for l, d in trainers.items()},
+           "trainers": trainers_out,
            "vendors": {it: [[k, lim] for k, lim in d.items()] for it, d in vendors.items()},
            "recipeTier": recipe_tier,
            "sources": read_sources(os.path.join(att, "profession db")),
