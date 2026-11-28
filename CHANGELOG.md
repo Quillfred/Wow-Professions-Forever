@@ -78,6 +78,9 @@
   are placed again when the map resizes; `/sr check` says how the world map draws them.
 - World map spots: fixed the map refusing them (its pins mustn't set their own hover
   scripts; it asserted on every new one), which left only a few, misplaced.
+- World map spots are small dots (dark rim; copper ores, green herbs, gold finds), and
+  their tooltip just names what's there ("Silverleaf, Peacebloom"). The minimap keeps
+  its hollow squares.
 - Gathering routes in the mini panel and tracker: the step now says where to go (its
   three best zones, your faction's first), counts as a step ("13 steps left"), and the
   Craft buttons and "Left to buy" make way for "Nodes in all". A gathering step's tooltip

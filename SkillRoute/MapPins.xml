@@ -1,13 +1,18 @@
 <Ui xmlns="http://www.blizzard.com/wow/ui/">
-  <!-- A gathering spot on the world map: a hollow square (MapPins.lua: SkillRouteMapPinMixin) -->
+  <!-- A gathering spot on the world map: a small dot with a dark rim (MapPins.lua: SkillRouteMapPinMixin) -->
   <Frame name="SkillRouteMapPinTemplate" mixin="SkillRouteMapPinMixin" virtual="true">
-    <Size x="12" y="12"/>
+    <Size x="7" y="7"/>
     <Layers>
+      <Layer level="ARTWORK">
+        <Texture parentKey="rim" setAllPoints="true"/>
+      </Layer>
       <Layer level="OVERLAY">
-        <Texture parentKey="top"><Size x="2" y="2"/><Anchors><Anchor point="TOPLEFT"/><Anchor point="TOPRIGHT"/></Anchors></Texture>
-        <Texture parentKey="bottom"><Size x="2" y="2"/><Anchors><Anchor point="BOTTOMLEFT"/><Anchor point="BOTTOMRIGHT"/></Anchors></Texture>
-        <Texture parentKey="left"><Size x="2" y="2"/><Anchors><Anchor point="TOPLEFT"/><Anchor point="BOTTOMLEFT"/></Anchors></Texture>
-        <Texture parentKey="right"><Size x="2" y="2"/><Anchors><Anchor point="TOPRIGHT"/><Anchor point="BOTTOMRIGHT"/></Anchors></Texture>
+        <Texture parentKey="dot">
+          <Anchors>
+            <Anchor point="TOPLEFT" x="1" y="-1"/>
+            <Anchor point="BOTTOMRIGHT" x="-1" y="1"/>
+          </Anchors>
+        </Texture>
       </Layer>
     </Layers>
     <Scripts>

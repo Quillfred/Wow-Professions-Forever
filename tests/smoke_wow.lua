@@ -3046,7 +3046,7 @@ do
     _G.WorldMapFrame.AcquirePin = function(_, tmpl, ...)
       assert(tmpl == "SkillRouteMapPinTemplate", "our template")
       local pin = setmetatable({}, { __index = function(_, k) return _G.SkillRouteMapPinMixin[k] or stubObj()[k] end })
-      for _, e in ipairs({ "top", "bottom", "left", "right" }) do
+      for _, e in ipairs({ "rim", "dot" }) do
         pin[e] = setmetatable({}, { __index = stubObj() }); rawset(pin[e], "SetColorTexture", function(t, r, g, b) t.rgb = { r, g, b } end)
       end
       pin:OnLoad(); pin:OnAcquired(...)
@@ -3062,9 +3062,20 @@ do
     assert(acquired[1].x == want[1][1] and acquired[1].y == want[1][2], "placed at the spot's own map coordinates")
     local herb, ore
     for _, a in ipairs(acquired) do
-      if P.Kind(a.pin[3]) == "herb" then herb = a.top.rgb else ore = a.top.rgb end
+      if P.Kind(a.pin[3]) == "herb" then herb = a.dot.rgb else ore = a.dot.rgb end
     end
-    assert(herb and ore and herb[2] > herb[1] and ore[1] > ore[2], "squares: green for herbs, copper for ores")
+    assert(herb and ore and herb[2] > herb[1] and ore[1] > ore[2], "dots: green for herbs, copper for ores")
+    -- the world map tooltip: just what's there
+    local tipLines = {}
+    local savedTT = _G.GameTooltip
+    _G.GameTooltip = setmetatable({ SetText = function(_, t) tipLines[#tipLines + 1] = t end,
+      AddLine = function(_, t) tipLines[#tipLines + 1] = t end }, { __index = savedTT })
+    local withAlso
+    for _, a in ipairs(acquired) do local al = rawget(a, "also"); if al and #al > 0 then withAlso = a; break end end
+    withAlso = withAlso or acquired[1]
+    withAlso:OnMouseEnter()
+    _G.GameTooltip = savedTT
+    assert(#tipLines == 1 and tipLines[1]:find(withAlso.pin[3], 1, true), "one line, the node(s): " .. tostring(tipLines[1]))
     P.RefreshWorld()
     assert(removed == 2 and #acquired == #want, "a redraw replaces them, no duplicates")
     _G.MapCanvasPinMixin, _G.MapCanvasDataProviderMixin, _G.CreateFromMixins = nil, nil, nil
