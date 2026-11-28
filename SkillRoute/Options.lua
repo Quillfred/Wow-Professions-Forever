@@ -85,10 +85,17 @@ end
 local panel
 local refreshers = {} -- functions that show the current setting values
 
-local function check(parent, y, label, tip, get, set)
+-- A small gold heading over a group of options.
+local function heading(parent, y, text)
+  local h = parent:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+  h:SetPoint("TOPLEFT", 20, y); h:SetText(text)
+  return y - 20
+end
+
+local function check(parent, y, label, tip, get, set, indent)
   local c = CreateFrame("CheckButton", nil, parent, "UICheckButtonTemplate")
   c:SetSize(24, 24)
-  c:SetPoint("TOPLEFT", 16, y)
+  c:SetPoint("TOPLEFT", 16 + (indent or 0), y)
   local t = c:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
   t:SetPoint("LEFT", c, "RIGHT", 4, 0)
   t:SetText(label)
@@ -196,13 +203,14 @@ local function separator(parent, y)
 end
 
 -- A read-only row: label, value on the right, a blue line below (all refreshed on show).
-local function readout(parent, y, label, value, text)
-  local t = parent:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-  t:SetPoint("TOPLEFT", 20, y); t:SetText(label)
+local function readout(parent, y, label, value, text, indent)
+  -- indented (under a heading): white like the checkboxes beside it, not a gold heading of its own
+  local t = parent:CreateFontString(nil, "OVERLAY", indent and "GameFontHighlight" or "GameFontNormal")
+  t:SetPoint("TOPLEFT", 20 + (indent or 0), y); t:SetText(label)
   local v = parent:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
   v:SetPoint("TOPRIGHT", -24, y)
   local line = parent:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-  line:SetPoint("TOPLEFT", 20, y - 20); line:SetWidth(WIDTH); line:SetJustifyH("LEFT")
+  line:SetPoint("TOPLEFT", 20 + (indent or 0), y - 20); line:SetWidth(WIDTH - (indent or 0)); line:SetJustifyH("LEFT")
   line:SetTextColor(0.56, 0.78, 1)
   line:SetText(text()); local h = line:GetStringHeight() or 26
   refreshers[#refreshers + 1] = function() v:SetText(value()); line:SetText(text()) end
@@ -396,21 +404,20 @@ local function build()
   local page3 = newPage()
   pg = page3 -- and these on Map
   y = -8
-  y = check(pg, y, "Show Gathering Nodes on the World Map",
-    "Where the nodes of your Mining and Herbalism routes' current steps can spawn: the step's node, the ones that count the same, and the rare ones to gather when you see them. Hover a spot for what it is.",
-    function() return S().mapPins ~= false end, function(v) Options.Set("mapPins", v) end)
-  y = check(pg, y, "Show Gathering Nodes on the Mini Map",
-    "Only the spots within the minimap's range.",
-    function() return S().miniPins ~= false end, function(v) Options.Set("miniPins", v) end)
-  y = check(pg, y, "Veins/Deposits",
-    "Ore spots (copper squares), on both maps.",
-    function() return S().mapOres ~= false end, function(v) Options.Set("mapOres", v) end)
+  y = heading(pg, y, "Show gathering nodes on")
+  y = check(pg, y, "World map",
+    "Where the nodes of your Mining and Herbalism routes' current steps can spawn: the step's node, the ones that count the same, and the rare ones to gather when you see them. Hover a dot for what it is.",
+    function() return S().mapPins ~= false end, function(v) Options.Set("mapPins", v) end, 12)
+  y = check(pg, y, "Minimap",
+    "The same spots, within the minimap's range.",
+    function() return S().miniPins ~= false end, function(v) Options.Set("miniPins", v) end, 12)
+  y = heading(pg, y - 6, "Nodes to show")
+  y = check(pg, y, "Ores (veins and deposits)",
+    "Ore spots: copper, on both maps.",
+    function() return S().mapOres ~= false end, function(v) Options.Set("mapOres", v) end, 12)
   y = check(pg, y, "Herbs",
-    "Herb spots (green squares), on both maps.",
-    function() return S().mapHerbs ~= false end, function(v) Options.Set("mapHerbs", v) end)
-  y = check(pg, y, "Save spots I find that the map doesn't have",
-    "When you gather somewhere with no known spot of that node within about 10 yards, it's saved and shown with the others (tinted gold), for all your characters.",
-    function() return S().recordFinds ~= false end, function(v) Options.Set("recordFinds", v) end)
+    "Herb spots: green, on both maps.",
+    function() return S().mapHerbs ~= false end, function(v) Options.Set("mapHerbs", v) end, 12)
   y = separator(pg, y - 4)
   y = number(pg, y, "Spot transparency",
     "How see-through the spots are, on both maps.",
@@ -418,9 +425,13 @@ local function build()
     function() return S().pinTransparency or 25 end, function(v) Options.Set("pinTransparency", v) end,
     { ends = { "Solid", "Faint" } })
   y = separator(pg, y)
+  y = heading(pg, y, "Spots you find")
+  y = check(pg, y, "Save spots the map doesn't have",
+    "When you gather somewhere with no known spot of that node within about 10 yards, it's saved and shown with the others (in gold), for all your characters.",
+    function() return S().recordFinds ~= false end, function(v) Options.Set("recordFinds", v) end, 12)
   y = readout(pg, y, "Spots you've found",
     function() return tostring(ns.MapPins and ns.MapPins.FindCount() or 0) end,
-    function() return "Gathers where the map data had no spot of that node nearby." end)
+    function() return "Gathers where the map data had no spot of that node nearby." end, 16)
   local y3 = y
   -- tabs: the page you last used opens again
   local tabs = {}

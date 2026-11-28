@@ -60,8 +60,8 @@
   what it is. 27,828 spots in 46 zones, using the game's Find Minerals / Find Herbs icons.
 - Spots you find: when you gather somewhere with no known spot of that node within about
   10 yards, it's saved (for all your characters) and shown with the others, tinted gold.
-- Options has a Map tab: Show Gathering Nodes on the World Map / on the Mini Map, Veins/
-  Deposits and Herbs (each on or off, both maps), saving finds on or off,
+- Options has a Map tab, grouped: show gathering nodes on the world map / minimap; nodes
+  to show: ores (veins and deposits), herbs (each on or off, both maps); saving finds,
   transparency (25% to start), and how many spots you've found.
 - On the minimap the spots are hollow squares (copper for ores, green for herbs, gold for
   your finds), so the game's own yellow tracking blip shows through the middle; the
