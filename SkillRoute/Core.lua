@@ -1696,6 +1696,32 @@ function Core.Plan(line, target)
       skill = s.rank, target = target, maxSkill = s.max, bonus = Core.Bonus() })
     plan.ms = t0g and (debugprofilestop() - t0g)
     plan.skill, plan.max, plan.target, plan.line = s.rank, s.max, target, line
+    -- the tool this profession gathers with (Mining Pick, Skinning Knife, Fishing Pole):
+    -- without one, getting it is the first thing on the route
+    local key = Data.gatherTools and Data.gatherTools[line]
+    local def = key and Data.tools[key]
+    if def and not Core.HasTool(key) then
+      local best, bestP, bestV
+      for _, it in ipairs(def[2]) do
+        local vend = Data.items[it] and Data.items[it][3]
+        local p = vend or Core.Price(it)
+        -- a vendor's always beats waiting for an AH listing; then the cheapest
+        if p and (not best or (vend and not bestV) or ((not vend == not bestV) and p < bestP)) then
+          best, bestP, bestV = it, p, vend ~= nil
+        end
+      end
+      best = best or def[2][1]
+      local u = { kind = "tool", item = best, name = def[1], price = bestP or 0, from = plan.skill,
+                  via = bestV and "vendor" or "ah", equip = def[3] or nil }
+      for _, st in ipairs(plan.steps) do
+        if st.gather then st.tools = { u }; break end
+      end
+      plan.tool = u
+      local it = Data.items[best]
+      table.insert(plan.shopping.buy, 1, { item = best, name = it and it[1] or def[1], need = 1, expected = 1, have = 0,
+        buy = 1, price = bestP, vendor = bestV, tool = true })
+      plan.total = plan.total + (bestP or 0)
+    end
     return plan
   end
   local t0 = debugprofilestop and debugprofilestop()

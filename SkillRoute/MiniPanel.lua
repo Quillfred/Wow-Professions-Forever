@@ -38,7 +38,9 @@ function Mini.Entries(plan)
     for _, u in ipairs(st.tools or {}) do
       if not toolShown[u] then -- once, before the first step that needs it
         toolShown[u] = true
+        local vend = not u.craftSpell and Data.items[u.item] and Data.items[u.item][3]
         out[#out + 1] = { kind = "tool", spell = u.craftSpell, item = u.item, learn = u.learnHow, at = st.from,
+                          loc = vend and (Core.Place("vendor", u.item) or Core.NearestVendor(u.item)) or nil,
                           text = ((u.craftSpell and "Craft" or "Buy") .. " 1 x " .. UI.ItemName(u.item) .. " (tool)"),
                           -- a one-craft step, so Buy and "To buy" work for its materials too
                           buy = u.craftSpell and { spell = u.craftSpell, name = UI.ItemName(u.item), crafts = 1, var = 0,

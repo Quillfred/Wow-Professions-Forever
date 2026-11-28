@@ -42,6 +42,11 @@
   6, so your side's starting zones make the list (Durotar, Tirisfal, Teldrassil). With
   Mithril's spots fully counted, the route mines Mithril until 242 rather than switching
   to Dark Iron (only in Burning Steppes and Searing Gorge) at 230.
+- Gathering routes start with the tool when you don't have one: "Buy 1 x Mining Pick
+  (tool)", "Skinning Knife" or "Fishing Pole" (equipped), with the nearest vendor and a
+  waypoint, and it's on the shopping list. From the game's own spell data, so a Forever
+  item that counts (its multi-tool) counts too. Herbalism needs no tool. Crafting routes
+  already did this for hammers, spanners and rods.
 - Gathering routes in the mini panel and tracker: the step now says where to go (its
   three best zones, your faction's first), counts as a step ("13 steps left"), and the
   Craft buttons and "Left to buy" make way for "Nodes in all". A gathering step's tooltip

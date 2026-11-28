@@ -604,7 +604,8 @@ local function routeRows(plan)
           local isVendor = Data.items[u.item] and Data.items[u.item][3]
           local v = isVendor and (Core.Place("vendor", u.item) or Core.NearestVendor(u.item)) or nil
           local tip = { { header = "SkillRoute" }, { "Tool", ("needed from %d on"):format(st.from) },
-                        { "", "keep it in your bags (not the bank)", sub = true } }
+                        { "", u.equip and "equip it: you can only fish with it in your hands"
+                                  or "keep it in your bags (not the bank)", sub = true } }
           if v then
             tip[#tip + 1] = { "Buy from", v.npc }
             tip[#tip + 1] = { "where", Core.Where(v) or "?", sub = true }

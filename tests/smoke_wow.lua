@@ -2792,6 +2792,8 @@ end
 do
   local savedSkills = Core.Skills
   Core.Skills = function() return { [186] = { rank = 2, max = 75 }, [197] = { rank = 110, max = 150 } } end
+  local realHasTool = Core.HasTool
+  Core.HasTool = function() return true end -- a miner with a pick (no pick: tested below)
   local plan = Core.Plan(186, 300)
   local st = plan.steps[1]
   assert(st.gather and st.name == "Copper Vein", "first: Copper Vein")
@@ -2859,6 +2861,21 @@ do
   print(("bronze: %d -> %d veins, ~%d Bronze smelts on %s %d-%d"):format(sp.gathers, bp.gathers, bzN, bzStep.name, bzStep.from, bzStep.to))
   print(("smelting: %d -> %d veins; %s, then ~%d %s smelting ~%d ore (or buy ~%d)"):format(plan.gathers, sp.gathers, e1.text,
     math.ceil(s2.crafts), s2.name, s2.smelt.n, s2.buy.n))
+  -- no Mining Pick: buying one is the first step (the full route, the mini panel and the
+  -- shopping list); with one, nothing
+  local savedHas = Core.HasTool
+  Core.HasTool = function() return false end
+  local tp = Core.Plan(186, 300)
+  local te = ns.Mini.Entries(tp)[1]
+  assert(te.kind == "tool" and te.text == "Buy 1 x Mining Pick (tool)" and tp.tool.item == 2901, "a pick first: " .. tostring(te.text))
+  assert(tp.shopping.buy[1].tool and tp.shopping.buy[1].item == 2901, "the pick is on the shopping list")
+  Core.HasTool = function() return true end
+  for _, x in ipairs(ns.Mini.Entries(Core.Plan(186, 300))) do assert(x.kind ~= "tool", "you have a pick: no tool step") end
+  Core.HasTool = savedHas
+  local GT = SkillRouteData.gatherTools
+  assert(SkillRouteData.tools[GT[393]][1] == "Skinning Knife" and SkillRouteData.tools[GT[356]][1] == "Fishing Pole"
+    and SkillRouteData.tools[GT[356]][3] and not GT[182], "Skinning: a knife, Fishing: a pole (equipped), Herbalism: nothing")
+  Core.HasTool = realHasTool
   Core.Skills = savedSkills
 end
 
