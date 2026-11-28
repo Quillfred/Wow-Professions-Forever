@@ -1015,8 +1015,17 @@ function Planner.GatherPlan(ctx)
         local alsoList = {}
         for name in pairs(also) do alsoList[#alsoList + 1] = name end
         table.sort(alsoList)
+        -- other nodes needing the same skill: as good here, often where this one isn't
+        -- (Forever's Poor Copper Vein in the starting zones), most spots first
+        local alt = {}
+        for j, on in ipairs(ctx.nodes) do
+          if j ~= i and not on[4] and on[2] == nd[2] then alt[#alt + 1] = { name = on[1], n = avail[j] } end
+        end
+        table.sort(alt, function(a, b) if a.n ~= b.n then return a.n > b.n end return a.name < b.name end)
+        local altList = {}
+        for _, a in ipairs(alt) do altList[#altList + 1] = a.name end
         steps[#steps + 1] = { gather = true, name = nd[1], from = s, to = e, crafts = n, zones = nd[3],
-                              color = Planner.Color(nodeRule(nd[2]), s), also = alsoList }
+                              color = Planner.Color(nodeRule(nd[2]), s), also = alsoList, alt = altList }
         total = total + n
         s = e
       end

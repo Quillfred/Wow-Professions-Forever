@@ -114,6 +114,23 @@ local function afterCrafting(item, n)
            #used == 1 and "it" or "them") or nil
 end
 
+-- A gathering step's zones as shown everywhere (route, mini panel, tracker): your
+-- faction's first, then contested, the other faction's last; most spots first within
+-- each. "Mulgore (268)"; Fishing: names only, all of them.
+function UI.GatherZones(st, max)
+  local list = {}
+  for k = 1, #(st.zones or {}), 2 do
+    list[#list + 1] = { z = st.zones[k], n = st.zones[k + 1], r = Core.ZoneRank(st.zones[k]), i = k }
+  end
+  table.sort(list, function(a, b) if a.r ~= b.r then return a.r < b.r end return a.i < b.i end)
+  local zones = {}
+  for _, x in ipairs(list) do
+    if st.fishing then zones[#zones + 1] = Core.ZoneName(x.z)
+    elseif #zones < (max or 3) then zones[#zones + 1] = ("%s (%d)"):format(Core.ZoneName(x.z), x.n) end
+  end
+  return zones
+end
+
 local function mats(spell, line)
   local r = Data.professions[line].recipes[spell]
   local parts = {}
@@ -605,30 +622,22 @@ local function routeRows(plan)
       end
     end
     if st.gather then
-      -- your faction's zones first, then contested, the other faction's last (marked);
-      -- node zones keep their most-spawns order within each
-      local list = {}
-      for k = 1, #(st.zones or {}), 2 do
-        list[#list + 1] = { z = st.zones[k], n = st.zones[k + 1], r = Core.ZoneRank(st.zones[k]), i = k }
-      end
-      table.sort(list, function(a, b) if a.r ~= b.r then return a.r < b.r end return a.i < b.i end)
-      local zones = {}
-      for _, x in ipairs(list) do
-        if st.fishing then zones[#zones + 1] = Core.ZoneName(x.z)
-        elseif #zones < 3 then zones[#zones + 1] = ("%s (%d)"):format(Core.ZoneName(x.z), x.n) end
-      end
+      local zones = UI.GatherZones(st)
       add({ icon = st.skinning and "Interface\\Icons\\INV_Misc_Pelt_Wolf_01"
                    or st.fishing and "Interface\\Icons\\Trade_Fishing"
                    or (plan.line == 186 and "Interface\\Icons\\Trade_Mining" or "Interface\\Icons\\Trade_Herbalism"),
             text = st.skinning and ("|cff%s~%d|r x skin %s"):format(COLORS[st.color] or "ffffff", math.ceil(st.crafts), st.name)
                    or st.fishing and ("|cff%s~%d|r catches"):format(COLORS[st.color] or "ffffff", math.ceil(st.crafts - 1e-9))
-                   or ("|cff%s~%d|r x %s"):format(COLORS[st.color] or "ffffff", math.ceil(st.crafts - 1e-9), st.name),
+                   or ("|cff%s~%d|r x %s"):format(COLORS[st.color] or "ffffff", math.ceil(st.crafts - 1e-9), st.name)
+                      .. ((st.alt and st.alt[1]) and (" |cffcccccc(or %s)|r"):format(st.alt[1]) or ""),
             sub = st.fishing and (#zones > 0 and ("No fish get away in: " .. table.concat(zones, ", "))
                                   or "Fish in your starting zone's waters")
                   or st.skinning and (#zones > 0 and ("Best zones: " .. table.concat(zones, ", "))
                                       or "Skin the highest-level beasts you can: always a skill point.")
                   or ((#zones > 0 and ("Best zones: " .. table.concat(zones, ", ")) or "")
-                      .. ((st.also and #st.also > 0) and ("  |cff40bf40+ " .. table.concat(st.also, ", ") .. " when you see it|r") or "")),
+                      -- kept short (one line): the names are in the tooltip
+                      .. ((st.also and #st.also == 1 and #st.also[1] <= 18) and ("  |cff40bf40+ " .. st.also[1] .. " when you see it|r")
+                          or (st.also and #st.also > 0) and ("  |cff40bf40+ %d more when you see them|r"):format(#st.also) or "")),
             range = ("%d-%d"):format(st.from, st.to),
             tipTitle = st.name,
             tip = st.fishing and (function()
@@ -648,10 +657,22 @@ local function routeRows(plan)
                     { "Skin", "the highest-level beasts you can" },
                     { "", "beasts of level 21+ need 5 x their level in skill", sub = true },
                     { note = "Zones: most skinnable beasts of these levels (Classic spawn data), your faction's first." } }
-                  or {
-                    { header = "SkillRoute" },
-                    { "Zones", "most spawns of this node (Forever, Wowhead)" },
-                    { note = "Gather anything orange or yellow on the way." } } })
+                  or (function()
+                    local t = { { header = "SkillRoute" },
+                      { "Zones", "most spots of this node (Forever, Wowhead)" } }
+                    for i, z in ipairs(zones) do t[#t + 1] = { i == 1 and "" or "", z, sub = true } end
+                    if st.alt and #st.alt > 0 then
+                      t[#t + 1] = { "Or", st.alt[1] }
+                      for i = 2, math.min(#st.alt, 5) do t[#t + 1] = { "", st.alt[i], sub = true } end
+                      if #st.alt > 5 then t[#t + 1] = { "", ("and %d more"):format(#st.alt - 5), sub = true } end
+                    end
+                    if st.also and #st.also > 0 then
+                      t[#t + 1] = { "When you see them", st.also[1] }
+                      for i = 2, #st.also do t[#t + 1] = { "", st.also[i], sub = true } end
+                    end
+                    t[#t + 1] = { note = "Gather anything orange or yellow on the way." }
+                    return t
+                  end)() })
     elseif st.gap then
       add({ icon = "Interface\\Icons\\INV_Scroll_03",
             text = ("|cffff4040No usable recipe for %d-%d|r"):format(st.from, st.to),

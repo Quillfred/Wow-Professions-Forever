@@ -207,6 +207,10 @@ local function draw(lineID, plan, entries)
     end
     local buy = ns.Mini.BuyText(plan, e.kind == "craft" and e.st or e.buy)
     if buy then add(buy, "GameFontHighlightSmall", 12) end
+  elseif e.kind == "gather" then -- the node and where: the best zones as objectives
+    add(e.text, "GameFontNormal")
+    if e.st.alt and e.st.alt[1] then add("|cffcccccc- or " .. e.st.alt[1] .. "|r", "GameFontHighlightSmall", 12) end
+    for _, z in ipairs(UI.GatherZones(e.st)) do add("- " .. z, "GameFontHighlightSmall", 12) end
   else
     add(e.text, "GameFontNormal")
     stepLoc = e.loc

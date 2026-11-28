@@ -2,6 +2,14 @@
 
 ## 0.38.7 (not released yet)
 
+- Gathering routes in the mini panel and tracker: the step now says where to go (its
+  three best zones, your faction's first), counts as a step ("13 steps left"), and the
+  Craft buttons and "Left to buy" make way for "Gathers in all".
+- A gathering step names an alternative needing the same skill: "Copper Vein (or Poor
+  Copper Vein)" (Forever's starting-zone copper), Peacebloom's Wilted Peacebloom, etc.
+- Fixed: on the full route, a gathering step's "when you see them" list ran off the end
+  of the line. It now says "+ 2 more when you see them"; the step's tooltip lists them,
+  with the alternatives and its zones.
 - **Mining and Herbalism from Forever's own maps:** the gathering routes now use the
   herb and ore spots on Wowhead's WoW Forever maps (27,800 spots in 46 zones) instead of
   Classic spawn data. 32 nodes SkillRoute didn't know are in: Forever's Heavy Thorium

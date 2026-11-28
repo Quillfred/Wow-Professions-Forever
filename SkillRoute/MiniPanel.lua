@@ -48,7 +48,8 @@ function Mini.Entries(plan)
     if st.gap then
       out[#out + 1] = { kind = "gap", text = ("No usable recipe for %d-%d: see the full route"):format(st.from, st.to), at = st.from }
     elseif st.gather then
-      out[#out + 1] = { kind = "gather", text = ("~%d x %s (%d-%d)"):format(math.ceil(st.crafts - 1e-9), st.name, st.from, st.to), at = st.from }
+      out[#out + 1] = { kind = "gather", st = st, at = st.from,
+                        text = ("~%d x %s (%d-%d)"):format(math.ceil(st.crafts - 1e-9), st.name, st.from, st.to) }
     elseif st.spell then
       out[#out + 1] = { kind = "craft", st = st, at = st.from,
                         text = ("%d x %s (%d-%d)"):format(math.ceil(st.crafts - 1e-9), st.name, st.from, st.to) }
@@ -243,7 +244,7 @@ local function draw()
   ui.short:SetText(""); ui.after:SetText(""); ui.buy:Hide()
   local entries = plan and Mini.Entries(plan) or {}
   local nCraft = 0
-  for _, e in ipairs(entries) do if e.kind == "craft" then nCraft = nCraft + 1 end end
+  for _, e in ipairs(entries) do if e.kind == "craft" or e.kind == "gather" then nCraft = nCraft + 1 end end
   ui.head:SetText(plan and ("%d -> %d  -  %d step%s left"):format(plan.skill, plan.target, nCraft, nCraft == 1 and "" or "s") or "")
   y = y - 16
   place(ui.cap1, 12, y); y = y - 14
@@ -270,6 +271,14 @@ local function draw()
     ui.icon:SetTexture(UI.Icon(e.item, e.spell))
     ui.main:SetText("|cffff8040" .. e.text .. "|r")
     ui.sub:SetText(("|cff999999needed from skill %d; keep it in your bags|r"):format(e.at))
+  elseif e.kind == "gather" then -- where to go: the best zones (as on the full route)
+    local st = e.st
+    ui.icon:SetTexture(st.skinning and "Interface\\Icons\\INV_Misc_Pelt_Wolf_01" or st.fishing and "Interface\\Icons\\Trade_Fishing"
+      or line == 186 and "Interface\\Icons\\Trade_Mining" or "Interface\\Icons\\Trade_Herbalism")
+    ui.main:SetText(("|cffffd100~%d x %s|r"):format(math.ceil(st.crafts - 1e-9), st.name)
+      .. ((st.alt and st.alt[1]) and (" |cffcccccc(or %s)|r"):format(st.alt[1]) or ""))
+    local zones = UI.GatherZones(st)
+    ui.sub:SetText(("|cff999999skill %d -> %d|r  %s"):format(st.from, st.to, #zones > 0 and table.concat(zones, ", ") or ""))
   else
     ui.icon:SetTexture(e.kind == "rank" and "Interface\\Icons\\INV_Misc_Book_09" or "Interface\\Icons\\INV_Scroll_03")
     ui.main:SetText("|cffffd100" .. e.text .. "|r")
@@ -359,6 +368,8 @@ local function draw()
   end
 
   y = y - 4
+  local gathering = plan and plan.gather
+  for _, b in ipairs({ ui.craft1, ui.craftAll }) do if gathering then b:Hide() else b:Show() end end
   for _, b in ipairs({ ui.craft1, ui.craftAll }) do
     if ui.spell and known and ui.allN > 0 then b:Enable() else b:Disable() end
   end
@@ -380,7 +391,13 @@ local function draw()
   y = y - 6
   place(ui.costL, 12, y)
   ui.costR:ClearAllPoints(); ui.costR:SetPoint("TOPRIGHT", -12, y)
-  ui.costR:SetText(plan and UI.Money(plan.total) or "")
+  if gathering then -- no gold to spend: how many nodes in all
+    ui.costL:SetText(plan.fishing and "Catches in all" or "Gathers in all")
+    ui.costR:SetText(("~%d"):format(math.ceil(plan.gathers or 0)))
+  else
+    ui.costL:SetText("Left to buy")
+    ui.costR:SetText(plan and UI.Money(plan.total) or "")
+  end
   panel:SetHeight(-y + 24)
 end
 

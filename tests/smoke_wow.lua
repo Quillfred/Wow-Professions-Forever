@@ -2753,6 +2753,24 @@ do
   print("favor note: " .. note:gsub("|c%x%x%x%x%x%x%x%x", ""):gsub("|r", ""))
 end
 
+-- a gathering route (Mining at 2, like a new miner): alternatives, zones, no Craft buttons
+do
+  local savedSkills = Core.Skills
+  Core.Skills = function() return { [186] = { rank = 2, max = 75 }, [197] = { rank = 110, max = 150 } } end
+  local plan = Core.Plan(186, 300)
+  local st = plan.steps[1]
+  assert(st.gather and st.name == "Copper Vein", "first: Copper Vein")
+  local hasPoor = false
+  for _, a in ipairs(st.alt or {}) do if a == "Poor Copper Vein" then hasPoor = true end end
+  assert(hasPoor, "Poor Copper Vein named as the alternative: " .. table.concat(st.alt or {}, ","))
+  local zones = UI.GatherZones(st)
+  assert(#zones == 3 and zones[1]:find("%(%d+%)"), "three best zones with spot counts: " .. table.concat(zones, ", "))
+  local e = ns.Mini.Entries(plan)[1]
+  assert(e.kind == "gather" and e.st == st, "the mini panel gets the step")
+  print("gathering: " .. st.name .. " (or " .. st.alt[1] .. "), " .. table.concat(zones, ", "))
+  Core.Skills = savedSkills
+end
+
 -- /sr check runs and reports; errors are caught, not thrown
 do
   local out = {}
