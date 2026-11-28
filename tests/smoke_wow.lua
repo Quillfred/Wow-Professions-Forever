@@ -3047,7 +3047,9 @@ do
       assert(tmpl == "SkillRouteMapPinTemplate", "our template")
       local pin = setmetatable({}, { __index = function(_, k) return _G.SkillRouteMapPinMixin[k] or stubObj()[k] end })
       for _, e in ipairs({ "rim", "dot" }) do
-        pin[e] = setmetatable({}, { __index = stubObj() }); rawset(pin[e], "SetColorTexture", function(t, r, g, b) t.rgb = { r, g, b } end)
+        pin[e] = setmetatable({}, { __index = stubObj() })
+        rawset(pin[e], "SetVertexColor", function(t, r, g, b) t.rgb = { r, g, b } end)
+        rawset(pin[e], "SetTexture", function(t, f) t.file = f end)
       end
       pin:OnLoad(); pin:OnAcquired(...)
       acquired[#acquired + 1] = pin
@@ -3065,6 +3067,7 @@ do
       if P.Kind(a.pin[3]) == "herb" then herb = a.dot.rgb else ore = a.dot.rgb end
     end
     assert(herb and ore and herb[2] > herb[1] and ore[1] > ore[2], "dots: green for herbs, copper for ores")
+    assert(acquired[1].dot.file and acquired[1].dot.file == acquired[1].rim.file, "every dot drawn the same way: one round texture")
     -- the world map tooltip: just what's there
     local tipLines = {}
     local savedTT = _G.GameTooltip

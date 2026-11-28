@@ -277,6 +277,7 @@ end
 -- one by its map coordinates, layers and scales it. The same hollow squares as the minimap.
 -- The pin template (MapPins.xml) names this mixin, so it has to be global.
 local TEMPLATE = "SkillRouteMapPinTemplate"
+local DISC = "Interface\\CharacterFrame\\TempPortraitAlphaMask"
 local provider
 local function makeMixin() -- once the map's own pin mixin exists (the map can load after us)
   if SkillRouteMapPinMixin or not (MapCanvasPinMixin and CreateFromMixins) then return end
@@ -284,15 +285,9 @@ local function makeMixin() -- once the map's own pin mixin exists (the map can l
   function SkillRouteMapPinMixin:OnLoad()
     pcall(self.UseFrameLevelType, self, "PIN_FRAME_LEVEL_AREA_POI")
     if self.SetScalingLimits then self:SetScalingLimits(1, 1.0, 1.2) end -- about the same size at any zoom
-    -- round: both textures through a circle mask (square if the client has no masks)
-    self.rim:SetColorTexture(0, 0, 0, 0.7)
-    pcall(function()
-      local m = self:CreateMaskTexture()
-      m:SetTexture("Interface\\CharacterFrame\\TempPortraitAlphaMask", "CLAMPTOBLACKADDITIVE", "CLAMPTOBLACKADDITIVE")
-      m:SetAllPoints(self)
-      self.rim:AddMaskTexture(m)
-      self.dot:AddMaskTexture(m)
-    end)
+    -- round: the game's round portrait texture (a white disc), tinted; no masks needed
+    self.rim:SetTexture(DISC); self.rim:SetVertexColor(0, 0, 0, 0.7)
+    self.dot:SetTexture(DISC)
     -- hover for the tooltip, clicks through to the map; set here, before the map looks
     if self.SetMouseMotionEnabled then pcall(self.SetMouseMotionEnabled, self, true) end
     if self.SetMouseClickEnabled then pcall(self.SetMouseClickEnabled, self, false) end
@@ -300,7 +295,7 @@ local function makeMixin() -- once the map's own pin mixin exists (the map can l
   function SkillRouteMapPinMixin:OnAcquired(p, alpha)
     self.pin, self.also = p, p[6]
     local c = p[5] and RING.find or RING[P.Kind(p[3]) or "ore"]
-    self.dot:SetColorTexture(c[1], c[2], c[3], 1)
+    self.dot:SetVertexColor(c[1], c[2], c[3], 1)
     self:SetAlpha(alpha)
     self:SetPosition(p[1], p[2])
   end
