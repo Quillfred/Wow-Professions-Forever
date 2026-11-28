@@ -98,6 +98,16 @@ function Core.Check()
       ok and plan and ("%d steps, %.1f ms"):format(#plan.steps, plan.ms or 0) or tostring(plan)))
   end
 
+  local MP = ns.MapPins
+  if MP then
+    local wantN = 0
+    for _ in pairs(MP.Wanted()) do wantN = wantN + 1 end
+    local lw = MP.lastWorld
+    line(("%s map spots: %d node types for your routes; last world map %s"):format(wantN > 0 and OK or WARN, wantN,
+      lw and lw.map and ("%d (type %s): %s"):format(lw.map, tostring(lw.type), lw.n and (lw.n .. " spots drawn") or lw.why)
+         or (lw and lw.why or "not opened yet")))
+  end
+
   local err = SkillRouteDB and SkillRouteDB.lastError
   local when = SkillRouteDB and SkillRouteDB.lastErrorTime and date and date("%Y-%m-%d %H:%M", SkillRouteDB.lastErrorTime)
   line(err and ("|cffff4040last error|r (v%s%s): %s"):format(SkillRouteDB.lastErrorVersion or "?",

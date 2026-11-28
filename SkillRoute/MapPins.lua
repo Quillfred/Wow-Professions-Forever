@@ -23,10 +23,11 @@ local function S() SkillRouteDB.settings = SkillRouteDB.settings or {}; return S
 function P.MapOn() return S().mapPins ~= false end
 function P.MiniOn() return S().miniPins ~= false end
 function P.RecordOn() return S().recordFinds ~= false end
-function P.Alpha() return 1 - (S().pinTransparency or 25) / 100 end
+function P.Alpha() return 1 - (S().pinTransparency or 50) / 100 end
 
 -- Spots ---------------------------------------------------------------------------------
 local decoded = {}
+local zoneMaps -- every zone map with spots or finds (for continent maps), built when first needed
 -- the data's spots of a node on a zone map: { x1, y1, x2, y2, ... } in 0-1
 function P.Spots(name, map)
   local key = name .. "@" .. map
@@ -108,6 +109,7 @@ function P.Record(name, map, x, y, kind)
   list[#list + 1] = math.floor(x * 10000 + 0.5)
   list[#list + 1] = math.floor(y * 10000 + 0.5)
   SkillRouteDB.findCount = (SkillRouteDB.findCount or 0) + 1
+  zoneMaps = nil -- a find may be in a zone with no data spots
   if kind and not P.Kind(name) then
     SkillRouteDB.findKind = SkillRouteDB.findKind or {}
     SkillRouteDB.findKind[name] = kind
@@ -180,6 +182,61 @@ function P.PinsFor(map)
   return out
 end
 
+-- On a continent map (or the world map: some map addons show the continent, zoomed): each
+-- zone's spots placed by where the game puts that zone on it.
+local function allZoneMaps()
+  if zoneMaps then return zoneMaps end
+  zoneMaps = {}
+  local seen = {}
+  for _, maps in pairs(ns.NodeSpots and ns.NodeSpots.spots or {}) do
+    for m in pairs(maps) do if not seen[m] then seen[m] = true; zoneMaps[#zoneMaps + 1] = m end end
+  end
+  for _, maps in pairs(SkillRouteDB.finds or {}) do
+    for m in pairs(maps) do if not seen[m] then seen[m] = true; zoneMaps[#zoneMaps + 1] = m end end
+  end
+  return zoneMaps
+end
+local rects = {}
+local function rectOn(zone, map) -- minX, maxX, minY, maxY of a zone on a bigger map, or nil
+  local key = zone .. ">" .. map
+  local r = rects[key]
+  if r == nil then
+    r = false
+    if C_Map and C_Map.GetMapRectOnMap then
+      local ok, a, b, c, d = pcall(C_Map.GetMapRectOnMap, zone, map)
+      if ok and a and b and c and d and b > a and d > c then r = { a, b, c, d } end
+    end
+    rects[key] = r
+  end
+  return r or nil
+end
+function P.MapType(map)
+  local info = C_Map and C_Map.GetMapInfo and C_Map.GetMapInfo(map)
+  return info and info.mapType
+end
+-- the pins of every zone on a continent (or world) map, placed on it
+function P.ProjectedFor(map)
+  local w = P.Wanted()
+  local key = "c" .. map
+  local c = pinsCache[key]
+  if c and c.finds == P.FindCount() then return c.list end
+  local out = {}
+  for _, zone in ipairs(allZoneMaps()) do
+    local r = rectOn(zone, map)
+    if r then
+      local sx, sy = r[2] - r[1], r[4] - r[3]
+      for name, role in pairs(w) do
+        local sp = P.Spots(name, zone)
+        for i = 1, #sp, 2 do out[#out + 1] = { r[1] + sp[i] * sx, r[3] + sp[i + 1] * sy, name, role } end
+        local f = P.Finds(name, zone)
+        for i = 1, #f, 2 do out[#out + 1] = { r[1] + f[i] * sx, r[3] + f[i + 1] * sy, name, role, true } end
+      end
+    end
+  end
+  pinsCache[key] = { finds = P.FindCount(), list = out }
+  return out
+end
+
 -- Pins ----------------------------------------------------------------------------------
 local ROLE_TEXT = { step = "this step's node", alt = "counts the same as this step's node", rare = "rare: gather it when you see it" }
 local function pinTip(self)
@@ -212,31 +269,54 @@ local function styled(f, p, size, alpha)
   f:Show()
 end
 
--- World map: pins on the map canvas, sized against its zoom
-local worldOverlay, worldPool = nil, {}
+-- World map: pins on the map canvas, sized against its zoom. A zone map gets pins you can
+-- hover; a continent (thousands of spots) gets plain, smaller icons.
+local worldOverlay, worldPool, texPool = nil, {}, {}
+P.lastWorld = nil -- what the last draw did, for /sr check
 function P.RefreshWorld()
   local W = WorldMapFrame
   local canvas = W and W.ScrollContainer and W.ScrollContainer.Child
-  if not canvas then return 0 end
+  if not canvas then P.lastWorld = { why = "no world map canvas" }; return 0 end
   if not worldOverlay then
     worldOverlay = CreateFrame("Frame", nil, canvas)
     worldOverlay:SetAllPoints(canvas)
-    if worldOverlay.SetFrameLevel and canvas.GetFrameLevel then worldOverlay:SetFrameLevel((canvas:GetFrameLevel() or 0) + 20) end
   end
+  -- above the map art and the other pins on it (they're layered on the canvas too)
+  if worldOverlay.SetFrameLevel and canvas.GetFrameLevel then worldOverlay:SetFrameLevel((canvas:GetFrameLevel() or 0) + 1000) end
   for _, f in ipairs(worldPool) do f:Hide() end
+  for _, t in ipairs(texPool) do t:Hide() end
   local map = W.GetMapID and W:GetMapID()
-  if not (P.MapOn() and map and W:IsShown()) then return 0 end
-  local pins = P.PinsFor(map)
+  if not (P.MapOn() and map and W:IsShown()) then P.lastWorld = { map = map, why = "off or hidden" }; return 0 end
+  local mtype = P.MapType(map)
+  local continent = mtype and mtype <= 2
+  local pins = continent and P.ProjectedFor(map) or P.PinsFor(map)
   local w, h = canvas:GetSize()
   local scale = (W.ScrollContainer.GetCanvasScale and W.ScrollContainer:GetCanvasScale()) or 1
-  local size, alpha = 14 / math.max(scale, 0.1), P.Alpha()
-  for i, p in ipairs(pins) do
-    local f = worldPool[i] or newPin(worldOverlay)
-    worldPool[i] = f
-    styled(f, p, size, alpha)
-    f:ClearAllPoints()
-    f:SetPoint("CENTER", worldOverlay, "TOPLEFT", p[1] * w, -p[2] * h)
+  local alpha = P.Alpha()
+  if continent then
+    local size = 8 / math.max(scale, 0.05)
+    for i, p in ipairs(pins) do
+      local t = texPool[i]
+      if not t then t = worldOverlay:CreateTexture(nil, "OVERLAY"); texPool[i] = t end
+      t:SetTexture(ICON[P.Kind(p[3]) or "ore"])
+      if p[5] then t:SetVertexColor(1, 0.85, 0.5) else t:SetVertexColor(1, 1, 1) end
+      t:SetSize(size, size)
+      t:SetAlpha(alpha)
+      t:ClearAllPoints()
+      t:SetPoint("CENTER", worldOverlay, "TOPLEFT", p[1] * w, -p[2] * h)
+      t:Show()
+    end
+  else
+    local size = 14 / math.max(scale, 0.1)
+    for i, p in ipairs(pins) do
+      local f = worldPool[i] or newPin(worldOverlay)
+      worldPool[i] = f
+      styled(f, p, size, alpha)
+      f:ClearAllPoints()
+      f:SetPoint("CENTER", worldOverlay, "TOPLEFT", p[1] * w, -p[2] * h)
+    end
   end
+  P.lastWorld = { map = map, type = mtype, n = #pins, w = w, h = h }
   return #pins
 end
 

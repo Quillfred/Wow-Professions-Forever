@@ -2993,6 +2993,24 @@ do
     GetMapID = function() return 1413 end, IsShown = function() return true end }, { __index = stubObj() })
   local nWorld = P.RefreshWorld()
   assert(nWorld == #P.PinsFor(1413) and nWorld > 147, "the Barrens: every Tin Vein spot and the rest: " .. nWorld)
+  -- a continent map (a map addon showing Kalimdor zoomed in): each zone's spots placed on it
+  local mapId = 1414
+  _G.WorldMapFrame.GetMapID = function() return mapId end
+  local cm = _G.C_Map
+  _G.C_Map = setmetatable({
+    GetMapInfo = function(m) return { mapType = m == 1414 and 2 or 3, parentMapID = 1414 } end,
+    GetMapRectOnMap = function(z, m) if z == 1413 and m == 1414 then return 0.4, 0.6, 0.4, 0.7 end end }, { __index = cm })
+  local nCont = P.RefreshWorld()
+  local proj = P.ProjectedFor(1414)
+  assert(nCont == #P.PinsFor(1413) and P.lastWorld.type == 2, "Kalimdor: the Barrens' spots, placed: " .. nCont)
+  local zp = P.PinsFor(1413)
+  local okPlace = false
+  for _, q in ipairs(proj) do
+    if math.abs(q[1] - (0.4 + zp[1][1] * 0.2)) < 1e-9 and math.abs(q[2] - (0.4 + zp[1][2] * 0.3)) < 1e-9 then okPlace = true; break end
+  end
+  assert(okPlace, "a Barrens spot lands where the Barrens is on Kalimdor")
+  _G.C_Map = cm
+  mapId = 1413
   SkillRouteDB.settings.mapPins = false
   assert(P.RefreshWorld() == 0, "map spots off")
   SkillRouteDB.settings.mapPins = nil
