@@ -641,7 +641,9 @@ local function routeRows(plan)
                    or st.fishing and ("|cff%s~%d|r catches"):format(COLORS[st.color] or "ffffff", math.ceil(st.crafts - 1e-9))
                    or ("|cff%s~%d|r x %s"):format(COLORS[st.color] or "ffffff", math.ceil(st.crafts - 1e-9), st.name)
                       .. ((st.alt and st.alt[1]) and (" |cffcccccc(or %s)|r"):format(st.alt[1]) or "")
-                      .. (st.smelt and ", |cffffd100smelting the ore as you go|r" or ""),
+                      -- one line: with an alternative there's only room for the short form
+                      .. (st.smelt and ((st.alt and st.alt[1]) and " |cffffd100+ smelt|r"
+                                        or ", |cffffd100smelting the ore as you go|r") or ""),
             sub = st.fishing and (#zones > 0 and ("No fish get away in: " .. table.concat(zones, ", "))
                                   or "Fish in your starting zone's waters")
                   or st.skinning and (#zones > 0 and ("Best zones: " .. table.concat(zones, ", "))
