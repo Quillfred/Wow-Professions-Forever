@@ -313,9 +313,20 @@ local function useProvider()
     local map = m:GetMapID()
     if not (P.MapOn() and map) then return end
     local alpha = P.Alpha()
-    local pins = P.PinsFor(map)
-    for _, p in ipairs(pins) do m:AcquirePin(TEMPLATE, p, alpha) end
-    P.lastWorld = { map = map, n = #pins, mode = "the map's own pins" }
+    local ok, pins = pcall(P.PinsFor, map)
+    if not ok then
+      P.lastWorld = { map = map, n = 0, mode = "the map's own pins", err = tostring(pins) }
+      Core.ReportError("world map spots", pins)
+      return
+    end
+    -- one spot that fails mustn't stop the rest: count them, keep the first error for /sr check
+    local drawn, firstErr = 0, nil
+    for _, p in ipairs(pins) do
+      local okPin, err = pcall(m.AcquirePin, m, TEMPLATE, p, alpha)
+      if okPin then drawn = drawn + 1 elseif not firstErr then firstErr = tostring(err) end
+    end
+    P.lastWorld = { map = map, n = drawn, of = #pins, mode = "the map's own pins", err = firstErr }
+    if firstErr then Core.ReportError("world map spots", firstErr) end
   end
   local ok, err = pcall(W.AddDataProvider, W, pr)
   if ok then provider, P.providerMissing = pr, nil else P.providerMissing = "AddDataProvider failed: " .. tostring(err) end

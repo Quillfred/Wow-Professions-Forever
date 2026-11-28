@@ -105,8 +105,9 @@ function Core.Check()
     table.sort(names)
     local lw = MP.lastWorld
     line(("%s map nodes: %s"):format(#names > 0 and OK or WARN, #names > 0 and table.concat(names, ", ") or "none for your routes"))
-    line(("%s world map: %s%s"):format(lw and lw.mode == "the map's own pins" and OK or WARN,
-      lw and ("map %s, %d spots, %s"):format(tostring(lw.map), lw.n or 0, lw.mode) or "not opened yet",
+    line(("%s world map: %s%s"):format(lw and lw.mode == "the map's own pins" and not lw.err and OK or WARN,
+      lw and ("map %s, %d%s spots, %s%s"):format(tostring(lw.map), lw.n or 0, lw.of and lw.of ~= lw.n and (" of " .. lw.of) or "",
+        lw.mode, lw.err and ("; error: " .. lw.err) or "") or "not opened yet",
       MP.providerMissing and (" (the map's own pins unavailable: " .. MP.providerMissing .. ")") or ""))
   end
 
