@@ -24,6 +24,14 @@ _G.CreateFrame = function() local f = stubObj(); f.shown = true; frames[#frames 
 _G.UIParent, _G.UISpecialFrames, _G.SlashCmdList = stubObj(), {}, {}
 _G.tinsert = table.insert
 _G.GameTooltip = stubObj()
+-- every tooltip line the run shows: none names a website or another addon (checked at the end)
+local tipText = {}
+for _, m in ipairs({ "SetText", "AddLine", "AddDoubleLine" }) do
+  rawset(GameTooltip, m, function(_, a, b)
+    if type(a) == "string" then tipText[#tipText + 1] = a end
+    if m == "AddDoubleLine" and type(b) == "string" then tipText[#tipText + 1] = b end
+  end)
+end
 _G.C_Timer = { After = function(_, f) f() end }
 local npcName = "Hgarth"
 _G.UnitName = function(u) if u == "npc" then return npcName end return "Tester" end
@@ -2876,5 +2884,27 @@ do
   UI.Toggle()
   SkillRouteDB.lastError = nil
   realPrint(("check: %d lines, e.g. %s"):format(#out, out[2]:gsub("|c%x%x%x%x%x%x%x%x", ""):gsub("|r", "")))
+end
+do
+  local BANNED = { "wowhead", "auctionator", "tsm", "tradeskillmaster", "syndicator", "datastore", "tomtom",
+                   "gathermate", "allthethings", "cmangos", "wago" }
+  -- hover everything that has a tooltip: the Tailoring route (shopping list, steps), then Mining
+  local function hoverAll()
+    for _, f in ipairs(frames) do
+      local enter = rawget(f, "OnEnter")
+      if enter then pcall(enter, f) end
+    end
+  end
+  hoverAll()
+  if not UI.IsShown() then UI.Toggle(186) end
+  hoverAll()
+  assert(#tipText > 50, "tooltips were shown: " .. #tipText)
+  for _, t in ipairs(tipText) do
+    local low = t:lower()
+    for _, w in ipairs(BANNED) do
+      assert(not low:find("%f[%a]" .. w .. "%f[%A]"), ("a tooltip names %s: %s"):format(w, t))
+    end
+  end
+  print(("tooltips: %d lines, none naming a website or another addon"):format(#tipText))
 end
 print("SMOKE TEST PASSED")

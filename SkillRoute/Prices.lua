@@ -555,7 +555,7 @@ local function attachButton()
   ahBtn:SetScript("OnClick", function() Prices.Scan() end)
   ahBtn:SetScript("OnEnter", function(self)
     GameTooltip:SetOwner(self, "ANCHOR_BOTTOM"); GameTooltip:SetText("SkillRoute: scan the auction house")
-    GameTooltip:AddLine("Reads the lowest price of everything listed, in one search. SkillRoute uses the freshest of this and Auctionator's prices.", 1, 1, 1, true)
+    GameTooltip:AddLine("Reads the lowest price of everything listed, in one search. SkillRoute uses the freshest price it has for each item.", 1, 1, 1, true)
     local b = Prices.Book()
     if b.t then GameTooltip:AddLine(("Last scan: %s, %d items."):format(date("%b %d %H:%M", b.t), b.count or 0), 0.6, 0.6, 0.6, true) end
     GameTooltip:Show()

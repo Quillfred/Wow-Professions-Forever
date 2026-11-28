@@ -347,7 +347,7 @@ local function build()
     "\"Keep it\" on anything one of your routes still uses (and how many), so you don't sell it by accident.",
     function() return S().needTooltip ~= false end, function(v) Options.Set("needTooltip", v) end)
   y = check(pg, y, "Count materials on my alts",
-    "Uses Syndicator or DataStore, if installed.",
+    "Needs an addon that keeps track of your alts' bags and banks.",
     function() return S().alts ~= false end, function(v) Options.Set("alts", v) end)
   y = check(pg, y, "Estimate prices the AH hasn't shown",
     "4x the vendor price, marked in orange. Off: recipes with unpriced materials are skipped.",

@@ -30,6 +30,10 @@
   your bags become a "Smelt N x Bronze" step with Craft buttons at a forge. Bronze is a
   chance at a skill-up from 65 to 115: with plenty of bars wanted, 75-125 drops from
   ~62 Tin Veins to ~39.
+- Tooltips no longer name websites or other addons: gathering zones are just "most spots
+  of this node", the shopping list says when a price was seen (not where from), and the
+  Buy and Scan AH tooltips describe what they do. Nothing changes in how prices, alts or
+  waypoints work.
 - Gathering routes in the mini panel and tracker: the step now says where to go (its
   three best zones, your faction's first), counts as a step ("13 steps left"), and the
   Craft buttons and "Left to buy" make way for "Nodes in all". A gathering step's tooltip

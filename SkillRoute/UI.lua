@@ -268,7 +268,7 @@ local function setRow(i, opts)
     b:SetScript("OnEnter", function(self)
       GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
       local auc = Core.CanExportToAuctionator()
-      GameTooltip:SetText(auc and "Add to Auctionator" or "Search the auction house")
+      GameTooltip:SetText(auc and "Add to your AH shopping list" or "Search the auction house")
       GameTooltip:AddLine("This step's reagents x the crafts it still needs (with your safety margin),"
         .. " minus what you have; vendor items left out.", 1, 1, 1, true)
       GameTooltip:AddLine(auc and "Right-click: take them back out."
@@ -489,7 +489,7 @@ local function stepTip(plan, st)
     learn = learn .. "  |cffff8040needs " .. table.concat(names, ", ") .. "|r"
   end
   local ahStep = Core.CanBuyHere() and st or nil
-  if ahStep then hints[#hints + 1] = Core.CanExportToAuctionator() and "Buy: add reagents to Auctionator" or "Buy: search the AH for them" end
+  if ahStep then hints[#hints + 1] = Core.CanExportToAuctionator() and "Buy: add reagents to your AH shopping list" or "Buy: search the AH for them" end
   tip[#tip + 1] = { note = table.concat(hints, " · ") }
   return r, tip, waypoint, learn, ahStep
 end
@@ -681,7 +681,7 @@ local function routeRows(plan)
                     { note = "Zones: most skinnable beasts of these levels (Classic spawn data), your faction's first." } }
                   or (function()
                     local t = { { header = "SkillRoute" },
-                      { "Zones", "most spots of this node (Forever, Wowhead)" } }
+                      { "Zones", "most spots of this node" } }
                     for i, z in ipairs(zones) do t[#t + 1] = { i == 1 and "" or "", z, sub = true } end
                     if st.alt and #st.alt > 0 then
                       t[#t + 1] = { "Or", st.alt[1] }
@@ -796,7 +796,7 @@ local function craftedRows(plan, add)
       for i = 1, #a.deLoot, 4 do
         tip[#tip + 1] = { i == 1 and "Disenchants into" or "", ("%d%%  %d-%d %s"):format(a.deLoot[i + 1], a.deLoot[i + 2], a.deLoot[i + 3], itemName(a.deLoot[i])) }
       end
-      tip[#tip + 1] = { note = "Classic loot tables, checked against Forever where Wowhead had data." }
+      tip[#tip + 1] = { note = "Classic loot tables, checked against Forever." }
     end
     if a.best == "ah" then
       tip[#tip + 1] = { note = "Listing costs a deposit, lost if it doesn't sell; the price is today's lowest listing." }
@@ -863,8 +863,9 @@ local function shoppingRows(plan)
         if pi.ah then
           tip[#tip + 1] = { "AH price", money(pi.ah) .. " each" .. (pi.forN and (" for %d"):format(pi.forN) or "") }
           if pi.cheapest and pi.cheapest < pi.ah then tip[#tip + 1] = { "cheapest", money(pi.cheapest), sub = true } end
-          tip[#tip + 1] = { "from", (pi.src or "?") .. (pi.age == 0 and ", today" or pi.age == 1 and ", yesterday"
-                             or pi.age and (", %d days ago"):format(pi.age) or ""), sub = true }
+          if pi.age then
+            tip[#tip + 1] = { "seen", pi.age == 0 and "today" or pi.age == 1 and "yesterday" or ("%d days ago"):format(pi.age), sub = true }
+          end
         end
         if pi.paid then
           tip[#tip + 1] = { "You paid", money(pi.paid) .. " each" .. (pi.paidDays == 0 and " (today)"
@@ -1270,7 +1271,7 @@ local function build()
   scanBtn:SetScript("OnClick", function() if ns.Prices and ns.Prices.Scan() then UI.UpdateButtons() end end)
   scanBtn:SetScript("OnEnter", function(self)
     GameTooltip:SetOwner(self, "ANCHOR_TOP"); GameTooltip:SetText("Scan the auction house")
-    GameTooltip:AddLine("Reads the lowest price of everything listed, in one search. SkillRoute uses the freshest of this and Auctionator's prices.", 1, 1, 1, true)
+    GameTooltip:AddLine("Reads the lowest price of everything listed, in one search. SkillRoute uses the freshest price it has for each item.", 1, 1, 1, true)
     local b = ns.Prices and ns.Prices.Book()
     if b and b.t then GameTooltip:AddLine(("Last scan: %s, %d items."):format(date("%b %d %H:%M", b.t), b.count or 0), 0.6, 0.6, 0.6, true) end
     GameTooltip:Show()
