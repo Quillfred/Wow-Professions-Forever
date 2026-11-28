@@ -2889,6 +2889,14 @@ do
   local te = ns.Mini.Entries(tp)[1]
   assert(te.kind == "tool" and te.text == "Buy 1 x Mining Pick (tool)" and tp.tool.item == 2901, "a pick first: " .. tostring(te.text))
   assert(tp.shopping.buy[1].tool and tp.shopping.buy[1].item == 2901, "the pick is on the shopping list")
+  -- Fishing and Skinning the same way: a pole, a knife
+  local skills2 = Core.Skills
+  Core.Skills = function() return { [356] = { rank = 1, max = 75 }, [393] = { rank = 1, max = 75 } } end
+  local fe = ns.Mini.Entries(Core.Plan(356, 300))[1]
+  assert(fe.kind == "tool" and fe.text == "Buy 1 x Fishing Pole (tool)" and fe.loc, "a pole first, with a vendor: " .. tostring(fe.text))
+  local ke = ns.Mini.Entries(Core.Plan(393, 300))[1]
+  assert(ke.kind == "tool" and ke.text == "Buy 1 x Skinning Knife (tool)", "a knife first: " .. tostring(ke.text))
+  Core.Skills = skills2
   Core.HasTool = function() return true end
   for _, x in ipairs(ns.Mini.Entries(Core.Plan(186, 300))) do assert(x.kind ~= "tool", "you have a pick: no tool step") end
   Core.HasTool = savedHas
