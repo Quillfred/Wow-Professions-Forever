@@ -98,6 +98,18 @@ function Core.Check()
       ok and plan and ("%d steps, %.1f ms"):format(#plan.steps, plan.ms or 0) or tostring(plan)))
   end
 
+  local MP = ns.MapPins
+  if MP then
+    local names = {}
+    for n in pairs(MP.Wanted()) do names[#names + 1] = n end
+    table.sort(names)
+    local lw = MP.lastWorld
+    line(("%s map nodes: %s"):format(#names > 0 and OK or WARN, #names > 0 and table.concat(names, ", ") or "none for your routes"))
+    line(("%s world map: %s%s"):format(lw and lw.mode == "the map's own pins" and OK or WARN,
+      lw and ("map %s, %d spots, %s"):format(tostring(lw.map), lw.n or 0, lw.mode) or "not opened yet",
+      MP.providerMissing and (" (the map's own pins unavailable: " .. MP.providerMissing .. ")") or ""))
+  end
+
   local err = SkillRouteDB and SkillRouteDB.lastError
   local when = SkillRouteDB and SkillRouteDB.lastErrorTime and date and date("%Y-%m-%d %H:%M", SkillRouteDB.lastErrorTime)
   line(err and ("|cffff4040last error|r (v%s%s): %s"):format(SkillRouteDB.lastErrorVersion or "?",

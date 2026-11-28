@@ -127,9 +127,13 @@ function P.FindCount() return SkillRouteDB and SkillRouteDB.findCount or 0 end
 local wanted, wantedVer, pinsCache = nil, nil, {}
 function P.Invalidate() wanted, pinsCache = nil, {} end
 function P.Wanted()
-  if wanted and wantedVer == Core.RouteVersion() then return wanted end
-  local skills, c = Core.Skills(), Core.Char()
-  wanted, wantedVer, pinsCache = {}, Core.RouteVersion(), {}
+  -- keyed on your Mining and Herbalism ranks too: right after login the game may not have
+  -- reported your professions yet, and that first answer mustn't stick
+  local skills = Core.Skills()
+  local ver = Core.RouteVersion() .. ":" .. (skills[186] and skills[186].rank or "-") .. ":" .. (skills[182] and skills[182].rank or "-")
+  if wanted and wantedVer == ver then return wanted end
+  local c = Core.Char()
+  wanted, wantedVer, pinsCache = {}, ver, {}
   for _, line in ipairs(LINES) do
     if skills[line] then
       local ok, plan = pcall(Core.Plan, line, (c.targets and c.targets[line]) or 300)
@@ -296,9 +300,11 @@ end
 local function useProvider()
   makeMixin()
   local W = WorldMapFrame
-  if provider or not (W and W.AddDataProvider and MapCanvasDataProviderMixin and CreateFromMixins and SkillRouteMapPinMixin) then
-    return provider
-  end
+  if provider then return provider end
+  local missing = not W and "WorldMapFrame" or not W.AddDataProvider and "AddDataProvider"
+    or not MapCanvasDataProviderMixin and "MapCanvasDataProviderMixin" or not MapCanvasPinMixin and "MapCanvasPinMixin"
+    or not CreateFromMixins and "CreateFromMixins" or nil
+  if missing then P.providerMissing = missing; return nil end
   local pr = CreateFromMixins(MapCanvasDataProviderMixin)
   function pr:RemoveAllData() self:GetMap():RemoveAllPinsByTemplate(TEMPLATE) end
   function pr:RefreshAllData()
@@ -307,9 +313,12 @@ local function useProvider()
     local map = m:GetMapID()
     if not (P.MapOn() and map) then return end
     local alpha = P.Alpha()
-    for _, p in ipairs(P.PinsFor(map)) do m:AcquirePin(TEMPLATE, p, alpha) end
+    local pins = P.PinsFor(map)
+    for _, p in ipairs(pins) do m:AcquirePin(TEMPLATE, p, alpha) end
+    P.lastWorld = { map = map, n = #pins, mode = "the map's own pins" }
   end
-  if pcall(W.AddDataProvider, W, pr) then provider = pr end
+  local ok, err = pcall(W.AddDataProvider, W, pr)
+  if ok then provider, P.providerMissing = pr, nil else P.providerMissing = "AddDataProvider failed: " .. tostring(err) end
   return provider
 end
 P.UseProvider = useProvider
@@ -329,6 +338,8 @@ function P.RefreshWorld()
     worldOverlay = CreateFrame("Frame", nil, canvas)
     worldOverlay:SetAllPoints(canvas)
     if worldOverlay.SetFrameLevel and canvas.GetFrameLevel then worldOverlay:SetFrameLevel((canvas:GetFrameLevel() or 0) + 20) end
+    -- the map can size its canvas after showing: place the squares again by its new size
+    worldOverlay:SetScript("OnSizeChanged", function() P.RefreshWorld() end)
   end
   for _, f in ipairs(worldPool) do f:Hide() end
   local map = W.GetMapID and W:GetMapID()
@@ -345,6 +356,7 @@ function P.RefreshWorld()
     f:ClearAllPoints()
     f:SetPoint("CENTER", worldOverlay, "TOPLEFT", p[1] * w, -p[2] * h)
   end
+  P.lastWorld = { map = map, n = #pins, mode = ("own layer, canvas %dx%d"):format(w or 0, h or 0) }
   return #pins
 end
 

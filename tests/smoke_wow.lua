@@ -2952,9 +2952,14 @@ do
   assert(#P.Spots("Copper Vein", 1438) > 0 and P.Canonical("Large Chunk of Amber") == "Copper Vein", "Amber is Copper Vein (Teldrassil)")
   local savedSkills = Core.Skills
   -- Mining on the Tin step, and Herbalism: both routes' nodes
-  Core.Skills = function() return { [186] = { rank = 75, max = 150 }, [182] = { rank = 1, max = 75 } } end
+  -- right after login the game may report Mining before Herbalism: that first answer can't stick
+  Core.Skills = function() return { [186] = { rank = 75, max = 150 } } end
   P.Invalidate()
-  local w = P.Wanted()
+  local early = P.Wanted()
+  assert(not early["Peacebloom"] and not early["Silverleaf"], "Mining only: no herbs yet")
+  Core.Skills = function() return { [186] = { rank = 75, max = 150 }, [182] = { rank = 1, max = 75 } } end
+  local w = P.Wanted() -- no event, no Invalidate: the ranks changed
+  assert(w["Peacebloom"] or w["Silverleaf"], "Herbalism reported later: its nodes appear")
   assert(w["Tin Vein"] == "step" and w["Silver Vein"] == "rare" and w["Incendicite Mineral Vein"] == "rare", "Tin step (75) + its rare veins, as on its tooltip")
   assert(w["Peacebloom"] == "step" or w["Silverleaf"] == "step", "and Herbalism's step")
   -- finds: a gather near a known spot isn't saved; elsewhere it is, once
