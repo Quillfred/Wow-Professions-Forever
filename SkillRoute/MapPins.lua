@@ -165,16 +165,57 @@ end
 
 -- every pin for a zone map: { {x, y, name, role, find}, ... } (kept until the nodes or
 -- your finds change: the minimap reads it a few times a second)
+local SAME_SPOT_YARDS = 15 -- spots of one kind (ore, herb) this close are one spot: the data has
+                           -- some twice, and herbs share spawn points (the other names go in p[6])
+local ROLE_ORDER = { step = 1, alt = 2, rare = 3 }
 function P.PinsFor(map)
   local w = P.Wanted()
   local c = pinsCache[map]
   if c and c.finds == P.FindCount() then return c.list end
-  local out = {}
+  local all = {}
   for name, role in pairs(w) do
     local s = P.Spots(name, map)
-    for i = 1, #s, 2 do out[#out + 1] = { s[i], s[i + 1], name, role } end
+    for i = 1, #s, 2 do all[#all + 1] = { s[i], s[i + 1], name, role } end
     local f = P.Finds(name, map)
-    for i = 1, #f, 2 do out[#out + 1] = { f[i], f[i + 1], name, role, true } end
+    for i = 1, #f, 2 do all[#all + 1] = { f[i], f[i + 1], name, role, true } end
+  end
+  -- the step's node stands for a merged spot before an alternative or a rare one
+  table.sort(all, function(a, b)
+    local ra, rb = ROLE_ORDER[a[4]] or 9, ROLE_ORDER[b[4]] or 9
+    if ra ~= rb then return ra < rb end
+    if (a[5] and 1 or 0) ~= (b[5] and 1 or 0) then return not a[5] end
+    if a[3] ~= b[3] then return a[3] < b[3] end
+    if a[1] ~= b[1] then return a[1] < b[1] end
+    return a[2] < b[2]
+  end)
+  local yw, yh = P.MapYards(map)
+  yw, yh = yw or 4000, yh or 2667
+  local cell, grid, out = SAME_SPOT_YARDS, {}, {}
+  for _, p in ipairs(all) do
+    local kind = P.Kind(p[3]) or "ore"
+    local gx, gy = math.floor(p[1] * yw / cell), math.floor(p[2] * yh / cell)
+    local near
+    for dx = -1, 1 do
+      for dy = -1, 1 do
+        for _, q in ipairs(grid[(gx + dx) .. ":" .. (gy + dy)] or {}) do
+          if not near and q.kind == kind and ((q[1] - p[1]) * yw) ^ 2 + ((q[2] - p[2]) * yh) ^ 2 <= cell * cell then near = q end
+        end
+      end
+    end
+    if near then
+      if near[3] ~= p[3] then
+        near[6] = near[6] or {}
+        local dup = false
+        for _, a in ipairs(near[6]) do if a == p[3] then dup = true end end
+        if not dup then near[6][#near[6] + 1] = p[3] end
+      end
+    else
+      p.kind = kind
+      out[#out + 1] = p
+      local key = gx .. ":" .. gy
+      grid[key] = grid[key] or {}
+      table.insert(grid[key], p)
+    end
   end
   pinsCache[map] = { finds = P.FindCount(), list = out }
   return out
@@ -207,7 +248,7 @@ local function newPin(parent)
   return f
 end
 local function styled(f, p, size, alpha)
-  f.pin = p
+  f.pin, f.also = p, p[6]
   f:SetSize(size, size)
   f.tex:SetTexture(ICON[P.Kind(p[3]) or "ore"])
   if p[5] then f.tex:SetVertexColor(1, 0.85, 0.5) else f.tex:SetVertexColor(1, 1, 1) end
@@ -319,6 +360,7 @@ function P.RefreshMinimap()
         local f = miniPool[n] or newMiniPin(Minimap)
         miniPool[n] = f
         f.kind, f.ox, f.oy, f.also = kind, ox, oy, {}
+        for _, a in ipairs(p[6] or {}) do f.also[#f.also + 1] = a end
         styledMini(f, p, 14, alpha)
         f:ClearAllPoints()
         f:SetPoint("CENTER", Minimap, "CENTER", ox, oy)

@@ -2969,6 +2969,25 @@ do
   assert(P.Record("Tin Vein", 1413, 0.995, 0.995, "ore") and P.FindCount() == 1, "nowhere near one: saved")
   assert(not P.Record("Tin Vein", 1413, 0.995 + 3 / 5000, 0.995), "3 yd from your find: the same spot")
   assert(P.Record("Large Chunk of Amber", 1411, 0.001, 0.001, "ore") and #P.Finds("Copper Vein", 1411) == 2, "saved as Copper Vein")
+  -- spots of one kind within 15 yards are one spot (the step's node in front, the others named)
+  do
+    local realSpots, realWanted, realKind = P.Spots, P.Wanted, P.Kind
+    P.Spots = function(name, map)
+      if map ~= 9999 then return {} end
+      return ({ Rare = { 0.5, 0.5 }, Step = { 0.5 + 10 / 5000, 0.5, 0.5 + 30 / 5000, 0.5 }, Herb = { 0.5, 0.5 } })[name] or {}
+    end
+    P.Wanted = function() return { Step = "step", Rare = "rare", Herb = "step" } end
+    P.Kind = function(n) return n == "Herb" and "herb" or "ore" end
+    P.Invalidate()
+    local pins = P.PinsFor(9999)
+    local byName = {}
+    for _, q in ipairs(pins) do byName[#byName + 1] = q[3] .. (q[6] and ("+" .. table.concat(q[6], ",")) or "") end
+    table.sort(byName)
+    assert(#pins == 3 and table.concat(byName, " ") == "Herb Step Step+Rare",
+      "10 yd: one spot (Step, also Rare); 30 yd: its own; a herb beside an ore stays: " .. table.concat(byName, " "))
+    P.Spots, P.Wanted, P.Kind = realSpots, realWanted, realKind
+    P.Invalidate()
+  end
   -- the gather events: the cast's target is the node
   local realZone, realGSI = P.PlayerZone, _G.GetSpellInfo
   _G.GetSpellInfo = function(id) return ({ [2575] = "Mining", [2366] = "Herb Gathering" })[id] end
@@ -3016,6 +3035,9 @@ do
   local t0 = os.clock()
   for _ = 1, 200 do P.RefreshMinimap() end
   print(("minimap pins: %.3f ms per update (%d spots in the zone, 5 updates a second)"):format((os.clock() - t0) / 200 * 1000, #P.PinsFor(1413)))
+  t0 = os.clock()
+  for _ = 1, 20 do P.Invalidate(); P.PinsFor(1413) end
+  print(("zone spots, merged: %.2f ms to build (only when your skill or route changes)"):format((os.clock() - t0) / 20 * 1000))
   rawset(_G.Minimap, "IsShown", mm)
   _G.WorldMapFrame = nil
   P.PlayerZone, _G.GetSpellInfo, _G.C_Map, _G.CreateVector2D = realZone, realGSI, savedC, savedV
