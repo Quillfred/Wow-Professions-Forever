@@ -191,6 +191,9 @@ local function pinTip(self)
   GameTooltip:AddLine(ROLE_TEXT[p[4]] or "", 1, 0.82, 0)
   GameTooltip:AddLine(p[5] and "A spot you found: not in the map data" or "A spot where it can spawn; it may not be up now",
     1, 1, 1, true)
+  if self.also and #self.also > 0 then -- spots merged into this square on the minimap
+    GameTooltip:AddLine("Also here: " .. table.concat(self.also, ", "), 1, 0.82, 0, true)
+  end
   GameTooltip:Show()
 end
 local function newPin(parent)
@@ -296,15 +299,30 @@ function P.RefreshMinimap()
   local rotate = GetCVar and GetCVar("rotateMinimap") == "1"
   local facing = rotate and GetPlayerFacing and GetPlayerFacing() or nil
   local n, alpha = 0, P.Alpha()
+  local MERGE = 8 -- px (squares are 14): spots of the same kind closer than this share one square
   for _, p in ipairs(P.PinsFor(map)) do
     local ox, oy = P.MinimapOffset((p[1] - px) * w, (p[2] - py) * h, radiusYd, radiusPx, facing)
     if ox then
-      n = n + 1
-      local f = miniPool[n] or newMiniPin(Minimap)
-      miniPool[n] = f
-      styledMini(f, p, 14, alpha)
-      f:ClearAllPoints()
-      f:SetPoint("CENTER", Minimap, "CENTER", ox, oy)
+      local kind, near = P.Kind(p[3]) or "ore", nil
+      for i = 1, n do
+        local g = miniPool[i]
+        if g.kind == kind and (g.ox - ox) ^ 2 + (g.oy - oy) ^ 2 < MERGE * MERGE then near = g; break end
+      end
+      if near then
+        if near.pin[3] ~= p[3] then
+          local dup = false
+          for _, a in ipairs(near.also) do if a == p[3] then dup = true end end
+          if not dup then near.also[#near.also + 1] = p[3] end
+        end
+      else
+        n = n + 1
+        local f = miniPool[n] or newMiniPin(Minimap)
+        miniPool[n] = f
+        f.kind, f.ox, f.oy, f.also = kind, ox, oy, {}
+        styledMini(f, p, 14, alpha)
+        f:ClearAllPoints()
+        f:SetPoint("CENTER", Minimap, "CENTER", ox, oy)
+      end
     end
   end
   return n

@@ -65,6 +65,8 @@
 - On the minimap the spots are hollow squares (copper for ores, green for herbs, gold for
   your finds), so the game's own yellow tracking blip shows through the middle; the
   game draws its blips under anything an addon puts on the minimap.
+  Spots of the same kind that would overlap share one square; its tooltip names every
+  node there ("Also here: Silverleaf").
 - Gathering routes in the mini panel and tracker: the step now says where to go (its
   three best zones, your faction's first), counts as a step ("13 steps left"), and the
   Craft buttons and "Left to buy" make way for "Nodes in all". A gathering step's tooltip

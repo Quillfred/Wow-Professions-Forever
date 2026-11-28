@@ -3003,6 +3003,16 @@ do
   local ring
   for _, f in ipairs(frames) do if rawget(f, "edges") and rawget(f, "pin") and f.shown then ring = f end end
   assert(ring and #ring.edges == 4 and not rawget(ring, "tex"), "on the minimap: a hollow square, so the game's blip shows through")
+  -- two spots of the same kind a few yards apart: one square, both named in its tooltip
+  local twoPins = { { sp[1], sp[2], "Tin Vein", "step" }, { sp[1] + 3 / 5000, sp[2], "Silver Vein", "rare" },
+                    { sp[1] + 2 / 5000, sp[2] + 1 / 3000, "Tin Vein", "step" } }
+  local realPins = P.PinsFor
+  P.PinsFor = function() return twoPins end
+  assert(P.RefreshMinimap() == 1, "close spots merge into one square")
+  local merged
+  for _, f in ipairs(frames) do if rawget(f, "edges") and f.shown and rawget(f, "also") then merged = f end end
+  assert(merged and #merged.also == 1 and merged.also[1] == "Silver Vein", "its tooltip names the other node once")
+  P.PinsFor = realPins
   local t0 = os.clock()
   for _ = 1, 200 do P.RefreshMinimap() end
   print(("minimap pins: %.3f ms per update (%d spots in the zone, 5 updates a second)"):format((os.clock() - t0) / 200 * 1000, #P.PinsFor(1413)))
