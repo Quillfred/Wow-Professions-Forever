@@ -294,10 +294,7 @@ end
 local function build()
   panel = CreateFrame("Frame", "SkillRouteOptions", UIParent, "BasicFrameTemplateWithInset")
   panel:SetSize(380, 560)
-  panel:SetPoint("CENTER", 220, 0)
-  panel:SetMovable(true); panel:EnableMouse(true); panel:RegisterForDrag("LeftButton")
-  panel:SetScript("OnDragStart", panel.StartMoving)
-  panel:SetScript("OnDragStop", panel.StopMovingOrSizing)
+  UI.Draggable(panel, "optionsPos", "CENTER", 220, 0) -- opens where you left it
   panel:SetClampedToScreen(true)
   panel:SetFrameStrata("DIALOG"); panel:SetToplevel(true) -- always above the route window
   panel:SetScript("OnShow", function(self)

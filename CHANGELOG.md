@@ -2,6 +2,8 @@
 
 ## 0.38.5 (not released yet)
 
+- Fixed: the full route window and the options window went back to the middle of the
+  screen after a reload. They now open where you last dragged them.
 - **Fixed: Merchant's Favor patterns.** Forever's profession vendors in the Barrens
   (Horde) and Redridge Mountains (Alliance) sell their patterns for Merchant's Favor
   only, but SkillRoute priced about 290 of them in gold, so a route could plan on

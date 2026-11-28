@@ -2661,6 +2661,27 @@ do
   Core.InvalidatePatterns()
 end
 
+-- the route window and options open where you left them (saved, kept across reloads)
+do
+  local f = CreateFrame("Frame")
+  local pts = {}
+  f.ClearAllPoints = function() pts = {} end
+  f.SetPoint = function(_, a, rel, b, x, y) pts[#pts + 1] = { a, b, x, y } end
+  SkillRouteDB.settings.testPos = nil
+  UI.Draggable(f, "testPos", "CENTER", 220, 0)
+  assert(pts[1][1] == "CENTER" and pts[1][3] == 220, "first time: the default spot")
+  f.GetLeft, f.GetTop = function() return 300.4 end, function() return 900.6 end
+  f.OnDragStop(f)
+  assert(SkillRouteDB.settings.testPos[1] == 300 and SkillRouteDB.settings.testPos[2] == 901, "dragged: saved")
+  local g = CreateFrame("Frame") -- after a reload: a new frame
+  local gp
+  g.ClearAllPoints = function() end
+  g.SetPoint = function(_, a, rel, b, x, y) gp = { a, b, x, y } end
+  UI.Draggable(g, "testPos", "CENTER", 220, 0)
+  assert(gp[1] == "TOPLEFT" and gp[2] == "BOTTOMLEFT" and gp[3] == 300 and gp[4] == 901, "reopens where you left it")
+  SkillRouteDB.settings.testPos = nil
+end
+
 -- /sr check runs and reports; errors are caught, not thrown
 do
   local out = {}

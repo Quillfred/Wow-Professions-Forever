@@ -1029,15 +1029,36 @@ end
 function UI.Rows() return rows end
 function UI._lastPlan() return lastPlan end -- for the tests
 
+-- A window you can drag, that opens where you left it (saved in settings[key], kept
+-- across reloads and characters). place() puts it back; call it when it's built.
+function UI.Draggable(f, key, point, x, y)
+  local function place()
+    local p = (SkillRouteDB.settings or {})[key]
+    f:ClearAllPoints()
+    if p then f:SetPoint("TOPLEFT", UIParent, "BOTTOMLEFT", p[1], p[2])
+    else f:SetPoint(point or "CENTER", UIParent, point or "CENTER", x or 0, y or 0) end
+  end
+  f:SetMovable(true)
+  f:EnableMouse(true)
+  f:RegisterForDrag("LeftButton")
+  f:SetScript("OnDragStart", f.StartMoving)
+  f:SetScript("OnDragStop", function(self)
+    self:StopMovingOrSizing()
+    local l, t = self:GetLeft(), self:GetTop()
+    if l and t then
+      SkillRouteDB.settings = SkillRouteDB.settings or {}
+      SkillRouteDB.settings[key] = { math.floor(l + 0.5), math.floor(t + 0.5) }
+    end
+    place() -- anchored to the saved spot, not wherever the drag left its points
+  end)
+  place()
+  return place
+end
+
 local function build()
   frame = CreateFrame("Frame", "SkillRouteFrame", UIParent, "BasicFrameTemplateWithInset")
   frame:SetSize(600, 560)
-  frame:SetPoint("CENTER")
-  frame:SetMovable(true)
-  frame:EnableMouse(true)
-  frame:RegisterForDrag("LeftButton")
-  frame:SetScript("OnDragStart", frame.StartMoving)
-  frame:SetScript("OnDragStop", frame.StopMovingOrSizing)
+  UI.Draggable(frame, "routePos")
   frame:SetClampedToScreen(true)
   frame:SetScript("OnShow", function() Core.InvalidatePatterns(); UI.Refresh() end)
   frame:SetScript("OnHide", function() autoOpened = false end)
