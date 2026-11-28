@@ -104,7 +104,8 @@ function Core.Check()
     for _ in pairs(MP.Wanted()) do wantN = wantN + 1 end
     local lw = MP.lastWorld
     line(("%s map spots: %d node types for your routes; last world map %s"):format(wantN > 0 and OK or WARN, wantN,
-      lw and lw.map and ("%d (type %s): %s"):format(lw.map, tostring(lw.type), lw.n and (lw.n .. " spots drawn") or lw.why)
+      lw and lw.map and ("%d (type %s): %s, %s"):format(lw.map, tostring(lw.type), lw.n and (lw.n .. " spots drawn") or lw.why,
+        lw.mode or ("own layer %sx%s"):format(tostring(lw.w and math.floor(lw.w)), tostring(lw.h and math.floor(lw.h))))
          or (lw and lw.why or "not opened yet")))
   end
 

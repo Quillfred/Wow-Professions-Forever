@@ -1,0 +1,16 @@
+<Ui xmlns="http://www.blizzard.com/wow/ui/">
+  <!-- A gathering spot on the world map (MapPins.lua: SkillRouteMapPinMixin, from the map's own pin mixin) -->
+  <Frame name="SkillRouteMapPinTemplate" mixin="SkillRouteMapPinMixin" virtual="true">
+    <Size x="14" y="14"/>
+    <Layers>
+      <Layer level="OVERLAY">
+        <Texture parentKey="tex" setAllPoints="true"/>
+      </Layer>
+    </Layers>
+    <Scripts>
+      <OnLoad method="OnLoad"/>
+      <OnEnter method="OnMouseEnter"/>
+      <OnLeave method="OnMouseLeave"/>
+    </Scripts>
+  </Frame>
+</Ui>
