@@ -4,11 +4,11 @@
 
 - **Fixed: Merchant's Favor patterns.** Forever's profession vendors in the Barrens
   (Horde) and Redridge Mountains (Alliance) sell their patterns for Merchant's Favor
-  only, but SkillRoute priced about 280 of them in gold, so a route could plan on
+  only, but SkillRoute priced about 290 of them in gold, so a route could plan on
   patterns you can't buy with gold. Now:
   - a Favor pattern costs no gold and is only used within your Favor balance, and only
-    with the reputation it needs with your side's trade faction (182 need Friendly or
-    Honored)
+    with the reputation it needs with your side's trade faction (184 of 315 need
+    Friendly or Honored), Cooking's Smoothies included
   - the route says where: "Buy pattern from Jim'bek (60 Favor)", with a waypoint, and
     its tooltip shows your balance and any reputation needed
   - the shopping list shows "60 Favor" instead of a gold price

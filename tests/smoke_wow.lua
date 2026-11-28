@@ -2588,6 +2588,12 @@ do
   for _, id in ipairs(ids) do names[#names + 1] = SkillRouteData.npcs[id][1] end
   table.sort(names)
   assert(table.concat(names, ",") == "Jim'bek,Mivin Shadowweave", "sold by Jim'bek / Mivin: " .. table.concat(names, ","))
+  -- Cooking too: the Smoothies, at Aza'bek (Horde) and Kalsey Sanden (Alliance)
+  assert(F.patterns[249885][1] == 30 and F.patterns[249890][1] == 90 and F.patterns[249890][2] == 5, "Smoothies: 30..90 Favor")
+  local chefs = {}
+  for _, id in ipairs(SkillRouteData.vendorNpcs[249885]) do chefs[#chefs + 1] = SkillRouteData.npcs[id][1] end
+  table.sort(chefs)
+  assert(table.concat(chefs, ",") == "Aza'bek,Kalsey Sanden", "Smoothies sold by: " .. table.concat(chefs, ","))
 
   local savedCI, savedRep = _G.C_CurrencyInfo, _G.C_Reputation
   local balance, reaction = 0, 4 -- Neutral

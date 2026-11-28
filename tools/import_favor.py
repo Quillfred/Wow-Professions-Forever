@@ -44,9 +44,15 @@ def vendor_blocks(att):
 
 
 def recipes_in(block):
-    """{itemID: (name, favor)} of the patterns in one vendor's block."""
-    return {int(m.group(1)): (m.group(2), int(m.group(3))) for m in re.finditer(
-        r'i\((\d+), \{\t-- ([^\n]+?) \(RECIPE!\)\n\s*cost = \{\{ "c", MERCHANTS_FAVOR, (\d+) \}\}', block)}
+    """{itemID: (name, favor)} of the patterns in one vendor's block. ATT writes the cost
+    two ways: {{ "c", MERCHANTS_FAVOR, 30 }} and { { "c", 3402, 30 } } (the chefs), the
+    latter sometimes after a minReputation line."""
+    out = {}
+    for m in re.finditer(r'i\((\d+), \{\t-- ([^\n]+?) \(RECIPE!\)\n((?:[^\n]*\n){1,3}?)\s*\}\)', block):
+        c = re.search(r'cost = \{ ?\{ "c", (?:MERCHANTS_FAVOR|%d), (\d+) \} ?\}' % CURRENCY, m.group(3))
+        if c:
+            out[int(m.group(1))] = (m.group(2), int(c.group(1)))
+    return out
 
 
 def favor_items(att):
@@ -92,8 +98,19 @@ def main():
 
     rep = json.load(open(os.path.join(HERE, "favor_rep.json"), encoding="utf-8"))["rep"]
     npcs, patterns, sellers = [], {}, {}
-    for nid, name, title, side, mconst, zx, zy, block in vendor_blocks(att):
+    vendors = vendor_blocks(att)
+    # The two sides' vendors of a profession sell the same Favor patterns (checked: same
+    # lists and costs). Where ATT has one side's list and not the other's (Aza'bek, the
+    # Horde chef, seen selling the Smoothies in game), use the other side's.
+    by_title = {}
+    for v in vendors:
+        by_title.setdefault((v[2], v[3]), recipes_in(v[7]))
+    for nid, name, title, side, mconst, zx, zy, block in vendors:
         rec = recipes_in(block)
+        if not rec and PROF.get(title):
+            rec = by_title.get((title, "A" if side == "H" else "H")) or {}
+            if rec:
+                print(f"note: {name} ({side}): no Favor list in ATT; using the other side's {title} list ({len(rec)})")
         if not rec:
             continue  # supply officers, mule handlers: no patterns
         ui = maps[mconst]
